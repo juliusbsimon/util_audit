@@ -2,7 +2,7 @@
 
 **Oracle Column-Level Audit Utility**
 
-util_audit is a lightweight, trigger-based **column-level auditing framework for Oracle databases**.  
+`util_audit` is a lightweight, trigger-based **column-level auditing framework for Oracle databases**.  
 It captures **per-column changes** (old value → new value) for INSERT, UPDATE, and DELETE operations, with minimal setup and no dependency on Oracle Unified Auditing.
 
 This utility is intended for **compliance, traceability, and forensic analysis** in transactional systems where knowing *exactly what changed* is critical.
@@ -16,6 +16,7 @@ This utility is intended for **compliance, traceability, and forensic analysis**
 - Logs old value and new value per column
 - Captures user, timestamp, table, and primary key
 - Trigger-based, fully transparent
+- Supports automatic trigger generation
 - No APEX, ORDS, or database-version lock-in
 
 ---
@@ -30,6 +31,7 @@ The installation script creates:
 - Supporting indexes for audit lookups
 - An audit package: UTIL_AUDIT
 - Datatype-safe comparison and logging utilities
+- Helper procedures for generating audit triggers
 
 There are no runtime dependencies beyond standard Oracle SQL and PL/SQL.
 
@@ -43,16 +45,16 @@ All audited changes are stored in:
 
 Each audit record contains:
 
-- TABLE_NAME – table being audited
-- PK_VALUE – primary key value of the affected row
-- COLUMN_NAME – column that changed
-- DATA_TYPE – column datatype
-- TRANSACTION_TYPE – INSERT / UPDATE / DELETE
-- USERNAME – database user
-- OLD_VALUE – value before the change
-- NEW_VALUE – value after the change
-- AUDIT_DATE – timestamp of the change
-- TRANSACTION_ID – optional transaction grouping
+- TABLE_NAME – table being audited  
+- PK_VALUE – primary key value of the affected row  
+- COLUMN_NAME – column that changed  
+- DATA_TYPE – column datatype  
+- TRANSACTION_TYPE – INSERT / UPDATE / DELETE  
+- USERNAME – database user  
+- OLD_VALUE – value before the change  
+- NEW_VALUE – value after the change  
+- AUDIT_DATE – timestamp of the change  
+- TRANSACTION_ID – optional transaction grouping  
 
 Each column change generates **one audit row**.
 
@@ -78,22 +80,47 @@ Datatype handling is performed safely inside the UTIL_AUDIT package.
 
 ## Trigger Naming Convention (Required)
 
-Audit triggers must follow this naming pattern:
+Audit triggers follow this naming pattern:
 
     BUID_<TABLE_NAME>_AUD
 
 Example:
 
-    BUID_EMPLOYEES_AUD
+    BUID_DEMO_AUD
 
-This convention allows the package to recognize and manage audit triggers consistently.
+This convention allows the package to manage audit triggers consistently.
+
+---
+
+## Automatic Trigger Generation (Recommended)
+
+Instead of writing audit triggers manually, you can **auto-generate** a column-level audit trigger for an entire table using the built-in helper procedure.
+
+### Example: Generate an audit trigger for a table
+
+    BEGIN
+        util_audit.add_table_audit_trig(
+            p_table_name => 'DEMO',
+            p_action     => 'EXECUTE'
+        );
+    END;
+    /
+
+What this does:
+
+- Inspects the table structure
+- Identifies supported columns
+- Generates a BEFORE INSERT / UPDATE / DELETE trigger
+- Registers column-level audit logic automatically
+
+This is the **preferred approach** for onboarding new tables.
 
 ---
 
 ## How Auditing Works
 
-1. A BEFORE INSERT OR UPDATE OR DELETE trigger is created
-2. The trigger calls UTIL_AUDIT.CHECK_VAL(...) per column
+1. An audit trigger is created (manually or automatically)
+2. The trigger calls UTIL_AUDIT logic per column
 3. The package:
    - Compares old vs new values
    - Detects real changes
@@ -103,35 +130,13 @@ No audit row is written if a column value did not change.
 
 ---
 
-## Example Trigger
-
-    CREATE OR REPLACE TRIGGER buid_employees_aud
-    BEFORE INSERT OR UPDATE OR DELETE ON employees
-    FOR EACH ROW
-    BEGIN
-        util_audit.check_val(
-            p_table_name  => 'EMPLOYEES',
-            p_pk_value    => :NEW.employee_id,
-            p_column_name => 'SALARY',
-            p_old_value   => :OLD.salary,
-            p_new_value   => :NEW.salary,
-            p_data_type   => 'NUMBER'
-        );
-    END;
-    /
-
-Repeat CHECK_VAL calls only for columns you want audited.
-
----
-
 ## Querying Audit Data
 
 View column change history:
 
     SELECT *
     FROM util_audit_records
-    WHERE table_name = 'EMPLOYEES'
-      AND column_name = 'SALARY'
+    WHERE table_name = 'DEMO'
     ORDER BY audit_date DESC;
 
 View changes by user:
@@ -161,7 +166,7 @@ No additional configuration required.
 ## Performance Considerations
 
 - Column-level auditing introduces overhead
-- Audit only business-critical columns
+- Audit only business-critical tables and columns
 - Avoid blanket auditing on high-volume tables
 - Index UTIL_AUDIT_RECORDS appropriately
 - Purge or archive old audit data periodically
@@ -177,7 +182,7 @@ Use util_audit when:
 - Compliance or regulatory tracking is required
 - You need who-changed-what visibility
 - Oracle Unified Auditing is unavailable or too coarse
-- Full control over audit logic is required
+- You want fast, repeatable audit onboarding
 
 ---
 
@@ -192,5 +197,4 @@ Avoid using this utility for:
 ---
 
 ## License
-
-Free for all uses.
+Free for all uses
