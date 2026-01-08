@@ -2,7 +2,7 @@
 
 **Oracle Column-Level Audit Utility**
 
-`util_audit` is a lightweight, trigger-based **column-level auditing framework for Oracle databases**.  
+util_audit is a lightweight, trigger-based **column-level auditing framework for Oracle databases**.  
 It captures **per-column changes** (old value → new value) for INSERT, UPDATE, and DELETE operations, with minimal setup and no dependency on Oracle Unified Auditing.
 
 This utility is intended for **compliance, traceability, and forensic analysis** in transactional systems where knowing *exactly what changed* is critical.
@@ -193,5 +193,4 @@ Avoid using this utility for:
 
 ## License
 
-No license specified.  
-Add one if public or commercial reuse is intended.
+Free for all uses.
