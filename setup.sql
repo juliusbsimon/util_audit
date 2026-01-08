@@ -430,6 +430,65 @@ create PACKAGE BODY util_audit AS
     BEGIN
         RETURN substr(p_table_name, 1, 30);
     END trim_table_name;
+
+    function get_audit_context
+        return varchar2 as
+
+        v_ctx varchar2(32767);
+        v_req varchar2(4000);
+
+        procedure add_pair(k varchar2, v varchar2) is
+        begin
+            if v is not null then
+                v_ctx := v_ctx || k || '=' || replace(v, '|', '/') || '|';
+            end if;
+        end;
+    begin
+        /* APEX context (only if present) */
+        if sys_context('APEX$SESSION', 'APP_ID') is not null then
+            add_pair('app', sys_context('APEX$SESSION', 'APP_ID'));
+            add_pair('page', sys_context('APEX$SESSION', 'APP_PAGE_ID'));
+            add_pair('sess', coalesce(sys_context('APEX$SESSION', 'APP_SESSION'),
+                                      sys_context('APEX$SESSION', 'SESSION')));
+            add_pair('user', coalesce(sys_context('APEX$SESSION', 'APP_USER'),
+                                      sys_context('APEX$SESSION', 'USER')));
+            add_pair('workspace', coalesce(sys_context('APEX$SESSION', 'WORKSPACE'),
+                                           sys_context('APEX$SESSION', 'WORKSPACE_ID')));
+
+            -- Try to fetch REQUEST from APEX runtime (not exposed in APEX$SESSION)
+            begin
+                execute immediate 'begin :x := apex_application.g_request; end;'
+                    using out v_req;
+            exception
+                when others then null;
+            end;
+
+            if v_req is null then
+                begin
+                    execute immediate 'begin :x := apex_util.get_session_state(''REQUEST''); end;'
+                        using out v_req;
+                exception
+                    when others then null;
+                end;
+            end if;
+
+            add_pair('req', v_req);
+        end if;
+
+        /* USERENV & connection details (always available) */
+        add_pair('module', sys_context('USERENV', 'MODULE')); -- 48b
+        add_pair('action', sys_context('USERENV', 'ACTION')); -- 32b
+        add_pair('client_id', sys_context('USERENV', 'CLIENT_IDENTIFIER'));
+        add_pair('client_info', sys_context('USERENV', 'CLIENT_INFO'));
+        add_pair('ip', sys_context('USERENV', 'IP_ADDRESS'));
+        add_pair('host', sys_context('USERENV', 'HOST'));
+        add_pair('machine', sys_context('USERENV', 'TERMINAL'));
+        add_pair('sid', sys_context('USERENV', 'SID'));
+        add_pair('os_user', sys_context('USERENV', 'OS_USER'));
+        add_pair('schema', sys_context('USERENV', 'CURRENT_SCHEMA'));
+
+        return substr(v_ctx, 1, 4000);
+    end get_audit_context;
 -------------------------------------------------------------------------------------
 -- OUTPUT_SQL
 -------------------------------------------------------------------------------------
@@ -461,28 +520,43 @@ create PACKAGE BODY util_audit AS
 
 
     PROCEDURE output_sql_clob(
-        p_sql IN CLOB
-    , p_action IN VARCHAR2
+        p_sql IN CLOB,
+        p_action IN VARCHAR2
     ) IS
         cursor_name    INTEGER;
         rows_processed INTEGER;
+        v_offset       INTEGER := 1;
+        v_chunk        VARCHAR2(32767);
+        v_len          INTEGER;
     BEGIN
         IF p_action = 'EXECUTE' THEN
+            cursor_name := dbms_sql.open_cursor;
             BEGIN
-                cursor_name := dbms_sql.open_cursor;
                 dbms_sql.parse(cursor_name, p_sql, dbms_sql.native);
                 rows_processed := dbms_sql.execute(cursor_name);
-                dbms_sql.close_cursor(cursor_name);
             EXCEPTION
                 WHEN OTHERS THEN
-                    dbms_sql.close_cursor(cursor_name);
+                    IF dbms_sql.is_open(cursor_name) THEN
+                        dbms_sql.close_cursor(cursor_name);
+                    END IF;
                     RAISE;
             END;
+            dbms_sql.close_cursor(cursor_name);
 
         ELSIF p_action = 'GENERATE' THEN
-            dbms_output.put_line(p_sql || chr(10) || chr(10));
+            v_len := dbms_lob.getlength(p_sql);
+
+            WHILE v_offset <= v_len
+                LOOP
+                    v_chunk := dbms_lob.substr(p_sql, 32767, v_offset);
+                    dbms_output.put_line(v_chunk);
+                    v_offset := v_offset + 32767;
+                END LOOP;
+
+            dbms_output.put_line(chr(10)); -- spacing if desired
         END IF;
     END output_sql_clob;
+
 -- ==================================================================================
 --  P U B L I C   M E T H O D S
 -- ==================================================================================
@@ -641,12 +715,12 @@ create PACKAGE BODY util_audit AS
         --
         -- This section creates the transaction id that will link all the individual audit records together for a single transaction.
         --
-        dbms_lob.append(v_sql, q'!     -- !' || chr(13));
-        dbms_lob.append(v_sql, q'!     -- Generate a transaction ID for this I/U/D event !' || chr(13));
-        dbms_lob.append(v_sql, q'!     -- !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     -- Generate a transaction ID for this I/U/D event !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
         dbms_lob.append(v_sql,
                         q'!     l_txn_id := to_number(sys_guid(), 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');  !' || chr(13));
-        dbms_lob.append(v_sql, q'!     -- !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
         --
         -- Figure out which type of transaction this is
         --
@@ -661,7 +735,7 @@ create PACKAGE BODY util_audit AS
         -- Next we start createing the JSON object.
         --  * first we create the JSON elements that are common to the entire transaction
         --
-        dbms_lob.append(v_sql, q'!     -- Create the base JSON object with the top level details !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     -- Create the base JSON object with the top level details !' || chr(13));
         --     dbms_lob.append(v_sql , q'!     -- !' || chr(13));
         --  ** Table Name
         dbms_lob.append(v_sql, q'!     v_audit_json.put('table_name', '!' || v_table_name || q'!'); !' || chr(13));
@@ -676,7 +750,7 @@ create PACKAGE BODY util_audit AS
         -- ** Transaction id
         dbms_lob.append(v_sql, q'!     v_audit_json.put('transaction_id', l_txn_id); !' || chr(13));
         -- ** Primary Key data
-        dbms_lob.append(v_sql, q'!     -- Pick the value of the PK if its available !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     -- Pick the value of the PK if its available !' || chr(13));
         dbms_lob.append(v_sql, q'!     IF INSERTING then !' || chr(13));
         dbms_lob.append(v_sql, q'!          v_audit_json.put('pk_value', :new.!' || v_pk_col || q'!); !' || chr(13));
 
@@ -714,9 +788,9 @@ create PACKAGE BODY util_audit AS
                                            q'! is not null)!'
                         || q'! OR DELETING or INSERTING THEN !' || chr(32));
 
-                    dbms_lob.append(v_sql, q'!       -- Clear the temporary JSON object !' || chr(13));
+                    --dbms_lob.append(v_sql, q'!       -- Clear the temporary JSON object !' || chr(13));
                     dbms_lob.append(v_sql, q'!       v_temp_json := v_empty_json; !' || chr(13));
-                    dbms_lob.append(v_sql, q'!       -- add the details for the change !' || chr(13));
+                    --dbms_lob.append(v_sql, q'!       -- add the details for the change !' || chr(13));
                     dbms_lob.append(v_sql, q'!       v_temp_json.put('column_name', '!' || r.column_name || q'!'); !' ||
                                            chr(13));
 
@@ -731,7 +805,7 @@ create PACKAGE BODY util_audit AS
                                     q'!       v_temp_json.put('new_value', :new.!' || r.column_name || q'!); !' ||
                                     chr(13));
 
-                    dbms_lob.append(v_sql, q'!       -- Add the object to the array  !' || chr(13));
+                    --dbms_lob.append(v_sql, q'!       -- Add the object to the array  !' || chr(13));
                     dbms_lob.append(v_sql, q'!       v_json_array.append(v_temp_json); !' || chr(13));
                     dbms_lob.append(v_sql, q'!     END IF;!' || chr(32));
                 END IF;
@@ -740,18 +814,18 @@ create PACKAGE BODY util_audit AS
         --
         -- Now add the array to the final JSON document
         --
-        dbms_lob.append(v_sql, q'!     -- !' || chr(13));
-        dbms_lob.append(v_sql, q'!     -- Add the array of changed to the JSON object !' || chr(13));
-        dbms_lob.append(v_sql, q'!     --    !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     -- Add the array of changed to the JSON object !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     --    !' || chr(13));
         dbms_lob.append(v_sql, q'!     v_audit_json.put('columns', treat(v_json_array as json_array_t)); !' || chr(13));
         --
         -- and call the util_audit package to capture the changes
         --
-        dbms_lob.append(v_sql, q'!     -- !' || chr(13));
-        dbms_lob.append(v_sql, q'!     -- Log the changes !' || chr(13));
-        dbms_lob.append(v_sql, q'!     -- !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     -- Log the changes !' || chr(13));
+        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
         dbms_lob.append(v_sql, q'!     util_audit.capture_audit(p_transaction_json => v_audit_json); !' || chr(13));
-        dbms_lob.append(v_sql, q'!-- !' || chr(13));
+        --dbms_lob.append(v_sql, q'!-- !' || chr(13));
         dbms_lob.append(v_sql, q'!END; !' || chr(13));
 
         output_sql_clob(p_sql => v_sql, p_action => p_action);
@@ -1003,65 +1077,6 @@ create PACKAGE BODY util_audit AS
 
     END capture_audit;
 
-create function get_audit_context
-    return varchar2
-    authid definer
-    is
-    v_ctx varchar2(32767);
-    v_req varchar2(4000);
-
-    procedure add_pair(k varchar2, v varchar2) is
-    begin
-        if v is not null then
-            v_ctx := v_ctx || k || '=' || replace(v, '|', '/') || '|';
-        end if;
-    end;
-begin
-    /* APEX context (only if present) */
-    if sys_context('APEX$SESSION', 'APP_ID') is not null then
-        add_pair('app', sys_context('APEX$SESSION', 'APP_ID'));
-        add_pair('page', sys_context('APEX$SESSION', 'APP_PAGE_ID'));
-        add_pair('sess', coalesce(sys_context('APEX$SESSION', 'APP_SESSION'),
-                                  sys_context('APEX$SESSION', 'SESSION')));
-        add_pair('user', coalesce(sys_context('APEX$SESSION', 'APP_USER'),
-                                  sys_context('APEX$SESSION', 'USER')));
-        add_pair('workspace', coalesce(sys_context('APEX$SESSION', 'WORKSPACE'),
-                                       sys_context('APEX$SESSION', 'WORKSPACE_ID')));
-
-        -- Try to fetch REQUEST from APEX runtime (not exposed in APEX$SESSION)
-        begin
-            execute immediate 'begin :x := apex_application.g_request; end;'
-                using out v_req;
-        exception
-            when others then null;
-        end;
-
-        if v_req is null then
-            begin
-                execute immediate 'begin :x := apex_util.get_session_state(''REQUEST''); end;'
-                    using out v_req;
-            exception
-                when others then null;
-            end;
-        end if;
-
-        add_pair('req', v_req);
-    end if;
-
-    /* USERENV & connection details (always available) */
-    add_pair('module', sys_context('USERENV', 'MODULE')); -- 48b
-    add_pair('action', sys_context('USERENV', 'ACTION')); -- 32b
-    add_pair('client_id', sys_context('USERENV', 'CLIENT_IDENTIFIER'));
-    add_pair('client_info', sys_context('USERENV', 'CLIENT_INFO'));
-    add_pair('ip', sys_context('USERENV', 'IP_ADDRESS'));
-    add_pair('host', sys_context('USERENV', 'HOST'));
-    add_pair('machine', sys_context('USERENV', 'TERMINAL'));
-    add_pair('sid', sys_context('USERENV', 'SID'));
-    add_pair('os_user', sys_context('USERENV', 'OS_USER'));
-    add_pair('schema', sys_context('USERENV', 'CURRENT_SCHEMA'));
-
-    return substr(v_ctx, 1, 4000);
-end get_audit_context;
 
 END util_audit;
 /
