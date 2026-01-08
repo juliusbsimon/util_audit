@@ -34,7 +34,7 @@ create index UTIL_AUDIT_RECORDS_TABLE_NAME_CNAME_INDEX
 /
 
 create PACKAGE util_audit AS
---------------------------------------------------------------------------------
+    --------------------------------------------------------------------------------
 --
 --  DESCRIPTION
 --      Package to generate database objects and track audit information about changes to a specified table's data.
@@ -115,7 +115,7 @@ create PACKAGE util_audit AS
     -- example(s):
     --     util_audit.create_audit_table(p_action => 'GENERATE');
     --
-    PROCEDURE create_audit_table (
+    PROCEDURE create_audit_table(
         p_action IN VARCHAR2 DEFAULT 'EXECUTE'
     );
 --------------------------------------------------------------------------------
@@ -136,7 +136,7 @@ create PACKAGE util_audit AS
     -- example(s):
     --     util_audit.drop_audit_table(p_action => 'GENERATE');
     --
-    PROCEDURE drop_audit_table (
+    PROCEDURE drop_audit_table(
         p_action IN VARCHAR2 DEFAULT 'GENERATE'
     );
 --------------------------------------------------------------------------------
@@ -163,10 +163,10 @@ create PACKAGE util_audit AS
     --      );
     --
     --
-    PROCEDURE add_table_audit_trig (
+    PROCEDURE add_table_audit_trig(
         p_table_name IN VARCHAR2
-      , p_columns    IN VARCHAR2 DEFAULT null
-      , p_action     IN VARCHAR2 DEFAULT 'GENERATE'
+    , p_columns IN VARCHAR2 DEFAULT null
+    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
     );
 --------------------------------------------------------------------------------
 -- REMOVE_TABLE_AUDIT_TRIG
@@ -189,9 +189,9 @@ create PACKAGE util_audit AS
     --       p_action     => 'GENERATE',
     --      );
     --
-    PROCEDURE remove_table_audit_trig (
+    PROCEDURE remove_table_audit_trig(
         p_table_name IN VARCHAR2
-      , p_action     IN VARCHAR2 DEFAULT 'GENERATE'
+    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
     );
 --------------------------------------------------------------------------------
 -- ENABLE_AUDIT_FOR_TABLE
@@ -216,9 +216,9 @@ create PACKAGE util_audit AS
     --       p_action     => 'GENERATE',
     --      );
     --
-    PROCEDURE enable_audit_for_table (
+    PROCEDURE enable_audit_for_table(
         p_table_name IN VARCHAR2
-      , p_action     IN VARCHAR2 DEFAULT 'GENERATE'
+    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
     );
 --------------------------------------------------------------------------------
 -- DISABLE_AUDIT_FOR_TABLE
@@ -242,9 +242,9 @@ create PACKAGE util_audit AS
     --      (p_table_name => 'EMPLOYEES',
     --       p_action     => 'GENERATE',
     --      );
-    PROCEDURE disable_audit_for_table (
+    PROCEDURE disable_audit_for_table(
         p_table_name IN VARCHAR2
-      , p_action     IN VARCHAR2 DEFAULT 'GENERATE'
+    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
     );
 --------------------------------------------------------------------------------
 -- ENABLE_ALL_AUDIT_TRIGGERS
@@ -264,7 +264,7 @@ create PACKAGE util_audit AS
     --     util_audit.enable_audit_for_table
     --      (p_action     => 'GENERATE');
     --
-    PROCEDURE enable_all_audit_triggers (
+    PROCEDURE enable_all_audit_triggers(
         p_action IN VARCHAR2 DEFAULT 'GENERATE'
     );
 --------------------------------------------------------------------------------
@@ -285,7 +285,7 @@ create PACKAGE util_audit AS
     --     util_audit.enable_audit_for_table
     --      (p_action     => 'GENERATE');
     --
-    PROCEDURE disable_all_audit_triggers (
+    PROCEDURE disable_all_audit_triggers(
         p_action IN VARCHAR2 DEFAULT 'GENERATE'
     );
 --------------------------------------------------------------------------------
@@ -309,9 +309,9 @@ create PACKAGE util_audit AS
     --      ,p_before_date => '01-JAN-2022'
     --      ,p_action     => 'GENERATE');
     --
-    PROCEDURE remove_audit_recs_for_table (
-        p_table_name  IN VARCHAR2
-      , p_before_date IN DATE DEFAULT sysdate
+    PROCEDURE remove_audit_recs_for_table(
+        p_table_name IN VARCHAR2
+    , p_before_date IN DATE DEFAULT sysdate
     );
 --------------------------------------------------------------------------------
 -- REMOVE_ALL_AUDIT_RECS
@@ -333,7 +333,7 @@ create PACKAGE util_audit AS
     --      (p_before_date => '01-JAN-2022'
     --      ,p_action     => 'GENERATE');
     --
-    PROCEDURE remove_all_audit_recs (
+    PROCEDURE remove_all_audit_recs(
         p_before_date IN DATE DEFAULT sysdate
     );
 --------------------------------------------------------------------------------
@@ -351,7 +351,7 @@ create PACKAGE util_audit AS
     --   l_bool :=  util_audit.table_is_audited
     --      (p_table_name => 'EMPLOYEES');
     --
-    FUNCTION table_is_audited (
+    FUNCTION table_is_audited(
         p_table_name IN VARCHAR2
     ) RETURN BOOLEAN;
 
@@ -390,7 +390,7 @@ create PACKAGE util_audit AS
 
     --
     --
-    PROCEDURE capture_audit (
+    PROCEDURE capture_audit(
         p_transaction_json IN json_object_t
     );
 --
@@ -1061,9 +1061,8 @@ begin
     add_pair('schema', sys_context('USERENV', 'CURRENT_SCHEMA'));
 
     return substr(v_ctx, 1, 4000);
-end;
---
---
+end get_audit_context;
+
 END util_audit;
 /
 
