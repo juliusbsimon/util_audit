@@ -24,7 +24,7 @@ CREATE TABLE util_audit_records
     old_clob              CLOB,
     new_clob              CLOB,
 
-    change_hash           VARCHAR2(64)
+    change_hash           VARCHAR2(64),
 
     audit_ts              TIMESTAMP WITH LOCAL TIME ZONE
         DEFAULT SYSTIMESTAMP NOT NULL
