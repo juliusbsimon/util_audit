@@ -96,11 +96,6 @@ ON util_audit_records (table_name, audit_ts DESC);
 CREATE INDEX util_audit_records_hash_ix
 ON util_audit_records (change_hash);
 
--- JSON context (if queried often)
-CREATE SEARCH INDEX util_audit_ctx_jsx
-ON util_audit_records (audit_context)
-FOR JSON;
-
 ALTER TABLE util_audit_records ADD CONSTRAINT util_audit_records_txn_fk
 FOREIGN KEY (transaction_id)
 REFERENCES util_audit_txn (transaction_id);
