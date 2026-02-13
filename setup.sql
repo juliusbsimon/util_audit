@@ -206,6 +206,9 @@ CREATE OR REPLACE PACKAGE util_audit AS
         p_table_name IN VARCHAR2
     ) RETURN BOOLEAN;
 
+     FUNCTION table_enabled_sql(
+        p_table_name IN VARCHAR2
+    ) RETURN char;
     ------------------------------------------------------------------------------
     -- CONTEXT
     ------------------------------------------------------------------------------
