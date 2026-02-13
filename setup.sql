@@ -1,1083 +1,268 @@
-create table UTIL_AUDIT_RECORDS
+CREATE TABLE util_audit_records
 (
-    UTIL_AUDIT_RECORD_ID NUMBER default to_number(sys_guid(), 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX') not null
-        constraint UTIL_AUDIT_RECORDS_ID_PK
-            primary key,
-    TRANSACTION_ID       NUMBER,
-    TABLE_NAME           VARCHAR2(255),
-    PK_VALUE             NUMBER,
-    COLUMN_NAME          VARCHAR2(255),
-    DATA_TYPE            VARCHAR2(500),
-    TRANSACTION_TYPE     VARCHAR2(6)
-        constraint UTIL_AUDIT_RE_TRANSACTION_T_CC
-            check (transaction_type in ('INSERT', 'UPDATE', 'DELETE')),
-    USERNAME             VARCHAR2(500),
-    OLD_VALUE            VARCHAR2(4000),
-    NEW_VALUE            VARCHAR2(4000),
-    OLD_CLOB             CLOB,
-    NEW_CLOB             CLOB,
-    USERENV              VARCHAR2(4000),
-    AUDIT_DATE           DATE
+    util_audit_record_id NUMBER
+        DEFAULT ON NULL TO_NUMBER(SYS_GUID(),'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+        CONSTRAINT util_audit_records_pk PRIMARY KEY,
+
+    transaction_id        VARCHAR2(64),   -- logical event id (GUID)
+    db_transaction_id     VARCHAR2(100),  -- DB transaction scope
+
+    table_name            VARCHAR2(255) NOT NULL,
+
+    pk_value_vc           VARCHAR2(4000), -- supports any PK type
+
+    column_name           VARCHAR2(255),
+    data_type             VARCHAR2(128),
+
+    transaction_type      VARCHAR2(6)
+        CONSTRAINT util_audit_records_trx_chk
+        CHECK (transaction_type IN ('INSERT','UPDATE','DELETE')),
+
+    username              VARCHAR2(255),
+
+    old_value             VARCHAR2(4000),
+    new_value             VARCHAR2(4000),
+
+    old_clob              CLOB,
+    new_clob              CLOB,
+
+    change_hash           VARCHAR2(64),
+
+    audit_context         CLOB CHECK (audit_context IS JSON),
+
+    audit_ts              TIMESTAMP WITH LOCAL TIME ZONE
+        DEFAULT SYSTIMESTAMP NOT NULL
 )
+PARTITION BY RANGE (audit_ts)
+INTERVAL (NUMTOYMINTERVAL(1,'MONTH'))
+(
+    PARTITION p_start VALUES LESS THAN (TIMESTAMP'2025-01-01 00:00:00')
+);
+
+CREATE TABLE util_audit_config
+(
+    table_name   VARCHAR2(255) PRIMARY KEY,
+    enabled_flag CHAR(1) CHECK (enabled_flag IN ('Y','N')),
+    created_on   DATE DEFAULT SYSDATE,
+    created_by   VARCHAR2(100)
+);
+
+/
+-- Row history lookups
+CREATE INDEX util_audit_records_hist_ix
+ON util_audit_records (table_name, pk_value_vc, audit_ts DESC);
+
+-- Table timeline scans
+CREATE INDEX util_audit_records_tbl_ts_ix
+ON util_audit_records (table_name, audit_ts DESC);
+
+-- Hash lookups (optional forensic)
+CREATE INDEX util_audit_records_hash_ix
+ON util_audit_records (change_hash);
+
+-- JSON context (if queried often)
+CREATE SEARCH INDEX util_audit_ctx_jsx
+ON util_audit_records (audit_context)
+FOR JSON;
 /
 
-create index UTIL_AUDIT_RECORDS_TABLE_NAME_PK_VALUE_INDEX
-    on UTIL_AUDIT_RECORDS (TABLE_NAME, PK_VALUE)
-/
+CREATE OR REPLACE PACKAGE util_audit AS
+    ------------------------------------------------------------------------------
+    --  PURPOSE
+    --      Centralized auditing framework (v2)
+    --
+    --  FEATURES
+    --      • Generic PK support
+    --      • JSON context capture
+    --      • DB transaction grouping
+    --      • Change hashing
+    --      • Config-driven enablement
+    ------------------------------------------------------------------------------
 
-create index UTIL_AUDIT_RECORDS_AUDIT_DATE_INDEX
-    on UTIL_AUDIT_RECORDS (AUDIT_DATE desc)
-/
+    ------------------------------------------------------------------------------
+    -- CONFIG MANAGEMENT
+    ------------------------------------------------------------------------------
 
-create index UTIL_AUDIT_RECORDS_TABLE_NAME_CNAME_INDEX
-    on UTIL_AUDIT_RECORDS (TABLE_NAME, COLUMN_NAME)
-/
+    PROCEDURE enable_table (
+        p_table_name IN VARCHAR2
+    );
 
-create PACKAGE util_audit AS
-    --------------------------------------------------------------------------------
---
---  DESCRIPTION
---      Package to generate database objects and track audit information about changes to a specified table's data.
---
---  NOTES
---
---  * This structure was created to work specifically with table that have a single column primary key.
---
---  ASSUMPTIONS
---
---  * All objects manipulated by this package exist in the current parsing schema.
---  * All triggers that Audit tables will be of the form BUID_<<TABLE_NAME>>_AUD
---  * ANY Triggers that have the above name signature will be affected by this package
---
---  DataTypes that can be Audited are:
---
---      NUMBER
---      FLOAT
---      BINARY_FLOAT
---      BINARY_DOUBLE
---      VARCHAR2
---      CHAR
---      DATE
---      TIMESTAMP
---      TIMESTAMP W TIMEZONE
---      TIMESTAMP WITH LOCAL TIMEZONE
---      INTERVAL YEAR TO MONTH
---      INTERVAL DAY TO SECOND
---      CLOB
---
---  DataTypes EXCLUDED from audit are:
---
---      ROWID
---      UROWID
---      BLOB
---      BFILE
---      NVARCHAR2
---      NCHAR
---      LONG
---      LONG_RAW
---      RAW
---
---    * Any varchar2 column values greater than 4000 in length will be stored in the audit tables CLOB column rather than in the varchar2 column
---
---    MODIFIED   (MM/DD/YYYY)
---      dgault    03/22/2022 - Current Oracle Version Created
---------------------------------------------------------------------------------
--- CREATE_AUDIT_TABLE
---------------------------------------------------------------------------------
-    -- Generates (and optionally executes) a script that will create the central logging table
-    --
-    -- Arguments
-    --      p_action -       EXECUTE or GENERATE
-    --                       EXECUTE will execute the script immediately, creating the objects.
-    --                       GENERATE will emit the script to the OWA HTP buffer.
-    --
-    --
-    -- Objects Created are
-    --    UTIL_AUDIT_RECORDS - Table that holds all audit records for any tracked change.
-    --
-    --    util_audit_record_id           number default on null to_number(sys_guid(), 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
-    --                                   constraint util_audit_records_id_pk primary key,
-    --    transaction_id                 number,
-    --    table_name                     varchar2(255 char),
-    --    pk_value                       number,
-    --    column_name                    varchar2(255 char),
-    --    data_type                      varchar2(500 char),
-    --    transaction_type               varchar2(6 char) constraint util_audit_re_transaction_t_cc
-    --                                   check (transaction_type in ('INSERT','UPDATE','DELETE')),
-    --    username                       varchar2(500 char),
-    --    old_value                      varchar2(4000 char),
-    --    new_value                      varchar2(4000 char),
-    --    old_clob                       clob,
-    --    new_clob                       clob,
-    --    userenv                        varchar2(4000 char),
-    --    audit_date                     date
-    --
-    -- example(s):
-    --     util_audit.create_audit_table(p_action => 'GENERATE');
-    --
-    PROCEDURE create_audit_table(
-        p_action IN VARCHAR2 DEFAULT 'EXECUTE'
-    );
---------------------------------------------------------------------------------
--- DROP_AUDIT_TABLE
---------------------------------------------------------------------------------
-    -- Generates (and optionally executes) a script that will DROP the central logging table
-    --
-    -- Arguments
-    --      p_action -       EXECUTE or GENERATE
-    --                       EXECUTE will execute the script immediately, creating the objects.
-    --                       GENERATE will emit the script to the OWA HTP buffer.
-    --
-    --
-    --  DROPPED OBJECTS ARE
-    --    UTIL_AUDIT_RECORDS - Table that holds all audit records for any tracked change.
-    --
-    --
-    -- example(s):
-    --     util_audit.drop_audit_table(p_action => 'GENERATE');
-    --
-    PROCEDURE drop_audit_table(
-        p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    );
---------------------------------------------------------------------------------
--- ADD_TABLE_AUDIT_TRIG
---------------------------------------------------------------------------------
-    -- Generates (and optionally executes) a script that will CREATE the trigger used to audit a table
-    --
-    -- Arguments
-    --      p_table_name     name of table to be audited
-    --      p_columns        comma separated list of columns to audit
-    --      p_action -       EXECUTE or GENERATE
-    --                       EXECUTE will execute the script immediately, creating the objects.
-    --                       GENERATE will emit the script to the OWA HTP buffer.
-    --
-    --
-    --  Trigger that will be CREATED will take the form of:
-    --    BIUD_<<p_table_name>>_AUD
-    --
-    -- example(s):
-    --     util_audit.add_table_audit_trig
-    --      (p_table_name => 'EMPLOYEES',
-    --       p_columns    => 'FIRST_NAME,LAST_NAME,SALARY,COMMISSION_PCT',
-    --       p_action     => 'GENERATE',
-    --      );
-    --
-    --
-    PROCEDURE add_table_audit_trig(
+    PROCEDURE disable_table (
         p_table_name IN VARCHAR2
-    , p_columns IN VARCHAR2 DEFAULT null
-    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
     );
---------------------------------------------------------------------------------
--- REMOVE_TABLE_AUDIT_TRIG
---------------------------------------------------------------------------------
-    -- Generates (and optionally executes) a script that will DROP the trigger used to audit a table
-    --
-    -- Arguments
-    --      p_table_name     name of table
-    --      p_action -       EXECUTE or GENERATE
-    --                       EXECUTE will execute the script immediately, creating the objects.
-    --                       GENERATE will emit the script to the OWA HTP buffer.
-    --
-    --
-    --  Trigger that will be DROPPED will take the form of:
-    --    BIUD_<<p_table_name>>_AUD
-    --
-    -- example(s):
-    --     util_audit.remove_table_audit_trig
-    --      (p_table_name => 'EMPLOYEES',
-    --       p_action     => 'GENERATE',
-    --      );
-    --
-    PROCEDURE remove_table_audit_trig(
-        p_table_name IN VARCHAR2
-    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    );
---------------------------------------------------------------------------------
--- ENABLE_AUDIT_FOR_TABLE
---------------------------------------------------------------------------------
-    -- Generates (and optionally executes) a script that will ENABLE auditing for a specified table
-    --
-    -- NOTE: This will not create the trigger, only enable a trigger that already exists.
-    --
-    -- Arguments
-    --      p_table_name     name of table to be audited
-    --      p_action -       EXECUTE or GENERATE
-    --                       EXECUTE will execute the script immediately, creating the objects.
-    --                       GENERATE will emit the script to the OWA HTP buffer.
-    --
-    --
-    --  Trigger that will be ENABLED will take the form of:
-    --    BIUD_<<p_table_name>>_AUD - Trigger that captures audit data.
-    --
-    -- example(s):
-    --     util_audit.enable_audit_for_table
-    --      (p_table_name => 'EMPLOYEES',
-    --       p_action     => 'GENERATE',
-    --      );
-    --
-    PROCEDURE enable_audit_for_table(
-        p_table_name IN VARCHAR2
-    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    );
---------------------------------------------------------------------------------
--- DISABLE_AUDIT_FOR_TABLE
---------------------------------------------------------------------------------
-    -- Generates (and optionally executes) a script that will DISABLE auditing for a specified table
-    --
-    -- NOTE: This will not remove the trigger, only disable one that already exists.
-    --
-    -- Arguments
-    --      p_table_name     name of table to be audited
-    --      p_action -       EXECUTE or GENERATE
-    --                       EXECUTE will execute the script immediately, creating the objects.
-    --                       GENERATE will emit the script to the OWA HTP buffer.
-    --
-    --
-    --  Trigger that will be DISABLED will take the form of:
-    --    BIUD_<<p_table_name>>_AUD - Trigger that captures audit data.
-    --
-    -- example(s):
-    --     util_audit.disable_audit_for_table
-    --      (p_table_name => 'EMPLOYEES',
-    --       p_action     => 'GENERATE',
-    --      );
-    PROCEDURE disable_audit_for_table(
-        p_table_name IN VARCHAR2
-    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    );
---------------------------------------------------------------------------------
--- ENABLE_ALL_AUDIT_TRIGGERS
---------------------------------------------------------------------------------
--- Generates (and optionally executes) a script that will ENABLE all audit triggers
-    --
-    -- Arguments
-    --      p_action -       EXECUTE or GENERATE
-    --                       EXECUTE will execute the script immediately, creating the objects.
-    --                       GENERATE will emit the script to the OWA HTP buffer.
-    --
-    --
-    --  CHANGED OBJECTS
-    --    BIUD_<<p_table_name>>_AUD - all triggers of this pattern will be ENABLED.
-    --
-    -- example(s):
-    --     util_audit.enable_audit_for_table
-    --      (p_action     => 'GENERATE');
-    --
-    PROCEDURE enable_all_audit_triggers(
-        p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    );
---------------------------------------------------------------------------------
--- DISABLE_ALL_AUDIT_TRIGGERS
---------------------------------------------------------------------------------
--- Generates (and optionally executes) a script that will DISABLE all audit triggers
-    --
-    -- parameters
-    --      p_action -       EXECUTE or GENERATE
-    --                       EXECUTE will execute the script immediately, creating the objects.
-    --                       GENERATE will emit the script to the OWA HTP buffer.
-    --
-    --
-    --  CHANGED OBJECTS
-    --    BIUD_<<p_table_name>>_AUD - all triggers of this pattern will be DISABLED.
-    --
-    -- example(s):
-    --     util_audit.enable_audit_for_table
-    --      (p_action     => 'GENERATE');
-    --
-    PROCEDURE disable_all_audit_triggers(
-        p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    );
---------------------------------------------------------------------------------
--- REMOVE_AUDIT_RECS_FOR_TABLE
---------------------------------------------------------------------------------
--- Generates (and optionally executes) a script that will remove audit records from the central audit table.
-    --
-    -- Arguments
-    --      p_table_name     table name for which to remove audit records
-    --      p_before_date    date before which to remove audit records
-    --      p_action         EXECUTE or GENERATE
-    --                       EXECUTE will execute the script immediately, creating the objects.
-    --                       GENERATE will emit the script to the OWA HTP buffer.
-    --
-    --
-    --
-    --
-    -- example(s):
-    --     util_audit.remove_audit_recs_for_table
-    --      (p_table_name => 'EMPLOYEES'
-    --      ,p_before_date => '01-JAN-2022'
-    --      ,p_action     => 'GENERATE');
-    --
-    PROCEDURE remove_audit_recs_for_table(
-        p_table_name IN VARCHAR2
-    , p_before_date IN DATE DEFAULT sysdate
-    );
---------------------------------------------------------------------------------
--- REMOVE_ALL_AUDIT_RECS
---------------------------------------------------------------------------------
-    -- Generates (and optionally executes) a script that will remove audit records from the central audit table.
-    --
-    -- Arguments
-    --      p_table_name     table name for which to remove audit records
-    --      p_before_date    date before which to remove audit records
-    --      p_action         EXECUTE or GENERATE
-    --                       EXECUTE will execute the script immediately, creating the objects.
-    --                       GENERATE will emit the script to the OWA HTP buffer.
-    --
-    --
-    --
-    --
-    -- example(s):
-    --     util_audit.remove_audit_recs_for_table
-    --      (p_before_date => '01-JAN-2022'
-    --      ,p_action     => 'GENERATE');
-    --
-    PROCEDURE remove_all_audit_recs(
-        p_before_date IN DATE DEFAULT sysdate
-    );
---------------------------------------------------------------------------------
--- TABLE_IS_AUDITED
---------------------------------------------------------------------------------
-    -- Generates (and optionally executes) a script that will remove audit records from the central audit table.
-    --
-    -- Arguments
-    --      p_table_name     table name for which to remove audit records
-    --
-    -- Returns
-    --      BOOLEAN - Whether the table is audited
-    --
-    -- example(s):
-    --   l_bool :=  util_audit.table_is_audited
-    --      (p_table_name => 'EMPLOYEES');
-    --
-    FUNCTION table_is_audited(
+
+    FUNCTION table_enabled (
         p_table_name IN VARCHAR2
     ) RETURN BOOLEAN;
 
---------------------------------------------------------------------------------
--- CAPTURE_AUDIT
---------------------------------------------------------------------------------
-    -- Called from the generated triggers to actually capture the changes to a record.
-    --
-    -- Arguments
-    --      p_transaction_json     A JSON object that contains all the changes initiated for an Insert, Update or Delete
-    --
-    -- The JSON Data structure will look like this.
-    --        {
-    --          "table_name": "EMPLOYEES",
-    --          "trans_type": "UPDATE",
-    --          "audit_date": "01-JAN-2022",
-    --          "user_name": "douglas.gault@oracle.com",
-    --          "trasaction_id": "123123123980198309280"
-    --          "pk_value": 123123123123,
-    --          "columns": [
-    --            {
-    --              "column_name": "FIRST_NAME",
-    --              "data_type": "VARCHAR2",
-    --              "old_value": "RANDALL",
-    --              "new_value": "RANDY"
-    --            },
-    --            {
-    --              "column_name": "SALARY",
-    --              "datatype": "NUMBER",
-    --              "old_value": "1500",
-    --              "new_value": "2000"
+    ------------------------------------------------------------------------------
+    -- CONTEXT
+    ------------------------------------------------------------------------------
 
-    --            }
-    --          ]
-    --        }
+    FUNCTION get_audit_context
+        RETURN CLOB;
 
-    --
-    --
-    PROCEDURE capture_audit(
+    ------------------------------------------------------------------------------
+    -- CAPTURE (called by triggers)
+    ------------------------------------------------------------------------------
+
+    PROCEDURE capture_audit (
         p_transaction_json IN json_object_t
     );
---
---
-END util_audit;
-/
-
-
-
-create PACKAGE BODY util_audit AS
-    --------------------------------------------------------------------------------
---
---    DESCRIPTION
---      Package to generate database objects to track audit information about changes to a specified table's data.
---
---
---    NOTES
---
---    MODIFIED   (MM/DD/YYYY)
---      dgault    03/22/2022 - Current Oracle Version Created
---
---------------------------------------------------------------------------------
-
--- ==================================================================================
---  P R I V A T E   M E T H O D S
--- ==================================================================================
-    g_ignored_columns VARCHAR2(32767);
-
--------------------------------------------------------------------------------------
--- TRIM_TABLE_NAME
--------------------------------------------------------------------------------------
--- returns the first 20 characters of the table name passed
--------------------------------------------------------------------------------------
-    FUNCTION trim_table_name(
-        p_table_name IN VARCHAR2
-    ) RETURN VARCHAR2 IS
-    BEGIN
-        RETURN substr(p_table_name, 1, 30);
-    END trim_table_name;
-
-    function get_audit_context
-        return varchar2 as
-
-        v_ctx varchar2(32767);
-        v_req varchar2(4000);
-
-        procedure add_pair(k varchar2, v varchar2) is
-        begin
-            if v is not null then
-                v_ctx := v_ctx || k || '=' || replace(v, '|', '/') || '|';
-            end if;
-        end;
-    begin
-        /* APEX context (only if present) */
-        if sys_context('APEX$SESSION', 'APP_ID') is not null then
-            add_pair('app', sys_context('APEX$SESSION', 'APP_ID'));
-            add_pair('page', sys_context('APEX$SESSION', 'APP_PAGE_ID'));
-            add_pair('sess', coalesce(sys_context('APEX$SESSION', 'APP_SESSION'),
-                                      sys_context('APEX$SESSION', 'SESSION')));
-            add_pair('user', coalesce(sys_context('APEX$SESSION', 'APP_USER'),
-                                      sys_context('APEX$SESSION', 'USER')));
-            add_pair('workspace', coalesce(sys_context('APEX$SESSION', 'WORKSPACE'),
-                                           sys_context('APEX$SESSION', 'WORKSPACE_ID')));
-
-            -- Try to fetch REQUEST from APEX runtime (not exposed in APEX$SESSION)
-            begin
-                execute immediate 'begin :x := apex_application.g_request; end;'
-                    using out v_req;
-            exception
-                when others then null;
-            end;
-
-            if v_req is null then
-                begin
-                    execute immediate 'begin :x := apex_util.get_session_state(''REQUEST''); end;'
-                        using out v_req;
-                exception
-                    when others then null;
-                end;
-            end if;
-
-            add_pair('req', v_req);
-        end if;
-
-        /* USERENV & connection details (always available) */
-        add_pair('module', sys_context('USERENV', 'MODULE')); -- 48b
-        add_pair('action', sys_context('USERENV', 'ACTION')); -- 32b
-        add_pair('client_id', sys_context('USERENV', 'CLIENT_IDENTIFIER'));
-        add_pair('client_info', sys_context('USERENV', 'CLIENT_INFO'));
-        add_pair('ip', sys_context('USERENV', 'IP_ADDRESS'));
-        add_pair('host', sys_context('USERENV', 'HOST'));
-        add_pair('machine', sys_context('USERENV', 'TERMINAL'));
-        add_pair('sid', sys_context('USERENV', 'SID'));
-        add_pair('os_user', sys_context('USERENV', 'OS_USER'));
-        add_pair('schema', sys_context('USERENV', 'CURRENT_SCHEMA'));
-
-        return substr(v_ctx, 1, 4000);
-    end get_audit_context;
--------------------------------------------------------------------------------------
--- OUTPUT_SQL
--------------------------------------------------------------------------------------
--- Either EXECUTE the SQL or print it to the OWA Buffer
--------------------------------------------------------------------------------------
-    PROCEDURE output_sql(
-        p_sql IN VARCHAR2
-    , p_action IN VARCHAR2
-    ) IS
-        cursor_name    INTEGER;
-        rows_processed INTEGER;
-    BEGIN
-        IF p_action = 'EXECUTE' THEN
-            BEGIN
-                cursor_name := dbms_sql.open_cursor;
-                dbms_sql.parse(cursor_name, p_sql, dbms_sql.native);
-                rows_processed := dbms_sql.execute(cursor_name);
-                dbms_sql.close_cursor(cursor_name);
-            EXCEPTION
-                WHEN OTHERS THEN
-                    dbms_sql.close_cursor(cursor_name);
-                    RAISE;
-            END;
-
-        ELSIF p_action = 'GENERATE' THEN
-            dbms_output.put_line(p_sql || chr(10) || chr(10));
-        END IF;
-    END output_sql;
-
-
-    PROCEDURE output_sql_clob(
-        p_sql IN CLOB,
-        p_action IN VARCHAR2
-    ) IS
-        cursor_name    INTEGER;
-        rows_processed INTEGER;
-        v_offset       INTEGER := 1;
-        v_chunk        VARCHAR2(32767);
-        v_len          INTEGER;
-    BEGIN
-        IF p_action = 'EXECUTE' THEN
-            cursor_name := dbms_sql.open_cursor;
-            BEGIN
-                dbms_sql.parse(cursor_name, p_sql, dbms_sql.native);
-                rows_processed := dbms_sql.execute(cursor_name);
-            EXCEPTION
-                WHEN OTHERS THEN
-                    IF dbms_sql.is_open(cursor_name) THEN
-                        dbms_sql.close_cursor(cursor_name);
-                    END IF;
-                    RAISE;
-            END;
-            dbms_sql.close_cursor(cursor_name);
-
-        ELSIF p_action = 'GENERATE' THEN
-            v_len := dbms_lob.getlength(p_sql);
-
-            WHILE v_offset <= v_len
-                LOOP
-                    v_chunk := dbms_lob.substr(p_sql, 32767, v_offset);
-                    dbms_output.put_line(v_chunk);
-                    v_offset := v_offset + 32767;
-                END LOOP;
-
-            dbms_output.put_line(chr(10)); -- spacing if desired
-        END IF;
-    END output_sql_clob;
-
--- ==================================================================================
---  P U B L I C   M E T H O D S
--- ==================================================================================
---------------------------------------------------------------------------------
--- CREATE_AUDIT_TABLE
---------------------------------------------------------------------------------
--- Creates the central logging table
--------------------------------------------------------------------------------------
-    PROCEDURE create_audit_table(
-        p_action IN VARCHAR2 DEFAULT 'EXECUTE'
-    ) IS
-        v_sql VARCHAR2(32767);
-    BEGIN
-        --
-        -- Main Table Create Script
-        --
-        v_sql := q'!create table UTIL_AUDIT_RECORDS ( !' || chr(13);
-        v_sql := v_sql ||
-                 q'!util_audit_record_id  number default on null to_number(sys_guid(),'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')!' ||
-                 chr(13);
-        v_sql := v_sql || q'!                      constraint util_audit_records_id_pk primary key,!' || chr(13);
-        v_sql := v_sql || q'!transaction_id        number,!' || chr(13);
-        v_sql := v_sql || q'!table_name            varchar2(255),!' || chr(13);
-        v_sql := v_sql || q'!pk_value              number,!' || chr(13);
-        v_sql := v_sql || q'!column_name           varchar2(255),!' || chr(13);
-        v_sql := v_sql || q'!data_type             varchar2(500),!' || chr(13);
-        v_sql := v_sql || q'!transaction_type      varchar2(6) constraint util_audit_re_transaction_t_cc!' || chr(13);
-        v_sql := v_sql || q'!                      check (transaction_type in ('INSERT','UPDATE','DELETE')),!' ||
-                 chr(13);
-        v_sql := v_sql || q'!username              varchar2(500),!' || chr(13);
-        v_sql := v_sql || q'!old_value             varchar2(4000),!' || chr(13);
-        v_sql := v_sql || q'!new_value             varchar2(4000),!' || chr(13);
-        v_sql := v_sql || q'!old_clob              clob,!' || chr(13);
-        v_sql := v_sql || q'!new_clob              clob,!' || chr(13);
-        v_sql := v_sql || q'!userenv               varchar2(4000),!' || chr(13);
-        v_sql := v_sql || q'!audit_date            date!' || chr(13);
-        v_sql := v_sql || q'!)!';
-        output_sql(p_sql => v_sql, p_action => p_action);
-    EXCEPTION
-        WHEN OTHERS THEN
-            raise_application_error(-20001, 'create_audit_table' || ' - ' || dbms_utility.format_error_backtrace, true);
-    END create_audit_table;
---------------------------------------------------------------------------------
--- DROP_AUDIT_TABLE
---------------------------------------------------------------------------------
--- Drops the central Logging table - USE WITH CAUTION
--------------------------------------------------------------------------------------
-    PROCEDURE drop_audit_table(
-        p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    ) IS
-        v_sql VARCHAR2(32767);
-        table_does_not_exist EXCEPTION;
-        PRAGMA exception_init ( table_does_not_exist, -942 );
-    BEGIN
-        v_sql := 'drop table UTIL_AUDIT_RECORDS';
-        BEGIN
-            output_sql(p_sql => v_sql, p_action => p_action);
-        EXCEPTION
-            WHEN table_does_not_exist THEN
-                NULL;
-            WHEN OTHERS THEN
-                raise_application_error(-20001, 'drop_audit_table' || ' - ' || dbms_utility.format_error_backtrace,
-                                        true);
-        END;
-
-    END drop_audit_table;
---------------------------------------------------------------------------------
--- ADD_TABLE_AUDIT_TRIG
---------------------------------------------------------------------------------
--- Adds a trigger to audit specific columns in a table
---------------------------------------------------------------------------------
-    PROCEDURE add_table_audit_trig(
-        p_table_name IN VARCHAR2
-    , p_columns IN VARCHAR2 DEFAULT null
-    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    ) IS
-        v_sql        clob; -- VARCHAR2(32767);
-        v_table_name VARCHAR2(500) := upper(p_table_name);
-        v_columns    VARCHAR2(32767); --:= ',' || replace(upper(p_columns), ' ', NULL) || ','; -- Replacing spaces with nulls and adding leading and traling comma
-        v_pk_col     VARCHAR2(500);
-    BEGIN
-        dbms_lob.createtemporary(v_sql, true);
-
-        /** Added To Dynamically get all columns except audit columns **/
-        IF p_columns is null then
-            select listagg(COLUMN_NAME, ',')
-            into v_columns
-            from ALL_TAB_COLUMNS
-            where TABLE_NAME = v_table_name
-              and owner = user
-              and upper(column_name)
-                not in (
-                        'CREATED',
-                        'CREATED_ON',
-                        'CREATED_BY',
-                        'UPDATED',
-                        'UPDATED_ON',
-                        'UPDATED_BY',
-                        'MODIFIED',
-                        'MODIFIED_BY',
-                        'MODIFIED_ON',
-                        'ID');
-
-            v_columns := ',' || replace(upper(v_columns), ' ', NULL) || ',';
-
-        END IF;
-
-
-        IF p_columns is not null then
-            v_columns := ',' || replace(upper(p_columns), ' ', NULL) || ',';
-        END IF;
-
-        --
-        -- Get all the prerequisite data that we need
-        --
-        -- The following code will get the primary key column for the table in questions to use in the call to AUDIT.
-        --
-        -- NOTE: This was written to to work with tables with a single column surrogate primary key.
-        BEGIN
-            SELECT cols.column_name
-            INTO v_pk_col
-            FROM user_constraints cons
-               , user_cons_columns cols
-            WHERE cols.table_name = v_table_name
-              AND cons.constraint_type = 'P'
-              AND cons.constraint_name = cols.constraint_name
-              AND cons.owner = cols.owner
-            ORDER BY cols.position;
-
-        EXCEPTION
-            WHEN OTHERS THEN
-                NULL;
-        END;
-        --
-        -- Build out Trigger code
-        --
-        -- the first part is the trigger preamble and the initial variables right up to the BEGIN clause.
-        --
-        ---------------------------------------------------------------------------------------------------------------------------------------------
-        /**VARCHAR2 to CLOB **/
-        dbms_lob.append(v_sql,
-                        q'! create or replace trigger AIUD_!' || trim_table_name(v_table_name) || q'!_AUD!' || chr(13));
-
-        dbms_lob.append(v_sql, q'!  after insert or update or delete !' || chr(13));
-        dbms_lob.append(v_sql, q'!  on !' || v_table_name || chr(13));
-        dbms_lob.append(v_sql, q'!  for each row !' || chr(13) || chr(13));
-        dbms_lob.append(v_sql, q'!  declare !' || chr(13));
-        dbms_lob.append(v_sql, q'!   l_txn_id number; !' || chr(13));
-        dbms_lob.append(v_sql, q'!   v_audit_json json_object_t := new json_object_t; !' || chr(13));
-        dbms_lob.append(v_sql, q'!   v_temp_json  json_object_t := new json_object_t; !' || chr(13));
-        dbms_lob.append(v_sql, q'!   v_json_array json_array_t  := new json_array_t; !' || chr(13));
-        dbms_lob.append(v_sql, q'!   v_empty_json json_object_t := new json_object_t; !' || chr(13));
-        dbms_lob.append(v_sql, q'!   l_trigger_action varchar2(6); !' || chr(13));
-        --
-        dbms_lob.append(v_sql, q'!  begin !' || chr(13));
-        --
-        -- This section creates the transaction id that will link all the individual audit records together for a single transaction.
-        --
-        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
-        --dbms_lob.append(v_sql, q'!     -- Generate a transaction ID for this I/U/D event !' || chr(13));
-        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
-        dbms_lob.append(v_sql,
-                        q'!     l_txn_id := to_number(sys_guid(), 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');  !' || chr(13));
-        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
-        --
-        -- Figure out which type of transaction this is
-        --
-        dbms_lob.append(v_sql, q'!     IF INSERTING THEN  !' || chr(13));
-        dbms_lob.append(v_sql, q'!       l_trigger_action := 'INSERT';  !' || chr(13));
-        dbms_lob.append(v_sql, q'!     ELSIF UPDATING then   !' || chr(13));
-        dbms_lob.append(v_sql, q'!       l_trigger_action := 'UPDATE';  !' || chr(13));
-        dbms_lob.append(v_sql, q'!     ELSIF DELETING then   !' || chr(13));
-        dbms_lob.append(v_sql, q'!       l_trigger_action := 'DELETE';  !' || chr(13));
-        dbms_lob.append(v_sql, q'!     END IF; !' || chr(13));
-        --
-        -- Next we start createing the JSON object.
-        --  * first we create the JSON elements that are common to the entire transaction
-        --
-        --dbms_lob.append(v_sql, q'!     -- Create the base JSON object with the top level details !' || chr(13));
-        --     dbms_lob.append(v_sql , q'!     -- !' || chr(13));
-        --  ** Table Name
-        dbms_lob.append(v_sql, q'!     v_audit_json.put('table_name', '!' || v_table_name || q'!'); !' || chr(13));
-        -- ** Transaction Type (Insert, Update or Delete )
-        dbms_lob.append(v_sql, q'!     v_audit_json.put('trans_type', l_trigger_action); !' || chr(13));
-        -- ** Audit Date
-        dbms_lob.append(v_sql, q'!     v_audit_json.put('audit_date', sysdate); !' || chr(13));
-        -- ** User
-        dbms_lob.append(v_sql,
-                        q'!     v_audit_json.put('user_name', nvl(sys_context('APEX$SESSION','APP_USER'),user)); !' ||
-                        chr(13));
-        -- ** Transaction id
-        dbms_lob.append(v_sql, q'!     v_audit_json.put('transaction_id', l_txn_id); !' || chr(13));
-        -- ** Primary Key data
-        --dbms_lob.append(v_sql, q'!     -- Pick the value of the PK if its available !' || chr(13));
-        dbms_lob.append(v_sql, q'!     IF INSERTING then !' || chr(13));
-        dbms_lob.append(v_sql, q'!          v_audit_json.put('pk_value', :new.!' || v_pk_col || q'!); !' || chr(13));
-
-        dbms_lob.append(v_sql, q'!     ELSE    !' || chr(13));
-        dbms_lob.append(v_sql, q'!          v_audit_json.put('pk_value', :old.!' || v_pk_col || q'!); !' || chr(13));
-
-        dbms_lob.append(v_sql, q'!     END IF; !' || chr(13));
-
-        --
-        -- Loop through all the columns of the table and match to the columns the user requested to audit.
-        --
-        FOR r IN (
-            SELECT column_name
-                 , data_type
-                 , data_length
-            FROM all_tab_columns
-            WHERE table_name = p_table_name
-              AND (data_type IN ('NUMBER', 'VARCHAR2', 'CHAR', 'FLOAT', 'DATE', 'BINARY_FLOAT', 'BINARY_DOUBLE', 'CLOB')
-                OR data_type LIKE 'TIMESTAMP%')
-            )
-            LOOP
-            --
-            -- If the current column name is  in the list of columns to include, then add it to the trigger code.
-            --
-                IF instr(v_columns, ',' || r.column_name || ',') > 0 THEN
-                    /**       v_sql := v_sql || q'!     IF :NEW.!' || r.column_name || q'! != :OLD.!' || r.column_name
-                                    || q'! OR DELETING or INSERTING THEN !' || chr(13);
-                                    **/
-
-                    /** Added by Akwang **/
-                    dbms_lob.append(v_sql, q'! IF :NEW.!' || r.column_name || q'! != :OLD.!' || r.column_name
-                        || q'! OR (:NEW.!' || r.column_name || q'! is not null and :OLD.!' || r.column_name ||
-                                           q'! is null)!'
-                        || q'! OR (:NEW.!' || r.column_name || q'! is null and :OLD.!' || r.column_name ||
-                                           q'! is not null)!'
-                        || q'! OR DELETING or INSERTING THEN !' || chr(32));
-
-                    --dbms_lob.append(v_sql, q'!       -- Clear the temporary JSON object !' || chr(13));
-                    dbms_lob.append(v_sql, q'!       v_temp_json := v_empty_json; !' || chr(13));
-                    --dbms_lob.append(v_sql, q'!       -- add the details for the change !' || chr(13));
-                    dbms_lob.append(v_sql, q'!       v_temp_json.put('column_name', '!' || r.column_name || q'!'); !' ||
-                                           chr(13));
-
-                    dbms_lob.append(v_sql,
-                                    q'!       v_temp_json.put('data_type',  '!' || r.data_type || q'!'); !' || chr(13));
-
-                    dbms_lob.append(v_sql,
-                                    q'!       v_temp_json.put('old_value', :old.!' || r.column_name || q'!); !' ||
-                                    chr(13));
-
-                    dbms_lob.append(v_sql,
-                                    q'!       v_temp_json.put('new_value', :new.!' || r.column_name || q'!); !' ||
-                                    chr(13));
-
-                    --dbms_lob.append(v_sql, q'!       -- Add the object to the array  !' || chr(13));
-                    dbms_lob.append(v_sql, q'!       v_json_array.append(v_temp_json); !' || chr(13));
-                    dbms_lob.append(v_sql, q'!     END IF;!' || chr(32));
-                END IF;
-                --
-            END LOOP;
-        --
-        -- Now add the array to the final JSON document
-        --
-        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
-        --dbms_lob.append(v_sql, q'!     -- Add the array of changed to the JSON object !' || chr(13));
-        --dbms_lob.append(v_sql, q'!     --    !' || chr(13));
-        dbms_lob.append(v_sql, q'!     v_audit_json.put('columns', treat(v_json_array as json_array_t)); !' || chr(13));
-        --
-        -- and call the util_audit package to capture the changes
-        --
-        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
-        --dbms_lob.append(v_sql, q'!     -- Log the changes !' || chr(13));
-        --dbms_lob.append(v_sql, q'!     -- !' || chr(13));
-        dbms_lob.append(v_sql, q'!     util_audit.capture_audit(p_transaction_json => v_audit_json); !' || chr(13));
-        --dbms_lob.append(v_sql, q'!-- !' || chr(13));
-        dbms_lob.append(v_sql, q'!END; !' || chr(13));
-
-        output_sql_clob(p_sql => v_sql, p_action => p_action);
-    EXCEPTION
-        WHEN OTHERS THEN
-            raise_application_error(-20001, 'add_table_audit_trig' || ' - ' || dbms_utility.format_error_backtrace,
-                                    true);
-
-            dbms_lob.freetemporary(v_sql);
-
-        --   execute immediate q'!alter trigger "AIUD_!' || trim_table_name(v_table_name) || q'!_AUD" compile!';
-
-    END add_table_audit_trig;
---------------------------------------------------------------------------------
--- REMOVE_TABLE_AUDIT_TRIG
---------------------------------------------------------------------------------
--- Removes trigger that audits specific columns in a table
---------------------------------------------------------------------------------
-    PROCEDURE remove_table_audit_trig(
-        p_table_name IN VARCHAR2
-    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    ) IS
-        v_sql        VARCHAR2(32767);
-        v_table_name VARCHAR2(500) := upper(p_table_name);
-    BEGIN
-        IF table_is_audited(v_table_name) THEN
-            v_sql := q'!drop trigger "AIUD_!' || trim_table_name(v_table_name) || q'!_AUD"!';
-            --
-            output_sql(p_sql => v_sql, p_action => p_action);
-        END IF;
-    END remove_table_audit_trig;
-
---------------------------------------------------------------------------------
--- ENABLE_AUDIT_FOR_TABLE
---------------------------------------------------------------------------------
--- Enables trigger that audits the specified table
---------------------------------------------------------------------------------
-    PROCEDURE enable_audit_for_table(
-        p_table_name IN VARCHAR2
-    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    ) IS
-        v_sql        VARCHAR2(32767);
-        v_table_name VARCHAR2(500) := upper(p_table_name);
-    BEGIN
-        IF table_is_audited(v_table_name) THEN
-            v_sql := q'!alter trigger "AIUD_!' || trim_table_name(v_table_name) || q'!_AUD" enable!';
-            --
-            output_sql(p_sql => v_sql, p_action => p_action);
-        END IF;
-    END enable_audit_for_table;
---------------------------------------------------------------------------------
--- DISABLE_AUDIT_FOR_TABLE
---------------------------------------------------------------------------------
--- Disables trigger that audits the specified table
---------------------------------------------------------------------------------
-    PROCEDURE disable_audit_for_table(
-        p_table_name IN VARCHAR2
-    , p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    ) IS
-        v_sql        VARCHAR2(32767);
-        v_table_name VARCHAR2(500) := upper(p_table_name);
-    BEGIN
-        IF table_is_audited(v_table_name) THEN
-            v_sql := q'!alter trigger "AIUD_!' || trim_table_name(v_table_name) || q'!_AUD" disable!';
-            --
-            output_sql(p_sql => v_sql, p_action => p_action);
-        END IF;
-    END disable_audit_for_table;
---------------------------------------------------------------------------------
--- ENABLE_ALL_AUDIT_TRIGGERS
---------------------------------------------------------------------------------
---  Enables all AUDIT Triggers that adhere to this packages naming convetion
---------------------------------------------------------------------------------
-    PROCEDURE enable_all_audit_triggers(
-        p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    ) IS
-        v_sql VARCHAR2(32767);
-    BEGIN
-        FOR trigger_list IN (
-            SELECT table_name
-            FROM user_triggers
-            WHERE base_object_type = 'TABLE'
-              AND trigger_name LIKE 'AIUD_%_AUD'
-              AND status != 'ENABLED'
-            )
-            LOOP
-                v_sql := q'!alter trigger "AIUD_!' || trim_table_name(trigger_list.table_name) || q'!_AUD" enable!';
-                --
-                output_sql(p_sql => v_sql, p_action => p_action);
-            END LOOP;
-    END enable_all_audit_triggers;
---------------------------------------------------------------------------------
--- DISABLE_ALL_AUDIT_TRIGGERS
---------------------------------------------------------------------------------
---  DISABLES all AUDIT Triggers that adhere to this packages naming convetion
---------------------------------------------------------------------------------
-    PROCEDURE disable_all_audit_triggers(
-        p_action IN VARCHAR2 DEFAULT 'GENERATE'
-    ) IS
-        v_sql VARCHAR2(32767);
-    BEGIN
-        FOR trigger_list IN (
-            SELECT table_name
-            FROM user_triggers
-            WHERE base_object_type = 'TABLE'
-              AND trigger_name LIKE 'AIUD_%_AUD'
-              AND status = 'ENABLED'
-            )
-            LOOP
-                v_sql := q'!alter trigger "AIUD_!' || trim_table_name(trigger_list.table_name) || q'!_AUD" disable!';
-                --
-                output_sql(p_sql => v_sql, p_action => p_action);
-            END LOOP;
-    END disable_all_audit_triggers;
---------------------------------------------------------------------------------
--- REMOVE_AUDIT_RECS_FOR_TABLE
---------------------------------------------------------------------------------
---  Removes audit records for a specified table that have an occurance date
---  before the date specified.
---------------------------------------------------------------------------------
-    PROCEDURE remove_audit_recs_for_table(
-        p_table_name IN VARCHAR2
-    , p_before_date IN DATE DEFAULT sysdate
-    ) IS
-        v_table_name VARCHAR2(500) := upper(p_table_name);
-    BEGIN
-        DELETE
-        FROM util_audit_records
-        WHERE table_name = v_table_name
-          AND (audit_date < p_before_date
-            OR p_before_date IS NULL);
-
-    END remove_audit_recs_for_table;
---------------------------------------------------------------------------------
--- REMOVE_ALL_AUDIT_RECS
---------------------------------------------------------------------------------
---  Removes audit records for ALL TABLES that have an occurance date
---  before the date specified.
---------------------------------------------------------------------------------
-    PROCEDURE remove_all_audit_recs(
-        p_before_date IN DATE DEFAULT sysdate
-    ) IS
-    BEGIN
-        DELETE
-        FROM util_audit_records
-        WHERE (audit_date < p_before_date
-            OR p_before_date IS NULL);
-
-    END remove_all_audit_recs;
---------------------------------------------------------------------------------
--- TABLE_IS_AUDITED
---------------------------------------------------------------------------------
---  Returns a boolean based on whether the table has an audit trigger
---  that matches the naming convention of this package.
---------------------------------------------------------------------------------
-    FUNCTION table_is_audited(
-        p_table_name IN VARCHAR2
-    ) RETURN BOOLEAN IS
-        v_table_has_trigger BOOLEAN       := false;
-        v_table_name        VARCHAR2(500) := upper(p_table_name);
-    BEGIN
-        FOR i IN (
-            SELECT 1 result
-            FROM user_triggers
-            WHERE base_object_type = 'TABLE'
-              AND table_name = v_table_name
-              AND trigger_name LIKE 'AIUD_%_AUD'
-            )
-            LOOP
-                v_table_has_trigger := true;
-            END LOOP;
-        --
-        RETURN v_table_has_trigger;
-    END table_is_audited;
-
-
---------------------------------------------------------------------------------
--- CAPTURE_AUDIT
---------------------------------------------------------------------------------
--- Captures the details of a record change in the central audit log table
---------------------------------------------------------------------------------
-    PROCEDURE capture_audit(
-        p_transaction_json IN json_object_t
-    ) IS
-        --l_userenv VARCHAR2(4000) := nvl(sys_context('USERENV','MODULE'),'<<Not Set>>')||'|'||nvl(sys_context('USERENV','ACTION'),'<<Not Set>>');
-        l_userenv VARCHAR2(4000) := get_audit_context;
-        ---    l_json JSON:= p_transaction_json.to_json;
-        l_clob    clob           := p_transaction_json.to_clob;
-    BEGIN
-
-        INSERT INTO util_audit_records ( transaction_id
-                                       , table_name
-                                       , pk_value
-                                       , transaction_type
-                                       , username
-                                       , column_name
-                                       , data_type
-                                       , old_value
-                                       , new_value
-                                       , old_clob
-                                       , new_clob
-                                       , userenv
-                                       , audit_date)
-        SELECT transaction_id
-             , table_name
-             , pk_value
-             , transaction_type
-             , username
-             , column_name
-             , data_type
-             -- OLD VALUE
-             , case data_type
-                   when 'CLOB' then null
-                   else j.old_value
-            end as old_value
-             -- NEW VALUE
-             , case data_type
-                   when 'CLOB' then null
-                   else j.new_value
-            end as new_value
-             -- OLD CLOB
-             , case data_type
-                   when 'CLOB' then j.old_value
-                   else null
-            end as old_clob
-             -- NEW CLOB
-             , case data_type
-                   when 'CLOB' then j.new_value
-                   else null
-            end as new_clob
-             , l_userenv -- value defined above
-             , sysdate   -- Right Now
-        --  FROM json_table ( l_json, '$'
-        FROM json_table(l_clob, '$'
-                        COLUMNS (
-                            transaction_id NUMBER PATH '$.transaction_id'
-                            ,table_name varchar2(255) PATH '$.table_name'
-                            ,pk_value number PATH '$.pk_value'
-                            ,transaction_type varchar2(6) path '$.trans_type'
-                            ,username varchar2(500) PATH '$.user_name'
-                            , NESTED PATH '$.columns[*]'
-                            COLUMNS (column_name varchar2(255) PATH '$.column_name'
-                                ,data_type VARCHAR2(500) PATH '$.data_type'
-                                ,old_value CLOB PATH '$.old_value'
-                                ,new_value CLOB PATH '$.new_value'
-                                )
-                            )
-             ) j;
-
-    END capture_audit;
-
 
 END util_audit;
 /
 
+CREATE OR REPLACE PACKAGE BODY util_audit AS
+
+-------------------------------------------------------------------------------
+-- ENABLE TABLE
+-------------------------------------------------------------------------------
+PROCEDURE enable_table (
+    p_table_name IN VARCHAR2
+) IS
+BEGIN
+    MERGE INTO util_audit_config c
+    USING (SELECT UPPER(p_table_name) table_name FROM dual) src
+    ON (c.table_name = src.table_name)
+    WHEN MATCHED THEN
+        UPDATE SET enabled_flag = 'Y'
+    WHEN NOT MATCHED THEN
+        INSERT (table_name, enabled_flag, created_on, created_by)
+        VALUES (src.table_name, 'Y', SYSDATE, USER);
+END;
+
+-------------------------------------------------------------------------------
+-- DISABLE TABLE
+-------------------------------------------------------------------------------
+PROCEDURE disable_table (
+    p_table_name IN VARCHAR2
+) IS
+BEGIN
+    UPDATE util_audit_config
+    SET enabled_flag = 'N'
+    WHERE table_name = UPPER(p_table_name);
+END;
+
+-------------------------------------------------------------------------------
+-- CHECK IF TABLE ENABLED
+-------------------------------------------------------------------------------
+FUNCTION table_enabled (
+    p_table_name IN VARCHAR2
+) RETURN BOOLEAN IS
+    v_flag CHAR(1);
+BEGIN
+    SELECT enabled_flag
+    INTO v_flag
+    FROM util_audit_config
+    WHERE table_name = UPPER(p_table_name);
+
+    RETURN v_flag = 'Y';
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN FALSE;
+END;
+
+-------------------------------------------------------------------------------
+-- BUILD AUDIT CONTEXT (JSON)
+-------------------------------------------------------------------------------
+FUNCTION get_audit_context
+RETURN CLOB IS
+    l_ctx json_object_t := json_object_t();
+BEGIN
+    l_ctx.put('module', sys_context('USERENV','MODULE'));
+    l_ctx.put('action', sys_context('USERENV','ACTION'));
+    l_ctx.put('client_id', sys_context('USERENV','CLIENT_IDENTIFIER'));
+    l_ctx.put('ip', sys_context('USERENV','IP_ADDRESS'));
+    l_ctx.put('host', sys_context('USERENV','HOST'));
+    l_ctx.put('os_user', sys_context('USERENV','OS_USER'));
+    l_ctx.put('schema', sys_context('USERENV','CURRENT_SCHEMA'));
+
+    IF sys_context('APEX$SESSION','APP_ID') IS NOT NULL THEN
+        l_ctx.put('app_id', sys_context('APEX$SESSION','APP_ID'));
+        l_ctx.put('page_id', sys_context('APEX$SESSION','APP_PAGE_ID'));
+        l_ctx.put('app_user', sys_context('APEX$SESSION','APP_USER'));
+        l_ctx.put('session_id', sys_context('APEX$SESSION','APP_SESSION'));
+    END IF;
+
+    RETURN l_ctx.to_clob;
+END;
+
+-------------------------------------------------------------------------------
+-- CAPTURE AUDIT
+-------------------------------------------------------------------------------
+PROCEDURE capture_audit (
+    p_transaction_json IN json_object_t
+) IS
+    l_context   CLOB := get_audit_context;
+    l_clob      CLOB := p_transaction_json.to_clob;
+    l_db_txn    VARCHAR2(100) := dbms_transaction.local_transaction_id;
+BEGIN
+    INSERT INTO util_audit_records
+    (
+        transaction_id,
+        db_transaction_id,
+        table_name,
+        pk_value_vc,
+        transaction_type,
+        username,
+        column_name,
+        data_type,
+        old_value,
+        new_value,
+        old_clob,
+        new_clob,
+        change_hash,
+        audit_context,
+        audit_ts
+    )
+    SELECT
+        j.transaction_id,
+        l_db_txn,
+        j.table_name,
+        j.pk_value,
+        j.transaction_type,
+        j.username,
+        j.column_name,
+        j.data_type,
+
+        CASE WHEN j.data_type = 'CLOB' THEN NULL ELSE j.old_value END,
+        CASE WHEN j.data_type = 'CLOB' THEN NULL ELSE j.new_value END,
+
+        CASE WHEN j.data_type = 'CLOB' THEN j.old_value END,
+        CASE WHEN j.data_type = 'CLOB' THEN j.new_value END,
+
+        STANDARD_HASH(
+            j.table_name || j.column_name || j.old_value || j.new_value,
+            'SHA256'
+        ),
+
+        l_context,
+        SYSTIMESTAMP
+    FROM json_table(
+        l_clob, '$'
+        COLUMNS (
+            transaction_id VARCHAR2(64) PATH '$.transaction_id',
+            table_name VARCHAR2(255) PATH '$.table_name',
+            pk_value VARCHAR2(4000) PATH '$.pk_value',
+            transaction_type VARCHAR2(6) PATH '$.trans_type',
+            username VARCHAR2(255) PATH '$.user_name',
+            NESTED PATH '$.columns[*]'
+            COLUMNS (
+                column_name VARCHAR2(255) PATH '$.column_name',
+                data_type VARCHAR2(128) PATH '$.data_type',
+                old_value CLOB PATH '$.old_value',
+                new_value CLOB PATH '$.new_value'
+            )
+        )
+    ) j
+    WHERE table_enabled(j.table_name);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Fail-safe: auditing should not block business logic
+        NULL;
+END;
+
+END util_audit;
+/
