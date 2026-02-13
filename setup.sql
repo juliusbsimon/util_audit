@@ -425,13 +425,26 @@ BEGIN
             )
         )
     ) j
-    WHERE table_enabled(j.table_name);
+    WHERE table_enabled_sql(j.table_name)='Y';
 
 EXCEPTION
     WHEN OTHERS THEN
         -- Auditing should never break business DML
         NULL;
 END capture_audit;
+
+FUNCTION table_enabled_sql (
+    p_table_name IN VARCHAR2
+) RETURN CHAR
+IS
+BEGIN
+    IF table_enabled(p_table_name) THEN
+        RETURN 'Y';
+    ELSE
+        RETURN 'N';
+    END IF;
+END;
+
 END util_audit;
 /
 CREATE TABLE util_audit_records
