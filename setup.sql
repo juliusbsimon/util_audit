@@ -215,7 +215,7 @@ create PACKAGE util_audit AS
 
 END util_audit;
 /
-create PACKAGE BODY util_audit AS
+create or replace PACKAGE BODY util_audit AS
     -------------------------------------------------------------------------------
 -- ENABLE TABLE
 -------------------------------------------------------------------------------
@@ -412,7 +412,7 @@ create PACKAGE BODY util_audit AS
                          transaction_id VARCHAR2(64) PATH '$.transaction_id',
                          table_name VARCHAR2(255) PATH '$.table_name',
                          pk_value VARCHAR2(4000) PATH '$.pk_value',
-                         transaction_type VARCHAR2(6) PATH '$.trans_type',
+                         transaction_type VARCHAR2(6) PATH '$.transaction_type',
                          username VARCHAR2(255) PATH '$.user_name',
                          NESTED PATH '$.columns[*]'
                              COLUMNS (
@@ -868,3 +868,7 @@ create PACKAGE BODY util_audit_gen AS
 
 END util_audit_gen;
 /
+
+
+
+
