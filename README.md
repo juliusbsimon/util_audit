@@ -1,200 +1,256 @@
 # util_audit
 
-**Oracle Column-Level Audit Utility**
+**Oracle Transaction & Column-Level Audit Framework**
 
-`util_audit` is a lightweight, trigger-based **column-level auditing framework for Oracle databases**.  
-It captures **per-column changes** (old value → new value) for INSERT, UPDATE, and DELETE operations, with minimal setup and no dependency on Oracle Unified Auditing.
+`util_audit` is a trigger-based auditing framework for Oracle that
+captures:
 
-This utility is intended for **compliance, traceability, and forensic analysis** in transactional systems where knowing *exactly what changed* is critical.
+-   Transaction events
+-   Column-level changes
+-   Row snapshots
+-   Execution context
 
----
+It provides **forensic-grade auditability** without requiring Oracle
+Unified Auditing or Flashback Data Archive.
 
-## Key Features
+This framework is designed for systems where you need to answer:
 
-- Column-level auditing (not just row-level)
-- Tracks INSERT, UPDATE, and DELETE
-- Logs old value and new value per column
-- Captures user, timestamp, table, and primary key
-- Trigger-based, fully transparent
-- Supports automatic trigger generation
-- No APEX, ORDS, or database-version lock-in
+👉 **Who changed what, when, and how did the row look before and
+after?**
 
----
+------------------------------------------------------------------------
 
-## Repository Contents
+# ✨ Key Features
 
-### setup.sql
+-   Transaction-level audit events
+-   Column-level change tracking
+-   Old and new row snapshots (JSON)
+-   Change detection (skips no-op updates)
+-   Automatic trigger generation
+-   Config-driven enable / disable per table
+-   Context capture (user, module, IP, session)
+-   Partitioned audit storage for scalability
+-   Prebuilt audit query views
 
-The installation script creates:
+------------------------------------------------------------------------
 
-- An audit table: UTIL_AUDIT_RECORDS
-- Supporting indexes for audit lookups
-- An audit package: UTIL_AUDIT
-- Datatype-safe comparison and logging utilities
-- Helper procedures for generating audit triggers
+# 🏗 Architecture Overview
 
-There are no runtime dependencies beyond standard Oracle SQL and PL/SQL.
+The framework stores audit data in **two core tables**.
 
----
+## UTIL_AUDIT_TXN --- Transaction Header
 
-## Audit Table
+One row per audited DML event.
 
-All audited changes are stored in:
+Contains:
 
-    UTIL_AUDIT_RECORDS
+-   Table name
+-   Primary key value
+-   Transaction type (INSERT / UPDATE / DELETE)
+-   Username
+-   Execution context (JSON)
+-   Old row snapshot (JSON)
+-   New row snapshot (JSON)
+-   Database transaction ID
+-   Timestamp
 
-Each audit record contains:
+## UTIL_AUDIT_RECORDS --- Column Changes
 
-- TABLE_NAME – table being audited  
-- PK_VALUE – primary key value of the affected row  
-- COLUMN_NAME – column that changed  
-- DATA_TYPE – column datatype  
-- TRANSACTION_TYPE – INSERT / UPDATE / DELETE  
-- USERNAME – database user  
-- OLD_VALUE – value before the change  
-- NEW_VALUE – value after the change  
-- AUDIT_DATE – timestamp of the change  
-- TRANSACTION_ID – optional transaction grouping  
+One row per column change.
 
-Each column change generates **one audit row**.
+Contains:
 
----
+-   Column name
+-   Old value
+-   New value
+-   Datatype
+-   Change hash
+-   Timestamp
+-   Transaction reference
 
-## Supported Datatypes
+This design supports both:
 
-The audit package explicitly supports:
+✔ High-level event auditing\
+✔ Detailed column forensics
 
-- NUMBER
-- FLOAT
-- BINARY_FLOAT
-- BINARY_DOUBLE
-- VARCHAR2
-- CHAR
-- DATE
-- TIMESTAMP
-- TIMESTAMP WITH TIME ZONE
+------------------------------------------------------------------------
 
-Datatype handling is performed safely inside the UTIL_AUDIT package.
+# 📊 Audit Views
 
----
+Prebuilt views simplify querying.
 
-## Trigger Naming Convention (Required)
+  View                             Purpose
+  -------------------------------- ---------------------------------
+  **v_util_audit_events**          Transaction-level history
+  **v_util_audit_changes**         Column-level changes
+  **v_util_audit_row_history**     Combined event + column details
+  **v_util_audit_latest_by_row**   Latest change per row
+  **v_util_audit_event_summary**   Changed column summary
 
-Audit triggers follow this naming pattern:
+------------------------------------------------------------------------
 
-    BUID_<TABLE_NAME>_AUD
+# 🚀 Quickstart
 
-Example:
+## 1️⃣ Install
 
-    BUID_DEMO_AUD
+Run the setup script as a user with:
 
-This convention allows the package to manage audit triggers consistently.
+-   CREATE TABLE
+-   CREATE INDEX
+-   CREATE VIEW
+-   CREATE PROCEDURE
+-   CREATE TRIGGER
 
----
+``` sql
+@setup.sql
+```
 
-## Automatic Trigger Generation (Recommended)
+## 2️⃣ Enable auditing for a table
 
-Instead of writing audit triggers manually, you can **auto-generate** a column-level audit trigger for an entire table using the built-in helper procedure.
+``` sql
+BEGIN
+  util_audit_gen.create_audit_trigger('YOUR_TABLE');
+END;
+/
+```
 
-### Example: Generate an audit trigger for a table
+This will:
 
-    BEGIN
-        util_audit.add_table_audit_trig(
-            p_table_name => 'DEMO',
-            p_action     => 'EXECUTE'
-        );
-    END;
-    /
+-   Create the audit trigger
+-   Detect primary key
+-   Identify supported columns
+-   Register the table in `UTIL_AUDIT_CONFIG`
+-   Start auditing immediately
 
-What this does:
+## 3️⃣ Verify auditing
 
-- Inspects the table structure
-- Identifies supported columns
-- Generates a BEFORE INSERT / UPDATE / DELETE trigger
-- Registers column-level audit logic automatically
+``` sql
+SELECT *
+FROM v_util_audit_events
+WHERE table_name = 'YOUR_TABLE'
+ORDER BY audit_ts DESC;
+```
 
-This is the **preferred approach** for onboarding new tables.
+## 4️⃣ View column changes
 
----
+``` sql
+SELECT *
+FROM v_util_audit_changes
+WHERE table_name = 'YOUR_TABLE'
+ORDER BY audit_ts DESC;
+```
 
-## How Auditing Works
+## 5️⃣ View full row timeline
 
-1. An audit trigger is created (manually or automatically)
-2. The trigger calls UTIL_AUDIT logic per column
-3. The package:
-   - Compares old vs new values
-   - Detects real changes
-   - Inserts audit rows only when values differ
+``` sql
+SELECT *
+FROM v_util_audit_row_history
+WHERE table_name = 'YOUR_TABLE'
+  AND pk_value_vc = 'PRIMARY_KEY_VALUE'
+ORDER BY audit_ts;
+```
 
-No audit row is written if a column value did not change.
+------------------------------------------------------------------------
 
----
+# 🔧 Audit Enablement Control
 
-## Querying Audit Data
+Auditing is controlled via:
 
-View column change history:
+    UTIL_AUDIT_CONFIG
 
-    SELECT *
-    FROM util_audit_records
-    WHERE table_name = 'DEMO'
-    ORDER BY audit_date DESC;
+### Enable manually
 
-View changes by user:
+``` sql
+BEGIN
+  util_audit.enable_table('YOUR_TABLE');
+END;
+/
+```
 
-    SELECT *
-    FROM util_audit_records
-    WHERE username = USER
-    ORDER BY audit_date DESC;
+### Disable
 
----
+``` sql
+BEGIN
+  util_audit.disable_table('YOUR_TABLE');
+END;
+/
+```
 
-## Installation
+Triggers remain in place but auditing stops at runtime.
 
-Run as a user with:
+------------------------------------------------------------------------
 
-- CREATE TABLE
-- CREATE INDEX
-- CREATE PROCEDURE
-- CREATE TRIGGER
+# ⚙️ How Auditing Works
 
-    @setup.sql
+1️⃣ A DML operation fires an audit trigger\
+2️⃣ Trigger builds a JSON payload\
+3️⃣ `util_audit` package: - Inserts transaction header - Inserts column
+changes\
+4️⃣ No audit rows are written if an UPDATE does not change data
 
-No additional configuration required.
+------------------------------------------------------------------------
 
----
+# 🧬 Supported Datatypes
 
-## Performance Considerations
+Triggers safely support:
 
-- Column-level auditing introduces overhead
-- Audit only business-critical tables and columns
-- Avoid blanket auditing on high-volume tables
-- Index UTIL_AUDIT_RECORDS appropriately
-- Purge or archive old audit data periodically
+-   NUMBER
+-   FLOAT / BINARY_FLOAT / BINARY_DOUBLE
+-   VARCHAR2 / CHAR
+-   DATE
+-   TIMESTAMP
+-   CLOB
 
-This utility prioritizes **accuracy over volume**.
+Unsupported datatypes are automatically skipped.
 
----
+------------------------------------------------------------------------
 
-## When to Use This
+# 📈 Performance Considerations
 
-Use util_audit when:
+-   Auditing adds overhead per DML
+-   Only audit business-critical tables
+-   Avoid auditing staging or bulk-load tables
+-   Partitioned storage reduces long-term cost
+-   Purge historical data periodically
 
-- Compliance or regulatory tracking is required
-- You need who-changed-what visibility
-- Oracle Unified Auditing is unavailable or too coarse
-- You want fast, repeatable audit onboarding
+This framework is optimized for **traceability, not raw throughput**
 
----
+------------------------------------------------------------------------
 
-## When Not to Use This
+# 🧭 Use Cases
 
-Avoid using this utility for:
+Ideal for:
 
-- High-frequency ETL or bulk loads
-- Auditing every column indiscriminately
-- Systems where audit overhead is unacceptable
+-   Regulatory and compliance environments
+-   Financial transaction systems
+-   Workflow / approval tracking
+-   Data governance programs
+-   Investigative forensics
 
----
+------------------------------------------------------------------------
 
-## License
-Free for all uses
+# 🚫 When Not to Use
+
+Avoid util_audit for:
+
+-   ETL pipelines
+-   High-frequency logging tables
+-   Data warehouse fact tables
+-   Systems where write latency is critical
+
+------------------------------------------------------------------------
+
+# 🧠 Design Principles
+
+-   Deterministic triggers
+-   No dynamic SQL at runtime
+-   JSON-based context for extensibility
+-   Separation of transaction and column data
+-   Minimal dependencies
+-   Version-agnostic PL/SQL
+
+------------------------------------------------------------------------
+
+# 📜 License
+
+Free for all use, including commercial.
