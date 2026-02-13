@@ -5,9 +5,9 @@
 `util_audit` is a trigger-based auditing framework for Oracle that
 captures:
 
--   Transaction events\
--   Column-level changes\
--   Row snapshots\
+-   Transaction events
+-   Column-level changes
+-   Row snapshots
 -   Execution context
 
 It provides **forensic-grade auditability** without requiring Oracle
@@ -22,14 +22,14 @@ after?**
 
 # ✨ Key Features
 
--   Transaction-level audit events\
--   Column-level change tracking\
--   Old and new row snapshots (JSON)\
--   Change detection (skips no-op updates)\
--   Automatic trigger generation\
--   Config-driven enable / disable per table\
--   Context capture (user, module, IP, session)\
--   Partitioned audit storage for scalability\
+-   Transaction-level audit events
+-   Column-level change tracking
+-   Old and new row snapshots (JSON)
+-   Change detection (skips no-op updates)
+-   Automatic trigger generation
+-   Config-driven enable / disable per table
+-   Context capture (user, module, IP, session)
+-   Partitioned audit storage for scalability
 -   Prebuilt audit query views
 
 ------------------------------------------------------------------------
@@ -44,14 +44,14 @@ One row per audited DML event.
 
 Contains:
 
--   Table name\
--   Primary key value\
--   Transaction type (INSERT / UPDATE / DELETE)\
--   Username\
--   Execution context (JSON)\
--   Old row snapshot (JSON)\
--   New row snapshot (JSON)\
--   Database transaction ID\
+-   Table name
+-   Primary key value
+-   Transaction type (INSERT / UPDATE / DELETE)
+-   Username
+-   Execution context (JSON)
+-   Old row snapshot (JSON)
+-   New row snapshot (JSON)
+-   Database transaction ID
 -   Timestamp
 
 ## UTIL_AUDIT_RECORDS --- Column Changes
@@ -60,12 +60,12 @@ One row per column change.
 
 Contains:
 
--   Column name\
--   Old value\
--   New value\
--   Datatype\
--   Change hash\
--   Timestamp\
+-   Column name
+-   Old value
+-   New value
+-   Datatype
+-   Change hash
+-   Timestamp
 -   Transaction reference
 
 This design supports both:
@@ -95,17 +95,15 @@ Prebuilt views simplify querying.
 
 Run the setup script as a user with:
 
--   CREATE TABLE\
--   CREATE INDEX\
--   CREATE VIEW\
--   CREATE PROCEDURE\
+-   CREATE TABLE
+-   CREATE INDEX
+-   CREATE VIEW
+-   CREATE PROCEDURE
 -   CREATE TRIGGER
 
 ``` sql
 @setup.sql
 ```
-
-------------------------------------------------------------------------
 
 ## 2️⃣ Enable auditing for a table
 
@@ -118,13 +116,11 @@ END;
 
 This will:
 
--   Create the audit trigger\
--   Detect primary key\
--   Identify supported columns\
--   Register the table in `UTIL_AUDIT_CONFIG`\
+-   Create the audit trigger
+-   Detect primary key
+-   Identify supported columns
+-   Register the table in `UTIL_AUDIT_CONFIG`
 -   Start auditing immediately
-
-------------------------------------------------------------------------
 
 ## 3️⃣ Verify auditing
 
@@ -135,8 +131,6 @@ WHERE table_name = 'YOUR_TABLE'
 ORDER BY audit_ts DESC;
 ```
 
-------------------------------------------------------------------------
-
 ## 4️⃣ View column changes
 
 ``` sql
@@ -145,8 +139,6 @@ FROM v_util_audit_changes
 WHERE table_name = 'YOUR_TABLE'
 ORDER BY audit_ts DESC;
 ```
-
-------------------------------------------------------------------------
 
 ## 5️⃣ View full row timeline
 
@@ -192,9 +184,8 @@ Triggers remain in place but auditing stops at runtime.
 
 1️⃣ A DML operation fires an audit trigger\
 2️⃣ Trigger builds a JSON payload\
-3️⃣ `util_audit` package:\
-- Inserts transaction header\
-- Inserts column changes\
+3️⃣ `util_audit` package: - Inserts transaction header - Inserts column
+changes\
 4️⃣ No audit rows are written if an UPDATE does not change data
 
 ------------------------------------------------------------------------
@@ -203,11 +194,11 @@ Triggers remain in place but auditing stops at runtime.
 
 Triggers safely support:
 
--   NUMBER\
--   FLOAT / BINARY_FLOAT / BINARY_DOUBLE\
--   VARCHAR2 / CHAR\
--   DATE\
--   TIMESTAMP\
+-   NUMBER
+-   FLOAT / BINARY_FLOAT / BINARY_DOUBLE
+-   VARCHAR2 / CHAR
+-   DATE
+-   TIMESTAMP
 -   CLOB
 
 Unsupported datatypes are automatically skipped.
@@ -216,10 +207,10 @@ Unsupported datatypes are automatically skipped.
 
 # 📈 Performance Considerations
 
--   Auditing adds overhead per DML\
--   Only audit business-critical tables\
--   Avoid auditing staging or bulk-load tables\
--   Partitioned storage reduces long-term cost\
+-   Auditing adds overhead per DML
+-   Only audit business-critical tables
+-   Avoid auditing staging or bulk-load tables
+-   Partitioned storage reduces long-term cost
 -   Purge historical data periodically
 
 This framework is optimized for **traceability, not raw throughput**
@@ -230,10 +221,10 @@ This framework is optimized for **traceability, not raw throughput**
 
 Ideal for:
 
--   Regulatory and compliance environments\
--   Financial transaction systems\
--   Workflow / approval tracking\
--   Data governance programs\
+-   Regulatory and compliance environments
+-   Financial transaction systems
+-   Workflow / approval tracking
+-   Data governance programs
 -   Investigative forensics
 
 ------------------------------------------------------------------------
@@ -242,20 +233,20 @@ Ideal for:
 
 Avoid util_audit for:
 
--   ETL pipelines\
--   High-frequency logging tables\
--   Data warehouse fact tables\
+-   ETL pipelines
+-   High-frequency logging tables
+-   Data warehouse fact tables
 -   Systems where write latency is critical
 
 ------------------------------------------------------------------------
 
 # 🧠 Design Principles
 
--   Deterministic triggers\
--   No dynamic SQL at runtime\
--   JSON-based context for extensibility\
--   Separation of transaction and column data\
--   Minimal dependencies\
+-   Deterministic triggers
+-   No dynamic SQL at runtime
+-   JSON-based context for extensibility
+-   Separation of transaction and column data
+-   Minimal dependencies
 -   Version-agnostic PL/SQL
 
 ------------------------------------------------------------------------
