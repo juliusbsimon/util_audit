@@ -30,7 +30,7 @@ create table UTIL_AUDIT_TXN
         check (old_row_json IS JSON),
     NEW_ROW_JSON      CLOB
         check (new_row_json IS JSON),
-    AUDIT_TS          TIMESTAMP(6) WITH LOCAL TIME ZONE default SYSTIMESTAMP                                              not null
+    AUDIT_TS          TIMESTAMP(6) default SYSTIMESTAMP                                              not null
 )
 /
 
@@ -55,7 +55,7 @@ create table UTIL_AUDIT_RECORDS
     OLD_CLOB             CLOB,
     NEW_CLOB             CLOB,
     CHANGE_HASH          VARCHAR2(64),
-    AUDIT_TS             TIMESTAMP(6) WITH LOCAL TIME ZONE default SYSTIMESTAMP                                              not null
+    AUDIT_TS             TIMESTAMP(6) default SYSTIMESTAMP                                              not null
 )
 /
 
