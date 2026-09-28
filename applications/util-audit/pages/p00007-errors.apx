@@ -1,0 +1,251 @@
+page 7 (
+    name: Errors
+    alias: ERRORS
+    title: Errors
+    appearance {
+        pageTemplate: @/standard
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+    }
+    security {
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+    help {
+        helpText: When writing an audit record fails, the business change still goes through and the failure is logged here.
+    }
+
+    region errors (
+        name: Errors
+        type: breadcrumb
+        source {
+            breadcrumb: @breadcrumb
+        }
+        layout {
+            sequence: 10
+            slot: breadcrumbBar
+        }
+        appearance {
+            template: @/title-bar
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            breadcrumbTemplate: @/breadcrumb
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region audit-errors (
+        name: Audit Errors
+        type: interactiveReport
+        source {
+            location: localDatabase
+            type: tableView
+            tableName: UTIL_AUDIT_ERRORS
+            includeRowidColumn: false
+        }
+        layout {
+            sequence: 20
+            slot: body
+        }
+        appearance {
+            template: @/interactive-report
+            templateOptions: #DEFAULT#
+        }
+        advanced {
+            htmlDomId: audit_errors
+        }
+        link {
+            linkColumn: exclude
+        }
+        componentAppearance {
+            showNullValuesAs: -
+        }
+        pagination {
+            type: rowRangesXToY
+        }
+        messages {
+            whenNoDataFound: No audit errors. Every audited change was recorded.
+        }
+        download {
+            formats: [
+                csv
+                html
+            ]
+        }
+
+        column UTIL_AUDIT_ERROR_ID (
+            type: hidden
+            heading {
+                heading: Error ID
+            }
+            layout {
+                sequence: 10
+            }
+            source {
+                dataType: NUMBER
+            }
+        )
+
+        column ERROR_TS (
+            type: plainText
+            heading {
+                heading: When
+            }
+            layout {
+                sequence: 20
+            }
+            appearance {
+                formatMask: YYYY-MM-DD HH24":"MI":"SS
+            }
+            source {
+                dataType: TIMESTAMP
+            }
+        )
+
+        column TABLE_NAME (
+            type: plainText
+            heading {
+                heading: Table
+            }
+            layout {
+                sequence: 30
+            }
+            source {
+                dataType: STRING
+            }
+        )
+
+        column TRANSACTION_TYPE (
+            type: plainText
+            heading {
+                heading: Type
+            }
+            layout {
+                sequence: 40
+            }
+            source {
+                dataType: STRING
+            }
+        )
+
+        column PK_VALUE_VC (
+            type: plainText
+            heading {
+                heading: Key
+            }
+            layout {
+                sequence: 50
+            }
+            source {
+                dataType: STRING
+            }
+        )
+
+        column USERNAME (
+            type: plainText
+            heading {
+                heading: User
+            }
+            layout {
+                sequence: 60
+            }
+            source {
+                dataType: STRING
+            }
+        )
+
+        column ERROR_CODE (
+            type: plainText
+            heading {
+                heading: Code
+                alignment: end
+            }
+            layout {
+                sequence: 70
+                columnAlignment: end
+            }
+            source {
+                dataType: NUMBER
+            }
+        )
+
+        column ERROR_MESSAGE (
+            type: plainText
+            heading {
+                heading: Message
+            }
+            layout {
+                sequence: 80
+            }
+            source {
+                dataType: STRING
+            }
+        )
+
+        column ERROR_BACKTRACE (
+            type: plainText
+            heading {
+                heading: Backtrace
+            }
+            layout {
+                sequence: 90
+            }
+            source {
+                dataType: STRING
+            }
+        )
+
+        savedReport primary (
+            visibility: primaryDefault
+            view {
+                rowsPerPage: 50
+            }
+
+            displayColumn ERROR_TS (
+                sequence: 1
+            )
+
+            displayColumn TABLE_NAME (
+                sequence: 2
+            )
+
+            displayColumn TRANSACTION_TYPE (
+                sequence: 3
+            )
+
+            displayColumn PK_VALUE_VC (
+                sequence: 4
+            )
+
+            displayColumn USERNAME (
+                sequence: 5
+            )
+
+            displayColumn ERROR_CODE (
+                sequence: 6
+            )
+
+            displayColumn ERROR_MESSAGE (
+                sequence: 7
+            )
+
+            displayColumn ERROR_BACKTRACE (
+                sequence: 8
+            )
+
+            sort (
+                column: ERROR_TS
+                sort {
+                    direction: desc
+                    sequence: 1
+                }
+            )
+
+        )
+
+    )
+
+)

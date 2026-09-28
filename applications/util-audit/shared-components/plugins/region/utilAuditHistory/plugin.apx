@@ -1,0 +1,168 @@
+plugin utilAuditHistory (
+    name: Audit History
+    staticId: UTIL_AUDIT_HISTORY
+    type: region
+    component {
+        standardAttributes: [
+            noDataFoundMessageAttr
+        ]
+    }
+    source {
+        plsqlCode:
+            ```plsql
+            -- Audit History region: the changes util_audit recorded for the row a
+            -- page shows, read from util_audit_query.history.
+            function render (
+                p_region              in apex_plugin.t_region,
+                p_plugin              in apex_plugin.t_plugin,
+                p_is_printer_friendly in boolean )
+                return apex_plugin.t_region_render_result
+            is
+                l_result   apex_plugin.t_region_render_result;
+                type t_row is record (
+                    changed_at     timestamp(6),
+                    changed_by     varchar2(255),
+                    action         varchar2(6),
+                    table_name     varchar2(255),
+                    record_key     varchar2(4000),
+                    field          varchar2(255),
+                    old_value      varchar2(4000),
+                    new_value      varchar2(4000),
+                    fields_changed varchar2(4000),
+                    transaction_id varchar2(64));
+                type t_rows is table of t_row;
+
+                l_table    varchar2(128)   := upper(trim(p_region.attribute_01));
+                l_items    apex_t_varchar2 := apex_string.split(replace(p_region.attribute_02, ' '), ',');
+                l_style    varchar2(10)    := nvl(p_region.attribute_03, 'COLUMNS');
+                l_children varchar2(4000)  := p_region.attribute_04;
+                l_columns  varchar2(4000)  := p_region.attribute_05;
+                l_friendly varchar2(1)     := nvl(p_region.attribute_06, 'Y');
+                l_max_rows number          := nvl(to_number(p_region.attribute_07), 100);
+                l_datefmt  varchar2(100)   := nvl(p_region.attribute_08, 'SINCE');
+                l_schema   varchar2(128)   := upper(trim(p_region.attribute_09));
+                l_keys     apex_t_varchar2 := apex_t_varchar2(null, null, null, null);
+                l_sql      varchar2(4000);
+                l_rc       sys_refcursor;
+                l_rows     t_rows;
+                l_kids     boolean := l_children is not null;
+                l_prev_txn varchar2(64);
+                l_first    boolean;
+
+                function cell(p_value in varchar2, p_class in varchar2 default null) return varchar2 is
+                    l_short varchar2(4000) := p_value;
+                begin
+                    if length(p_value) > 200 then
+                        l_short := substr(p_value, 1, 200) || '...';
+                    end if;
+                    return '<td class="t-Report-cell' || case when p_class is not null then ' ' || p_class end || '"' ||
+                           case when l_short <> p_value then ' title="' || apex_escape.html_attribute(p_value) || '"' end ||
+                           '>' || apex_escape.html(l_short) || '</td>';
+                end;
+
+                function head(p_label in varchar2) return varchar2 is
+                begin
+                    return '<th class="t-Report-colHead" scope="col">' || apex_escape.html(p_label) || '</th>';
+                end;
+
+                function when_text(p_ts in timestamp) return varchar2 is
+                begin
+                    return case when l_datefmt = 'SINCE' then apex_util.get_since(cast(p_ts as date))
+                                else to_char(p_ts, l_datefmt) end;
+                end;
+            begin
+                apex_css.add(
+                    p_css => '.ua-hist .ua-hist-cont td.ua-hist-event{color:transparent;user-select:none}' ||
+                             '.ua-hist td.ua-hist-old{color:var(--ua-text-muted,var(--ut-component-text-muted-color,#6b6e80));text-decoration:line-through}',
+                    p_key => 'util_audit_history');
+
+                for i in 1 .. least(l_items.count, 4) loop
+                    l_keys(i) := apex_util.get_session_state(l_items(i));
+                end loop;
+
+                if l_keys(1) is null then
+                    sys.htp.p('<p class="ua-hist-empty">' || apex_escape.html(
+                        nvl(p_region.no_data_found_message, 'No changes recorded yet.')) || '</p>');
+                    return l_result;
+                end if;
+
+                if l_schema is not null and not regexp_like(l_schema, '^[A-Z][A-Z0-9_$#]*$') then
+                    raise_application_error(-20031, 'Not a valid schema name: ' || l_schema);
+                end if;
+
+                l_sql := 'select * from table(' ||
+                         case when l_schema is not null then l_schema || '.' end ||
+                         'util_audit_query.history(:t, :k1, :k2, :k3, :k4, :s, :c, :ch, :f, :m))';
+                open l_rc for l_sql
+                    using l_table, l_keys(1), l_keys(2), l_keys(3), l_keys(4),
+                          l_style, l_columns, l_children, l_friendly, l_max_rows;
+                fetch l_rc bulk collect into l_rows;
+                close l_rc;
+
+                if l_rows.count = 0 then
+                    sys.htp.p('<p class="ua-hist-empty">' || apex_escape.html(
+                        nvl(p_region.no_data_found_message, 'No changes recorded yet.')) || '</p>');
+                    return l_result;
+                end if;
+
+                sys.htp.p('<div class="t-Report t-Report--stretch ua-hist"><div class="t-Report-wrap">' ||
+                          '<table class="t-Report-report" aria-label="' ||
+                          apex_escape.html_attribute(p_region.name) || '"><thead><tr>' ||
+                          head('Changed') || head('By') || head('Action') ||
+                          case when l_kids then head('Table') || head('Record') end ||
+                          case when l_style = 'COLUMNS'
+                               then head('Field') || head('Old Value') || head('New Value')
+                               else head('Fields Changed') end ||
+                          '</tr></thead><tbody>');
+
+                for i in 1 .. l_rows.count loop
+                    -- Later lines of the same change leave the event columns empty,
+                    -- so each change reads as one group
+                    l_first := l_style <> 'COLUMNS' or l_rows(i).transaction_id is null
+                               or l_rows(i).transaction_id <> nvl(l_prev_txn, '-');
+                    l_prev_txn := l_rows(i).transaction_id;
+                    sys.htp.p('<tr' || case when not l_first then ' class="ua-hist-cont"' end || '>' ||
+                              cell(when_text(l_rows(i).changed_at), 'ua-hist-event') ||
+                              cell(l_rows(i).changed_by, 'ua-hist-event') ||
+                              cell(initcap(l_rows(i).action), 'ua-hist-event') ||
+                              case when l_kids then
+                                  cell(l_rows(i).table_name, 'ua-hist-event') ||
+                                  cell(l_rows(i).record_key, 'ua-hist-event') end ||
+                              case when l_style = 'COLUMNS' then
+                                  cell(l_rows(i).field) ||
+                                  cell(l_rows(i).old_value, 'ua-hist-old') ||
+                                  cell(l_rows(i).new_value)
+                              else
+                                  cell(l_rows(i).fields_changed) end ||
+                              '</tr>');
+                end loop;
+
+                sys.htp.p('</tbody></table></div></div>');
+                if l_rows.count >= l_max_rows then
+                    sys.htp.p('<p class="ua-hist-more">Showing the latest ' || l_max_rows || ' lines.</p>');
+                end if;
+                return l_result;
+            exception
+                when others then
+                    if l_rc%isopen then
+                        close l_rc;
+                    end if;
+                    -- Show the problem in the region instead of failing the page
+                    sys.htp.p('<p class="ua-hist-error">Audit History: ' || apex_escape.html(sqlerrm) || '</p>');
+                    return l_result;
+            end render;
+            ```
+    }
+    callbacks {
+        apiInterface: function
+        renderProcedureName: render
+    }
+    information {
+        version: 1.0
+        helpText:
+            ```
+            <p>Shows the changes util_audit recorded for the row a page is showing: who changed it, when, and each column's old and new value. Set <strong>Table</strong> and <strong>Key Items</strong>; everything else is optional.</p>
+            <p>Needs the util_audit framework installed (the Util Audit app installs it). The region renders when the page loads.</p>
+            ```
+    }
+)

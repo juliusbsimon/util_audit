@@ -1,0 +1,65 @@
+appProcess sync-theme (
+    name: Sync Theme
+    type: executeCode
+    source {
+        plsqlCode:
+            ```plsql
+            -- Light or dark, per user. The mode is an APEX user preference:
+            --   AUTO  (default) follow the operating system, read from the
+            --         UA_OS_DARK cookie that js/util-audit.js keeps current
+            --   LIGHT / DARK  the user's explicit choice from the Theme menu
+            -- Dark is the Universal Theme style "Vita - Dark"; light is the
+            -- app's default style.
+            declare
+                l_mode    varchar2(10) := nvl(apex_util.get_preference('UA_THEME_MODE', :APP_USER), 'AUTO');
+                l_dark_id number;
+                l_current number := apex_theme.get_user_style(:APP_ID, :APP_USER, 42);
+                l_cookie  owa_cookie.cookie;
+                l_dark    boolean := false;
+            begin
+                -- A choice from the Theme menu
+                if :REQUEST in ('THEME_AUTO', 'THEME_LIGHT', 'THEME_DARK') then
+                    l_mode := substr(:REQUEST, 7);
+                    apex_util.set_preference('UA_THEME_MODE', l_mode, :APP_USER);
+                end if;
+
+                :UA_THEME_MODE  := l_mode;
+                :UA_THEME_LABEL := case l_mode when 'LIGHT' then 'Light' when 'DARK' then 'Dark' else 'Match system' end;
+
+                if l_mode = 'AUTO' then
+                    begin
+                        l_cookie := owa_cookie.get('UA_OS_DARK');
+                        l_dark   := l_cookie.num_vals > 0 and l_cookie.vals(1) = '1';
+                    exception
+                        when others then
+                            l_dark := false;
+                    end;
+                else
+                    l_dark := l_mode = 'DARK';
+                end if;
+
+                select max(theme_style_id)
+                  into l_dark_id
+                  from apex_application_theme_styles
+                 where application_id = :APP_ID
+                   and name = 'Vita - Dark';
+
+                if l_dark and l_dark_id is not null and nvl(l_current, -1) <> l_dark_id then
+                    apex_theme.set_user_style(:APP_ID, :APP_USER, 42, l_dark_id);
+                elsif not l_dark and l_current = l_dark_id then
+                    apex_theme.clear_user_style(:APP_ID, :APP_USER, 42);
+                end if;
+
+                if :REQUEST in ('THEME_AUTO', 'THEME_LIGHT', 'THEME_DARK') then
+                    apex_util.redirect_url(apex_page.get_url(p_page => :APP_PAGE_ID));
+                end if;
+            end;
+            ```
+    }
+    execution {
+        sequence: 10
+    }
+    serverSideCondition {
+        type: userIsAuthenticated
+    }
+)

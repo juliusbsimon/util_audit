@@ -1,0 +1,740 @@
+page 3 (
+    name: Table
+    alias: TABLE
+    title: &P3_TABLE_NAME.
+    appearance {
+        pageMode: modalDialog
+        dialogTemplate: @/drawer
+        templateOptions: [
+            #DEFAULT#
+            js-dialog-class-t-Drawer--pullOutEnd
+        ]
+    }
+    dialog {
+        chained: false
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+    }
+    security {
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+    help {
+        helpText: Shows the audit status of one table. Start, pause, resume or stop auditing, choose columns the audit trigger skips, see which tables reference this one and preview the trigger code.
+    }
+
+    region status (
+        name: Status
+        type: staticContent
+        layout {
+            sequence: 10
+            slot: contentBody
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region no-primary-key (
+        name: No Primary Key
+        type: staticContent
+        source {
+            htmlCode: <p>This table has no primary key. Auditing needs one.</p>
+        }
+        layout {
+            sequence: 10
+            parentRegion: @status
+            slot: subRegions
+        }
+        appearance {
+            template: @/alert
+            templateOptions: #DEFAULT#
+        }
+        serverSideCondition {
+            type: item=value
+            item: P3_HAS_PK
+            value: N
+        }
+    )
+
+    region ignored-columns (
+        name: Ignored Columns
+        type: staticContent
+        layout {
+            sequence: 20
+            slot: contentBody
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    region child-tables (
+        name: Child Tables
+        type: classicReport
+        source {
+            location: localDatabase
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select child_table,
+                       constraint_name,
+                       delete_rule,
+                       case child_audited when 'Y' then 'Yes' else 'No' end audited
+                  from v_util_audit_child_tables
+                 where parent_table = :P3_TABLE_NAME
+                 order by child_table
+                ```
+        }
+        layout {
+            sequence: 30
+            slot: contentBody
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Report--stretch
+                t-Report--horizontalBorders
+            ]
+        }
+        headerAndFooter {
+            headerText:
+                ```html
+                <p class="u-color-muted">Restoring a deleted row brings back child rows only from audited child tables.</p>
+                ```
+        }
+        pagination {
+            type: rowRangesXToYOfZWithPagination
+        }
+        reportLayout {
+            numberOfRowsType: staticValue
+            numberOfRows: 15
+        }
+        messages {
+            whenNoDataFound: No tables reference this table.
+        }
+
+        column CHILD_TABLE (
+            reportColumnQueryId: 1
+            derivedColumn: N
+            heading {
+                heading: Child Table
+                alignment: start
+            }
+            layout {
+                sequence: 10
+                columnAlignment: start
+            }
+        )
+
+        column CONSTRAINT_NAME (
+            reportColumnQueryId: 2
+            derivedColumn: N
+            heading {
+                heading: Foreign Key
+                alignment: start
+            }
+            layout {
+                sequence: 20
+                columnAlignment: start
+            }
+        )
+
+        column DELETE_RULE (
+            reportColumnQueryId: 3
+            derivedColumn: N
+            heading {
+                heading: On Delete
+                alignment: start
+            }
+            layout {
+                sequence: 30
+                columnAlignment: start
+            }
+        )
+
+        column AUDITED (
+            reportColumnQueryId: 4
+            derivedColumn: N
+            heading {
+                heading: Audited
+                alignment: start
+            }
+            layout {
+                sequence: 40
+                columnAlignment: start
+            }
+        )
+
+    )
+
+    region trigger-code (
+        name: Trigger Code
+        type: dynamicContent
+        source {
+            language: plsql
+            plsqlFunctionBody:
+                ```plsql
+                declare
+                    l_ddl clob;
+                    l_out clob;
+                    l_pos pls_integer := 1;
+                    l_len pls_integer;
+                begin
+                    l_ddl := util_audit_gen.get_trigger_ddl(:P3_TABLE_NAME);
+                    l_len := nvl(dbms_lob.getlength(l_ddl), 0);
+                    l_out := '<pre class="ua-trigger-code">';
+                    while l_pos <= l_len loop
+                        l_out := l_out || apex_escape.html(dbms_lob.substr(l_ddl, 4000, l_pos));
+                        l_pos := l_pos + 4000;
+                    end loop;
+                    return l_out || '</pre>';
+                exception
+                    when others then
+                        return '<p>' || apex_escape.html(sqlerrm) || '</p>';
+                end;
+                ```
+        }
+        layout {
+            sequence: 40
+            slot: contentBody
+        }
+        appearance {
+            template: @/collapsible
+            templateOptions: [
+                #DEFAULT#
+                is-collapsed
+                t-Region--scrollBody
+            ]
+        }
+    )
+
+    region buttons (
+        name: Buttons
+        type: staticContent
+        layout {
+            sequence: 50
+            slot: dialogFooter
+        }
+        appearance {
+            template: @/buttons-container
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    pageItem P3_TABLE_NAME (
+        type: hidden
+        layout {
+            sequence: 10
+            region: @status
+            slot: regionBody
+        }
+        settings {
+            valueProtected: true
+        }
+        security {
+            sessionStateProtection: checksumRequiredSessionLevel
+        }
+    )
+
+    pageItem P3_HAS_PK (
+        type: hidden
+        layout {
+            sequence: 20
+            region: @status
+            slot: regionBody
+        }
+        settings {
+            valueProtected: true
+        }
+    )
+
+    pageItem P3_AUDIT_STATUS (
+        type: displayOnly
+        label {
+            label: Status
+            alignment: left
+        }
+        layout {
+            sequence: 30
+            region: @status
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+    )
+
+    pageItem P3_TRIGGER_NAME (
+        type: displayOnly
+        label {
+            label: Trigger
+            alignment: left
+        }
+        layout {
+            sequence: 40
+            region: @status
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+    )
+
+    pageItem P3_EVENT_COUNT (
+        type: displayOnly
+        label {
+            label: Events
+            alignment: left
+        }
+        layout {
+            sequence: 50
+            region: @status
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+    )
+
+    pageItem P3_IGNORED_COLUMNS (
+        type: shuttle
+        label {
+            label: Columns the trigger skips
+            alignment: left
+        }
+        lov {
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select column_name d,
+                       column_name r
+                  from user_tab_columns
+                 where table_name = :P3_TABLE_NAME
+                 order by column_id
+                ```
+        }
+        layout {
+            sequence: 10
+            region: @ignored-columns
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: Changes to the columns in this list are not recorded by the audit trigger. Saving re-creates the trigger when the table is audited.
+        }
+    )
+
+    button cancel (
+        buttonName: CANCEL
+        label: Cancel
+        layout {
+            sequence: 10
+            region: @buttons
+            slot: close
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: definedByDynamicAction
+        }
+    )
+
+    button stop-auditing (
+        buttonName: STOP_AUDITING
+        label: Stop Auditing
+        layout {
+            sequence: 20
+            region: @buttons
+            slot: delete
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: [
+                #DEFAULT#
+                t-Button--danger
+            ]
+        }
+        behavior {
+            warnOnUnsavedChanges: doNotCheck
+            requiresConfirmation: true
+        }
+        confirmation {
+            message: Remove the audit trigger from &P3_TABLE_NAME.? Audit history is kept.
+            style: danger
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P3_TRIGGER_NAME
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    button pause-auditing (
+        buttonName: PAUSE_AUDITING
+        label: Pause
+        layout {
+            sequence: 30
+            region: @buttons
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            warnOnUnsavedChanges: doNotCheck
+        }
+        serverSideCondition {
+            type: item=value
+            item: P3_AUDIT_STATUS
+            value: Auditing
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    button resume-auditing (
+        buttonName: RESUME_AUDITING
+        label: Resume
+        layout {
+            sequence: 40
+            region: @buttons
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            warnOnUnsavedChanges: doNotCheck
+        }
+        serverSideCondition {
+            type: item=value
+            item: P3_AUDIT_STATUS
+            value: Paused
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    button recreate-trigger (
+        buttonName: RECREATE_TRIGGER
+        label: Re-create Trigger
+        layout {
+            sequence: 50
+            region: @buttons
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            warnOnUnsavedChanges: doNotCheck
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P3_TRIGGER_NAME
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    button start-auditing (
+        buttonName: START_AUDITING
+        label: Start Auditing
+        layout {
+            sequence: 60
+            region: @buttons
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: true
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            warnOnUnsavedChanges: doNotCheck
+        }
+        serverSideCondition {
+            type: expression
+            plsqlExpression: :P3_AUDIT_STATUS = 'Not audited' and :P3_HAS_PK = 'Y'
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    button save-ignored (
+        buttonName: SAVE_IGNORED
+        label: Save Ignored Columns
+        layout {
+            sequence: 20
+            region: @ignored-columns
+            slot: regionBody
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    dynamicAction cancel-dialog (
+        name: Cancel Dialog
+        execution {
+            sequence: 10
+        }
+        when {
+            event: click
+            selectionType: button
+            button: @cancel
+        }
+
+        action cancel-dialog-action (
+            action: cancelDialog
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+    process fetch-table (
+        name: Fetch Table
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                for t in (
+                    select audit_status,
+                           trigger_name,
+                           has_pk,
+                           event_count,
+                           replace(ignored_columns, ',', ':') ignored_columns
+                      from v_util_audit_tables
+                     where table_name = :P3_TABLE_NAME
+                ) loop
+                    :P3_AUDIT_STATUS    := t.audit_status;
+                    :P3_TRIGGER_NAME    := t.trigger_name;
+                    :P3_HAS_PK          := t.has_pk;
+                    :P3_EVENT_COUNT     := t.event_count;
+                    :P3_IGNORED_COLUMNS := t.ignored_columns;
+                end loop;
+                ```
+        }
+        execution {
+            sequence: 10
+            point: beforeHeader
+        }
+    )
+
+    process start-auditing (
+        name: Start Auditing
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                -- Build the trigger with the ignored columns shown on the page,
+                -- then enable the table: create_audit_trigger keeps an existing
+                -- flag, so a table paused earlier would otherwise stay paused.
+                util_audit_gen.set_table_ignored_columns(
+                    p_table_name => :P3_TABLE_NAME,
+                    p_columns    => replace(:P3_IGNORED_COLUMNS, ':', ','),
+                    p_regenerate => false);
+                util_audit_gen.create_audit_trigger(:P3_TABLE_NAME);
+                util_audit.enable_table(:P3_TABLE_NAME);
+                ```
+        }
+        execution {
+            sequence: 10
+        }
+        successMessage {
+            successMessage: Auditing started for &P3_TABLE_NAME..
+        }
+        serverSideCondition {
+            whenButtonPressed: @start-auditing
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    process recreate-trigger (
+        name: Re-create Trigger
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                -- Save the ignored columns shown on the page first, so the new
+                -- trigger skips what the user sees. The enabled flag is kept.
+                util_audit_gen.set_table_ignored_columns(
+                    p_table_name => :P3_TABLE_NAME,
+                    p_columns    => replace(:P3_IGNORED_COLUMNS, ':', ','),
+                    p_regenerate => false);
+                util_audit_gen.create_audit_trigger(:P3_TABLE_NAME);
+                ```
+        }
+        execution {
+            sequence: 20
+        }
+        successMessage {
+            successMessage: Trigger re-created for &P3_TABLE_NAME..
+        }
+        serverSideCondition {
+            whenButtonPressed: @recreate-trigger
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    process pause-auditing (
+        name: Pause Auditing
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                util_audit.disable_table(:P3_TABLE_NAME);
+                ```
+        }
+        execution {
+            sequence: 30
+        }
+        successMessage {
+            successMessage: Auditing paused for &P3_TABLE_NAME..
+        }
+        serverSideCondition {
+            whenButtonPressed: @pause-auditing
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    process resume-auditing (
+        name: Resume Auditing
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                util_audit.enable_table(:P3_TABLE_NAME);
+                ```
+        }
+        execution {
+            sequence: 40
+        }
+        successMessage {
+            successMessage: Auditing resumed for &P3_TABLE_NAME..
+        }
+        serverSideCondition {
+            whenButtonPressed: @resume-auditing
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    process stop-auditing (
+        name: Stop Auditing
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                util_audit_gen.drop_audit_trigger(:P3_TABLE_NAME);
+                ```
+        }
+        execution {
+            sequence: 50
+        }
+        successMessage {
+            successMessage: Auditing stopped for &P3_TABLE_NAME..
+        }
+        serverSideCondition {
+            whenButtonPressed: @stop-auditing
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    process save-ignored (
+        name: Save Ignored Columns
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                util_audit_gen.set_table_ignored_columns(:P3_TABLE_NAME, replace(:P3_IGNORED_COLUMNS, ':', ','));
+                ```
+        }
+        execution {
+            sequence: 60
+        }
+        successMessage {
+            successMessage: Ignored columns saved for &P3_TABLE_NAME..
+        }
+        serverSideCondition {
+            whenButtonPressed: @save-ignored
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    process close-dialog (
+        name: Close Dialog
+        type: closeDialog
+        execution {
+            sequence: 100
+        }
+        serverSideCondition {
+            type: requestIsContainedInValue
+            value: START_AUDITING,RECREATE_TRIGGER,PAUSE_AUDITING,RESUME_AUDITING,STOP_AUDITING,SAVE_IGNORED
+        }
+    )
+
+)

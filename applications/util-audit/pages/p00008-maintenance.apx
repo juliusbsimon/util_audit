@@ -1,0 +1,530 @@
+page 8 (
+    name: Maintenance
+    alias: MAINTENANCE
+    title: Maintenance
+    pageGroup: @administration
+    appearance {
+        pageTemplate: @/standard
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+        warnOnUnsavedChanges: false
+    }
+    security {
+        authorizationScheme: @audit-administrator
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+    help {
+        helpText: Purge old audit history and logged errors, or re-create every audit trigger after an upgrade. Only workspace administrators and developers can use this page.
+    }
+
+    region maintenance (
+        name: Maintenance
+        type: breadcrumb
+        source {
+            breadcrumb: @breadcrumb
+        }
+        layout {
+            sequence: 10
+            slot: breadcrumbBar
+        }
+        appearance {
+            template: @/title-bar
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            breadcrumbTemplate: @/breadcrumb
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region purge-audit-history (
+        name: Purge Audit History
+        type: staticContent
+        source {
+            htmlCode: <p>Permanently deletes audit events and their column changes recorded before the date. Deleted history cannot be restored.</p>
+        }
+        layout {
+            sequence: 20
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region purge-errors (
+        name: Purge Errors
+        type: staticContent
+        source {
+            htmlCode: <p>Deletes logged audit errors recorded before the date.</p>
+        }
+        layout {
+            sequence: 30
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region re-create-all-triggers (
+        name: Re-create All Triggers
+        type: staticContent
+        source {
+            htmlCode: <p>Re-creates every audit trigger from the current package code. Run this after upgrading util_audit, or after adding or dropping columns on audited tables.</p>
+        }
+        layout {
+            sequence: 40
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    pageItem P8_PURGE_BEFORE (
+        type: datePicker
+        label {
+            label: Delete events before
+            alignment: right
+        }
+        layout {
+            sequence: 10
+            region: @purge-audit-history
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+            formatMask: YYYY-MM-DD
+        }
+        default {
+            type: expression
+            language: sql
+            sqlExpression:
+                ```sql
+                to_char(trunc(sysdate) - 365, 'YYYY-MM-DD')
+                ```
+        }
+    )
+
+    pageItem P8_PURGE_TABLE (
+        type: selectList
+        label {
+            label: Table
+            alignment: right
+        }
+        layout {
+            sequence: 20
+            region: @purge-audit-history
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        lov {
+            type: sharedComponent
+            lov: @audited-tables
+            displayExtraValues: false
+            displayNullValue: true
+            nullDisplayValue: - All tables -
+        }
+    )
+
+    pageItem P8_ERRORS_BEFORE (
+        type: datePicker
+        label {
+            label: Delete errors before
+            alignment: right
+        }
+        layout {
+            sequence: 10
+            region: @purge-errors
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+            formatMask: YYYY-MM-DD
+        }
+        default {
+            type: expression
+            language: sql
+            sqlExpression:
+                ```sql
+                to_char(trunc(sysdate) - 30, 'YYYY-MM-DD')
+                ```
+        }
+    )
+
+    pageItem P8_RECREATE_OUTPUT (
+        type: textarea
+        label {
+            label: Result
+            alignment: right
+        }
+        layout {
+            sequence: 10
+            region: @re-create-all-triggers
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional-above
+            templateOptions: #DEFAULT#
+            height: 10
+        }
+        readOnly {
+            type: always
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P8_RECREATE_OUTPUT
+        }
+    )
+
+    button purge-history (
+        buttonName: PURGE_HISTORY
+        label: Purge History
+        layout {
+            sequence: 10
+            region: @purge-audit-history
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: false
+            templateOptions: [
+                #DEFAULT#
+                t-Button--danger
+            ]
+        }
+        behavior {
+            action: definedByDynamicAction
+        }
+    )
+
+    button purge-errors (
+        buttonName: PURGE_ERRORS
+        label: Purge Errors
+        layout {
+            sequence: 10
+            region: @purge-errors
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: false
+            templateOptions: [
+                #DEFAULT#
+                t-Button--danger
+            ]
+        }
+        behavior {
+            action: definedByDynamicAction
+        }
+    )
+
+    button recreate-all (
+        buttonName: RECREATE_ALL
+        label: Re-create All Triggers
+        layout {
+            sequence: 10
+            region: @re-create-all-triggers
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: false
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: submitPage
+            executeValidations: false
+            warnOnUnsavedChanges: doNotCheck
+            requiresConfirmation: true
+        }
+        confirmation {
+            message: Re-create every audit trigger now?
+            style: warning
+        }
+    )
+
+    validation purge-before-not-null (
+        name: Purge Before Is Not Null
+        execution {
+            sequence: 10
+        }
+        validation {
+            type: itemIsNotNull
+            item: P8_PURGE_BEFORE
+        }
+        error {
+            errorMessage: Enter the date to delete audit history before.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P8_PURGE_BEFORE
+        }
+        serverSideCondition {
+            whenButtonPressed: @purge-history
+        }
+    )
+
+    validation errors-before-not-null (
+        name: Errors Before Is Not Null
+        execution {
+            sequence: 20
+        }
+        validation {
+            type: itemIsNotNull
+            item: P8_ERRORS_BEFORE
+        }
+        error {
+            errorMessage: Enter the date to delete audit errors before.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P8_ERRORS_BEFORE
+        }
+        serverSideCondition {
+            whenButtonPressed: @purge-errors
+        }
+    )
+
+    dynamicAction confirm-purge-history (
+        name: Confirm Purge History
+        execution {
+            sequence: 10
+        }
+        when {
+            event: click
+            selectionType: button
+            button: @purge-history
+        }
+
+        // The confirmation shows the date and table as they are now, not as
+        // they were when the page loaded. An empty date is submitted as is so
+        // the server-side validation reports it.
+        action confirm-and-submit-history (
+            action: executeJsCode
+            settings {
+                jsCode:
+                    ```javascript-browser
+                    var before = $v("P8_PURGE_BEFORE"),
+                        table  = $v("P8_PURGE_TABLE"),
+                        esc    = apex.util.escapeHTML;
+                    if (!before) {
+                        apex.submit({ request: "PURGE_HISTORY" });
+                    } else {
+                        apex.message.confirm(
+                            "Permanently delete the audit history of " +
+                                (table ? "table " + esc(table) : "all tables") +
+                                " recorded before " + esc(before) + "? Deleted history cannot be restored.",
+                            function (ok) {
+                                if (ok) {
+                                    apex.submit({ request: "PURGE_HISTORY" });
+                                }
+                            },
+                            { style: "danger", confirmLabel: "Purge History" }
+                        );
+                    }
+                    ```
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+    dynamicAction confirm-purge-errors (
+        name: Confirm Purge Errors
+        execution {
+            sequence: 20
+        }
+        when {
+            event: click
+            selectionType: button
+            button: @purge-errors
+        }
+
+        action confirm-and-submit-errors (
+            action: executeJsCode
+            settings {
+                jsCode:
+                    ```javascript-browser
+                    var before = $v("P8_ERRORS_BEFORE");
+                    if (!before) {
+                        apex.submit({ request: "PURGE_ERRORS" });
+                    } else {
+                        apex.message.confirm(
+                            "Permanently delete logged audit errors recorded before " +
+                                apex.util.escapeHTML(before) + "?",
+                            function (ok) {
+                                if (ok) {
+                                    apex.submit({ request: "PURGE_ERRORS" });
+                                }
+                            },
+                            { style: "danger", confirmLabel: "Purge Errors" }
+                        );
+                    }
+                    ```
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+    process clear-recreate-output (
+        name: Clear Re-create Output
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                -- The Result of Re-create All Triggers belongs to that one run only.
+                -- Runs before validations, so no submit ever shows an older Result.
+                :P8_RECREATE_OUTPUT := null;
+                ```
+        }
+        execution {
+            sequence: 5
+            point: afterSubmit
+        }
+    )
+
+    process purge-history (
+        name: Purge History
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                    l_deleted number;
+                begin
+                    util_audit.purge(
+                        p_before         => cast(to_date(:P8_PURGE_BEFORE, 'YYYY-MM-DD') as timestamp),
+                        p_table_name     => :P8_PURGE_TABLE,
+                        p_events_deleted => l_deleted
+                    );
+                    apex_application.g_print_success_message := l_deleted || ' audit event(s) deleted.';
+                end;
+                ```
+        }
+        execution {
+            sequence: 10
+            point: processing
+        }
+        serverSideCondition {
+            whenButtonPressed: @purge-history
+        }
+    )
+
+    process purge-errors (
+        name: Purge Errors
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                    l_deleted number;
+                begin
+                    util_audit.purge_errors(
+                        p_before         => cast(to_date(:P8_ERRORS_BEFORE, 'YYYY-MM-DD') as timestamp),
+                        p_errors_deleted => l_deleted
+                    );
+                    apex_application.g_print_success_message := l_deleted || ' error(s) deleted.';
+                end;
+                ```
+        }
+        execution {
+            sequence: 20
+            point: processing
+        }
+        serverSideCondition {
+            whenButtonPressed: @purge-errors
+        }
+    )
+
+    process recreate-all (
+        name: Re-create All Triggers
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                    l_lines  dbms_output.chararr;
+                    l_count  integer := 32767;
+                    l_error  varchar2(4000);
+                    l_output varchar2(32767);
+                begin
+                    dbms_output.enable(null);
+                    begin
+                        util_audit_gen.recreate_all_triggers;
+                    exception
+                        when others then
+                            l_error := sqlerrm;
+                    end;
+                    dbms_output.get_lines(l_lines, l_count);
+                    for i in 1 .. l_count loop
+                        if nvl(length(l_output), 0) + nvl(length(l_lines(i)), 0) < 30000 then
+                            l_output := l_output || l_lines(i) || chr(10);
+                        end if;
+                    end loop;
+                    dbms_output.disable;
+                    if l_error is not null then
+                        l_output := l_output || 'ERROR: ' || substr(l_error, 1, 2000);
+                    end if;
+                    :P8_RECREATE_OUTPUT := rtrim(l_output, chr(10));
+                    if l_error is null then
+                        apex_application.g_print_success_message := 'Triggers re-created.';
+                    else
+                        -- Report the failure; the details stay in Result.
+                        apex_error.add_error(
+                            p_message          => 'Not every trigger could be re-created. See Result for details.',
+                            p_display_location => apex_error.c_inline_in_notification);
+                    end if;
+                exception
+                    when others then
+                        :P8_RECREATE_OUTPUT := 'ERROR: ' || substr(sqlerrm, 1, 2000);
+                        apex_error.add_error(
+                            p_message          => 'Re-creating the triggers failed. See Result for details.',
+                            p_display_location => apex_error.c_inline_in_notification);
+                end;
+                ```
+        }
+        execution {
+            sequence: 30
+            point: processing
+        }
+        serverSideCondition {
+            whenButtonPressed: @recreate-all
+        }
+    )
+
+    branch go-to-maintenance (
+        name: Go To Maintenance
+        execution {
+            sequence: 10
+            point: afterProcessing
+        }
+        behavior {
+            type: pageOrUrl
+            target: {
+                page: 8
+            }
+        }
+    )
+
+)

@@ -1,0 +1,491 @@
+page 10 (
+    name: Edit Article
+    alias: EDIT-ARTICLE
+    title: Edit Article
+    appearance {
+        pageMode: modalDialog
+        dialogTemplate: @/wizard-modal-dialog
+        templateOptions: #DEFAULT#
+    }
+    dialog {
+        width: 900
+        height: 700
+        resizable: true
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+    }
+    security {
+        authorizationScheme: @audit-administrator
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+
+    region buttons (
+        name: Buttons
+        type: staticContent
+        layout {
+            sequence: 10
+            slot: wizardButtons
+        }
+        appearance {
+            template: @/buttons-container
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            outputAs: text
+        }
+    )
+
+    region form-on-doc-article (
+        name: Article
+        type: staticContent
+        layout {
+            sequence: 10
+            slot: wizardBody
+        }
+        appearance {
+            template: @/blank-with-attributes
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            outputAs: text
+        }
+    )
+
+    pageItem P10_ACTIVE (
+        type: switch
+        label {
+            label: Active
+            alignment: left
+        }
+        layout {
+            sequence: 55
+            region: @form-on-doc-article
+            slot: regionBody
+            alignment: left
+            startNewRow: false
+            columnSpan: 4
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        source {
+            type: databaseColumn
+            databaseColumn: ACTIVE
+            used: always
+        }
+        default {
+            type: static
+            staticValue: Y
+        }
+    )
+
+    pageItem P10_ADMIN_ONLY (
+        type: switch
+        label {
+            label: Administrators only
+            alignment: left
+        }
+        layout {
+            sequence: 40
+            region: @form-on-doc-article
+            slot: regionBody
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        help {
+            inlineHelpText: Hide the article from users who are not workspace administrators or developers.
+        }
+        source {
+            type: databaseColumn
+            databaseColumn: ADMIN_ONLY
+            used: always
+        }
+        default {
+            type: static
+            staticValue: N
+        }
+    )
+
+    pageItem P10_BODY (
+        type: markdownEditor
+        label {
+            label: Body (Markdown)
+            alignment: left
+        }
+        layout {
+            sequence: 60
+            region: @form-on-doc-article
+            slot: regionBody
+            alignment: left
+            columnSpan: 12
+        }
+        appearance {
+            template: @/optional
+            templateOptions: [
+                #DEFAULT#
+                t-Form-fieldContainer--stretchInputs
+            ]
+        }
+        source {
+            type: databaseColumn
+            databaseColumn: BODY
+            used: always
+        }
+    )
+
+    pageItem P10_ID (
+        type: hidden
+        layout {
+            sequence: 10
+            region: @form-on-doc-article
+            slot: regionBody
+        }
+        source {
+            type: databaseColumn
+            databaseColumn: ID
+            used: always
+        }
+        security {
+            sessionStateProtection: checksumRequiredSessionLevel
+        }
+    )
+
+    pageItem P10_PAGE_ID (
+        type: selectList
+        label {
+            label: Linked screen
+            alignment: left
+        }
+        lov {
+            type: sqlQuery
+            sqlQuery: select page_name || ' (page ' || page_id || ')' d, page_id r from apex_application_pages where application_id = :APP_ID and page_id not in (0, 10, 9999) order by page_id
+            displayNullValue: true
+            nullDisplayValue: - General topic, no screen -
+        }
+        layout {
+            sequence: 30
+            region: @form-on-doc-article
+            slot: regionBody
+            alignment: left
+            startNewRow: false
+            columnSpan: 8
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+            height: 1
+        }
+        help {
+            inlineHelpText: The Help button on that screen opens this article.
+        }
+        source {
+            type: databaseColumn
+            databaseColumn: PAGE_ID
+            used: always
+        }
+    )
+
+    pageItem P10_SLUG (
+        type: textField
+        label {
+            label: Slug
+            alignment: left
+        }
+        layout {
+            sequence: 25
+            region: @form-on-doc-article
+            slot: regionBody
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/required
+            templateOptions: #DEFAULT#
+            width: 40
+        }
+        help {
+            inlineHelpText: Short name made of letters and dashes, for example row-history.
+        }
+        validation {
+            valueRequired: true
+            maxLength: 100
+        }
+        source {
+            type: databaseColumn
+            databaseColumn: SLUG
+            used: always
+        }
+    )
+
+    pageItem P10_SORT_ORDER (
+        type: numberField
+        label {
+            label: Order
+            alignment: left
+        }
+        layout {
+            sequence: 50
+            region: @form-on-doc-article
+            slot: regionBody
+            alignment: left
+            startNewRow: false
+            columnSpan: 4
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+            width: 10
+        }
+        source {
+            type: databaseColumn
+            databaseColumn: SORT_ORDER
+            used: always
+        }
+        default {
+            type: static
+            staticValue: 100
+        }
+    )
+
+    pageItem P10_TITLE (
+        type: textField
+        label {
+            label: Title
+            alignment: left
+        }
+        layout {
+            sequence: 20
+            region: @form-on-doc-article
+            slot: regionBody
+            alignment: left
+            columnSpan: 12
+        }
+        appearance {
+            template: @/required
+            templateOptions: #DEFAULT#
+            width: 60
+        }
+        validation {
+            valueRequired: true
+            maxLength: 200
+        }
+        source {
+            type: databaseColumn
+            databaseColumn: TITLE
+            used: always
+        }
+    )
+
+    button cancel (
+        buttonName: CANCEL
+        label: Cancel
+        layout {
+            sequence: 10
+            region: @buttons
+            slot: close
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: [
+                #DEFAULT#
+                t-Button--primary
+            ]
+        }
+        behavior {
+            action: definedByDynamicAction
+        }
+    )
+
+    button create (
+        buttonName: CREATE
+        label: Create
+        layout {
+            sequence: 40
+            region: @buttons
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: [
+                #DEFAULT#
+                t-Button--success
+            ]
+        }
+        behavior {
+            warnOnUnsavedChanges: doNotCheck
+            databaseAction: insert
+        }
+        serverSideCondition {
+            type: itemIsNull
+            item: P10_ID
+        }
+    )
+
+    button delete (
+        buttonName: DELETE
+        label: Delete
+        layout {
+            sequence: 20
+            region: @buttons
+            slot: delete
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: [
+                #DEFAULT#
+                t-Button--danger
+            ]
+        }
+        behavior {
+            executeValidations: false
+            warnOnUnsavedChanges: doNotCheck
+            databaseAction: delete
+            requiresConfirmation: true
+        }
+        confirmation {
+            message: Delete this article?
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P10_ID
+        }
+    )
+
+    button save (
+        buttonName: SAVE
+        label: Apply Changes
+        layout {
+            sequence: 30
+            region: @buttons
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: [
+                #DEFAULT#
+                t-Button--success
+            ]
+        }
+        behavior {
+            warnOnUnsavedChanges: doNotCheck
+            databaseAction: update
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P10_ID
+        }
+    )
+
+    dynamicAction cancel-dialog (
+        name: Cancel Dialog
+        execution {
+            sequence: 10
+        }
+        when {
+            event: click
+            selectionType: button
+            button: @cancel
+        }
+
+        action native-dialog-cancel (
+            action: cancelDialog
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+    validation slug-is-unique (
+        name: Slug Is Unique
+        execution {
+            sequence: 10
+        }
+        validation {
+            type: noRowsReturned
+            sqlQuery:
+                ```sql
+                -- Another article already uses this slug (the current row is
+                -- excluded when editing). Compared case-insensitively.
+                select 1
+                  from util_audit_doc_article a
+                 where lower(a.slug) = lower(:P10_SLUG)
+                   and ( :P10_ID is null or a.id <> to_number(:P10_ID) )
+                ```
+        }
+        error {
+            errorMessage: Another article already uses this slug. Choose a different one.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P10_SLUG
+        }
+        serverSideCondition {
+            type: requestIsContainedInValue
+            value: CREATE,SAVE
+        }
+    )
+
+    process close-dialog (
+        name: Close Dialog
+        type: closeDialog
+        settings {
+            showSuccessMessages: false
+        }
+        execution {
+            sequence: 50
+        }
+        serverSideCondition {
+            type: requestIsContainedInValue
+            value: CREATE,SAVE,DELETE
+        }
+    )
+
+    process fetch-row-from-util-audit-doc-article (
+        name: Fetch Row from UTIL_AUDIT_DOC_ARTICLE
+        type: autoRowFetch
+        source {
+            tableName: UTIL_AUDIT_DOC_ARTICLE
+            pkColumn: ID
+            pkItem: P10_ID
+        }
+        execution {
+            sequence: 10
+            point: afterHeader
+        }
+    )
+
+    process process-row-of-util-audit-doc-article (
+        name: Process Row of UTIL_AUDIT_DOC_ARTICLE
+        type: autoRowProcessing
+        target {
+            tableName: UTIL_AUDIT_DOC_ARTICLE
+            pkColumn: ID
+            pkItem: P10_ID
+        }
+        execution {
+            sequence: 30
+        }
+        successMessage {
+            successMessage: Article saved.
+        }
+    )
+
+    process reset-page (
+        name: reset page
+        type: clearSessionState
+        execution {
+            sequence: 40
+        }
+        serverSideCondition {
+            whenButtonPressed: @delete
+        }
+    )
+
+)

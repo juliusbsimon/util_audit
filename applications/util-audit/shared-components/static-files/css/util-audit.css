@@ -1,0 +1,533 @@
+/* Util Audit look, built on a shadcn-style token set: regions are white
+   cards with a thin border and a soft shadow on an off-white page, green
+   primary actions, light secondary buttons, and reports drawn as rounded
+   rows. Loaded app-wide from application.apx (css.fileUrls).
+   Font: Montserrat (SIL OFL), bundled. */
+
+@font-face {
+    font-family: "Montserrat";
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url("../fonts/montserrat-latin.woff2") format("woff2");
+}
+
+/* ---------- Design tokens: light (default) ---------- */
+:root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0.008 326);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0.008 326);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0.008 326);
+    --primary: oklch(0.508 0.118 165.612);
+    --primary-foreground: oklch(0.979 0.021 166.113);
+    --secondary: oklch(0.967 0.001 286.375);
+    --secondary-foreground: oklch(0.21 0.006 285.885);
+    --muted: oklch(0.96 0.003 325.6);
+    --muted-foreground: oklch(0.542 0.034 322.5);
+    --accent: oklch(0.96 0.003 325.6);
+    --accent-foreground: oklch(0.212 0.019 322.12);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0.005 325.62);
+    --input: oklch(0.922 0.005 325.62);
+    --ring: oklch(0.711 0.019 323.02);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+
+    /* Derived: page behind the cards, hover states, card shadow */
+    --page: var(--sidebar);
+    --row-hover: oklch(0.93 0.006 325.6);
+    --secondary-hover: oklch(0.93 0.002 286);
+    --primary-hover: oklch(0.45 0.11 165.6);
+    --destructive-hover: oklch(0.52 0.23 27.3);
+    /* Fill behind white text (danger buttons, badges) */
+    --destructive-background: oklch(0.577 0.245 27.325);
+    --destructive-background-hover: oklch(0.52 0.23 27.3);
+    --destructive-foreground: oklch(1 0 0);
+    --link: var(--primary);
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+    --shadow-button: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+/* ---------- Design tokens: dark ----------
+   Applied when the user picks Dark mode (Universal Theme style "Vita - Dark",
+   which adds the body class below), or inside any element with class dark. */
+body.apex-theme-vita-dark,
+.dark {
+    --background: oklch(0.145 0.008 326);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.212 0.019 322.12);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.212 0.019 322.12);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.432 0.095 166.913);
+    --primary-foreground: oklch(0.979 0.021 166.113);
+    --secondary: oklch(0.274 0.006 286.033);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.263 0.024 320.12);
+    --muted-foreground: oklch(0.711 0.019 323.02);
+    --accent: oklch(0.263 0.024 320.12);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.542 0.034 322.5);
+    --sidebar: oklch(0.212 0.019 322.12);
+
+    --page: var(--background);
+    --row-hover: oklch(0.31 0.026 320);
+    --secondary-hover: oklch(0.32 0.006 286);
+    --primary-hover: oklch(0.49 0.1 166.9);
+    --destructive-hover: oklch(0.65 0.19 22.2);
+    /* --destructive is a light red for text on dark cards; white text on it
+       is unreadable, so filled danger buttons and badges use a deeper red */
+    --destructive-background: oklch(0.5 0.19 25);
+    --destructive-background-hover: oklch(0.45 0.18 25);
+    --destructive-foreground: oklch(0.985 0 0);
+    /* sidebar-primary: the brighter green, readable on dark backgrounds */
+    --link: oklch(0.696 0.17 162.48);
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+    --shadow-button: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+}
+
+/* ---------- Tokens mapped onto the app and Universal Theme ----------
+   Declared on body, not :root, so they pick up the dark tokens above. */
+body {
+    --ua-text: var(--foreground);
+    --ua-text-muted: var(--muted-foreground);
+    --ua-line: var(--border);
+    --ua-page: var(--page);
+    --ua-row: var(--muted);
+    --ua-row-hover: var(--row-hover);
+    --ua-teal: var(--primary);
+    --ua-teal-dark: var(--primary-hover);
+    --ua-red: var(--destructive);
+    --ua-red-background: var(--destructive-background);
+    --ua-radius: var(--radius);
+
+    --a-base-font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+    --ut-link-text-color: var(--link);
+    --a-menu-background-color: var(--popover);
+    --a-menu-text-color: var(--popover-foreground);
+    --a-menu-border-color: var(--border);
+    --a-menu-border-radius: calc(var(--radius) - 2px);
+    --a-menu-focused-background-color: var(--accent);
+    --a-menu-focused-text-color: var(--accent-foreground);
+    --a-checkbox-checked-background-color: var(--primary);
+    --a-checkbox-checked-text-color: var(--primary-foreground);
+    --ut-palette-primary: var(--primary);
+    --ut-palette-primary-contrast: var(--primary-foreground);
+    --ut-palette-danger: var(--destructive-background);
+    --ut-palette-danger-contrast: var(--destructive-foreground);
+
+    /* Header */
+    --ut-header-background-color: var(--background);
+    --ut-header-text-color: var(--foreground);
+    --ut-header-border-color: var(--border);
+    --ut-header-border-width: 0 0 1px 0;
+    --ut-header-box-shadow: none;
+    --ut-header-strip-size: 0;
+    --ut-header-menubar-background-color: var(--background);
+    --ut-header-menubar-item-text-color: var(--muted-foreground);
+    --ut-header-menubar-item-hover-background-color: var(--accent);
+    --ut-header-menubar-item-hover-text-color: var(--accent-foreground);
+    --ut-header-menubar-item-current-background-color: var(--background);
+    --ut-header-menubar-item-current-text-color: var(--foreground);
+    --ut-header-menubar-item-border-color: transparent;
+
+    /* Page */
+    --ut-body-background-color: var(--page);
+    --ut-body-text-color: var(--foreground);
+    --ut-body-title-background-color: var(--page);
+    --ut-body-title-text-color: var(--foreground);
+    --ut-body-title-border-color: transparent;
+    --ut-body-title-box-shadow: none;
+    --ut-breadcrumb-title-font-size: 1.75rem;
+    --ut-breadcrumb-title-font-weight: 500;
+
+    /* Regions: cards */
+    --ut-region-background-color: var(--card);
+    --ut-region-text-color: var(--card-foreground);
+    --ut-region-border-color: var(--border);
+    --ut-region-border-width: 1px;
+    --ut-region-border-radius: var(--radius);
+    --ut-region-box-shadow: var(--shadow-card);
+    --ut-region-header-background-color: transparent;
+    --ut-region-header-text-color: var(--card-foreground);
+    --ut-region-header-border-width: 0;
+
+    /* Reports */
+    --ut-report-border-color: transparent;
+    --ut-report-cell-border-color: transparent;
+    --ut-report-header-cell-background-color: transparent;
+    --ut-report-header-background-color: transparent;
+    --ut-report-header-text-color: var(--muted-foreground);
+    --ut-report-cell-text-color: var(--foreground);
+
+    /* Fields */
+    --a-field-input-background-color: var(--background);
+    --a-field-input-text-color: var(--foreground);
+    --a-field-input-border-radius: calc(var(--radius) - 2px);
+    --a-field-input-border-color: var(--input);
+    --a-field-input-focus-border-color: var(--ring);
+    --a-field-input-focus-background-color: var(--background);
+    --a-field-input-focus-text-color: var(--foreground);
+}
+
+body {
+    font-family: var(--a-base-font-family);
+    color: var(--foreground);
+    background: var(--page);
+}
+
+/* Focus: a soft ring, as in the token set */
+.apex-item-text:focus,
+.apex-item-select:focus,
+.apex-item-textarea:focus,
+.t-Form-field:focus {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 40%, transparent);
+}
+
+/* ---------- Header ---------- */
+.t-Header-logo-link,
+.t-Header-logo {
+    color: var(--ua-text);
+    font-weight: 500;
+    font-size: 1rem;
+}
+.t-Header-branding {
+    min-height: 88px;
+}
+.t-NavigationBar .t-Button--header,
+.t-NavigationBar .t-Button-label {
+    color: var(--ua-text);
+    font-size: 0.8125rem;
+}
+.t-Header-nav .a-MenuBar-label {
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+.t-Header-nav .a-MenuBar-item.is-current .a-MenuBar-label {
+    box-shadow: inset 0 -2px 0 var(--link);
+}
+
+/* ---------- Page title: large and plain, no breadcrumb trail ---------- */
+.t-Body-title .t-Breadcrumb {
+    display: none;
+}
+.t-BreadcrumbRegion-title,
+.t-BreadcrumbRegion-titleText {
+    font-weight: 400;
+    color: var(--ua-text);
+}
+
+/* ---------- Regions: white cards with a thin border and soft shadow ---------- */
+.t-Region:not(.t-Region--noUI):not(.t-Region--removeHeader.t-Region--noBorder) {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+}
+.t-Region + .t-Region,
+.t-Region-body .t-Region {
+    margin-top: 0;
+}
+.t-Region-header {
+    border-bottom: 0;
+    background: transparent;
+}
+.t-Region-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--card-foreground);
+}
+/* A card inside a card would stack borders: flatten nested regions */
+.t-Region .t-Region {
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
+}
+/* Collapsible regions keep the same card */
+.t-Region--hideShow .t-Region-header {
+    border-bottom: 0;
+}
+
+/* ---------- Buttons: secondary by default, primary when hot ---------- */
+.t-Button:not(.t-Button--noUI):not(.t-Button--header):not(.t-Button--link):not(.a-Button) {
+    --a-button-background-color: var(--secondary);
+    --a-button-text-color: var(--secondary-foreground);
+    --a-button-border-color: var(--border);
+    --a-button-hover-background-color: var(--secondary-hover);
+    --a-button-hover-text-color: var(--secondary-foreground);
+    --a-button-hover-border-color: var(--border);
+    --a-button-border-radius: calc(var(--radius) - 2px);
+    --a-button-font-weight: 500;
+    --a-button-box-shadow: var(--shadow-button);
+}
+/* Same selector chain as above plus the modifier, so these win */
+.t-Button:not(.t-Button--noUI):not(.t-Button--header):not(.t-Button--link):not(.a-Button).t-Button--hot {
+    --a-button-background-color: var(--primary);
+    --a-button-text-color: var(--primary-foreground);
+    --a-button-border-color: var(--primary);
+    --a-button-hover-background-color: var(--ua-teal-dark);
+    --a-button-hover-text-color: var(--primary-foreground);
+    --a-button-hover-border-color: var(--ua-teal-dark);
+}
+.t-Button:not(.t-Button--noUI):not(.t-Button--header):not(.t-Button--link):not(.a-Button).t-Button--danger {
+    --a-button-background-color: var(--destructive-background);
+    --a-button-text-color: var(--destructive-foreground);
+    --a-button-border-color: var(--destructive-background);
+    --a-button-hover-background-color: var(--destructive-background-hover);
+    --a-button-hover-text-color: var(--destructive-foreground);
+    --a-button-hover-border-color: var(--destructive-background-hover);
+}
+
+/* ---------- Reports: rows as separate rounded cards ---------- */
+/* Sortable classic-report headings are links; keep them grey */
+.t-Report-report th.t-Report-colHead a,
+.t-Report-report th.t-Report-colHead .u-Report-sortHeading {
+    color: var(--ua-text-muted);
+    font-weight: 500;
+    text-decoration: none;
+}
+/* Interactive reports put the heading in its own fixed-header table:
+   no row gap there, and the same side padding as the cells below */
+.t-fht-thead .a-IRR-table {
+    border-spacing: 0;
+}
+/* The header link adds 8px of its own, so 8px here lines the text up
+   with the 16px cell padding below */
+.a-IRR-table th.a-IRR-header {
+    padding: 8px 8px 0;
+}
+.t-Report-report,
+.a-IRR-table {
+    border-collapse: separate !important;
+    border-spacing: 0 6px;
+    background: transparent;
+}
+.t-Report-report th.t-Report-colHead,
+.a-IRR-table th.a-IRR-header {
+    background: transparent;
+    border: 0;
+    color: var(--ua-text-muted);
+    font-weight: 500;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+.a-IRR-table th.a-IRR-header .a-IRR-headerLink,
+.a-IRR-table th.a-IRR-header .a-IRR-headerLabel {
+    color: var(--ua-text-muted);
+    font-weight: 500;
+}
+.t-Report-report td.t-Report-cell,
+.a-IRR-table td {
+    background: var(--ua-row) !important;
+    border: 0 !important;
+    padding: 14px 16px;
+    color: var(--ua-text);
+    transition: background-color 0.12s ease;
+}
+.t-Report-report tr td:first-child,
+.a-IRR-table tr td:first-child {
+    border-radius: var(--ua-radius) 0 0 var(--ua-radius);
+}
+.t-Report-report tr td:last-child,
+.a-IRR-table tr td:last-child {
+    border-radius: 0 var(--ua-radius) var(--ua-radius) 0;
+}
+.t-Report-report tr:hover td.t-Report-cell,
+.a-IRR-table tr:hover td {
+    background: var(--ua-row-hover) !important;
+}
+.t-Report-report td.t-Report-cell a,
+.a-IRR-table td a {
+    color: var(--ua-text);
+    font-weight: 500;
+}
+.t-Report-report td.t-Report-cell a:hover,
+.a-IRR-table td a:hover {
+    color: var(--ua-teal-dark);
+}
+.a-IRR-tableContainer,
+.t-Report-tableWrap {
+    border: 0;
+}
+.a-IRR-toolbar,
+.a-IRR {
+    background: transparent;
+    border: 0;
+}
+
+/* ---------- Cards, metrics, charts, timeline, facets ---------- */
+.t-MetricCard {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+}
+.t-MetricCard-avatar .t-Avatar,
+.t-MetricCard-avatar {
+    --ut-avatar-background-color: color-mix(in oklab, var(--primary) 12%, var(--card));
+    --ut-avatar-text-color: var(--primary);
+    --ut-avatar-icon-color: var(--primary);
+}
+.t-MetricCard-avatar .t-Avatar .t-Icon,
+.t-MetricCard-avatar .fa {
+    color: var(--primary);
+}
+.t-MetricCard-title {
+    color: var(--ua-text-muted);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+}
+.t-MetricCard-metric {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--foreground);
+}
+.t-Card .t-Card-wrap,
+.a-CardView,
+.t-Timeline-wrap {
+    background: var(--ua-row);
+    border: 0;
+    border-radius: var(--ua-radius);
+    box-shadow: none;
+}
+.t-Timeline-item:hover .t-Timeline-wrap {
+    background: var(--ua-row-hover);
+}
+.t-FacetedSearch,
+.t-FacetedSearch .a-FS-control {
+    background: transparent;
+}
+
+/* ---------- Alerts and notifications ---------- */
+.t-Alert--success .t-Alert-icon {
+    color: var(--ua-teal);
+}
+
+/* Links inside timeline entries read like report links: dark, teal on hover */
+.t-Timeline-title a,
+.t-Timeline-title {
+    color: var(--ua-text);
+    font-weight: 500;
+}
+.t-Timeline-title a:hover {
+    color: var(--ua-teal-dark);
+}
+
+/* Code shown in text areas (generated SQL, restore output) */
+.ua-monospace,
+textarea.ua-monospace {
+    font-family: var(--a-base-font-family-mono, monospace);
+    font-size: 0.8125rem;
+    white-space: pre;
+}
+
+/* Long values without spaces must wrap, not widen the page */
+.t-Report-report td.t-Report-cell,
+.a-IRR-table td {
+    overflow-wrap: anywhere;
+}
+.t-Report-report td.t-Report-cell {
+    max-width: 40rem;
+}
+
+/* Interactive reports use their own region template: same card */
+.t-IRR-region {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 8px 16px;
+}
+
+/* Metric cards: light primary tile behind the icon, gap before the next card */
+.t-MetricCard .t-Avatar {
+    background-color: color-mix(in oklab, var(--link) 14%, var(--card)) !important;
+    color: var(--link) !important;
+}
+.t-MetricCards {
+    margin-bottom: 16px;
+}
+
+/* Switches: Vita - Dark hard-codes a blue "on" colour */
+.a-Switch input:checked + .a-Switch-toggle {
+    background-color: var(--primary);
+}
+.t-Report-report td.t-Report-cell a:hover,
+.a-IRR-table td a:hover,
+.t-Timeline-title a:hover {
+    color: var(--link);
+}
+
+/* Archive page: status badges and the row action buttons */
+.ua-archive-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+}
+.ua-archive-status--CREATED {
+    border-color: var(--border);
+}
+.ua-archive-status--STORED {
+    background: color-mix(in oklab, var(--link) 16%, var(--card));
+    color: var(--link);
+}
+.ua-archive-status--PURGED {
+    background: var(--muted);
+    color: var(--muted-foreground);
+    border-color: var(--border);
+}
+.ua-archive-status--RESTORED {
+    background: color-mix(in oklab, oklch(0.55 0.15 255) 16%, var(--card));
+    color: oklch(0.48 0.15 255);
+}
+body.apex-theme-vita-dark .ua-archive-status--RESTORED {
+    color: oklch(0.78 0.11 255);
+}
+.ua-archive-status--FAILED {
+    background: var(--destructive-background);
+    color: var(--destructive-foreground);
+}
+.ua-archive-actions {
+    display: flex;
+    gap: 4px;
+}
+/* Short values stay on one line; location and message wrap. Eleven
+   columns: tighter cells, and a scrollbar rather than overflow on
+   narrow screens */
+#archive_files .t-Report-tableWrap {
+    overflow-x: auto;
+}
+#archive_files td.t-Report-cell,
+#archive_files th.t-Report-colHead {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+#archive_files td.t-Report-cell {
+    white-space: nowrap;
+}
+#archive_files td.t-Report-cell[headers="LOCATION"],
+#archive_files td.t-Report-cell[headers="MESSAGE"] {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 10rem;
+}
+.ua-archive-history {
+    color: var(--ua-text-muted);
+    font-size: 0.8125rem;
+}

@@ -1,0 +1,1046 @@
+page 11 (
+    name: Query Generator
+    alias: QUERY-GENERATOR
+    title: Query Generator
+    appearance {
+        pageTemplate: @/standard
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+        warnOnUnsavedChanges: false
+    }
+    css {
+        inline:
+            ```css
+            .ua-muted { color: var(--ua-text-muted, #6b6e80); }
+            .ua-steps li { margin-bottom: .35rem; }
+            .ua-steps code { background: var(--ua-row, #f6f7f9); padding: 0 .3rem; border-radius: 4px; }
+            ```
+    }
+    security {
+        formAutoComplete: false
+    }
+
+    region query-generator (
+        name: Query Generator
+        type: breadcrumb
+        source {
+            breadcrumb: @breadcrumb
+        }
+        layout {
+            sequence: 10
+            slot: breadcrumbBar
+        }
+        appearance {
+            template: @/title-bar
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            breadcrumbTemplate: @/breadcrumb
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region settings (
+        name: Settings
+        type: staticContent
+        source {
+            htmlCode: <p class="ua-muted">Builds an Audit History region for a page in another app: the changes recorded for the row that page shows.</p>
+        }
+        layout {
+            sequence: 20
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region app-builder-sql (
+        name: SQL for App Builder
+        type: staticContent
+        source {
+            htmlCode:
+                ```html
+                <ol class="ua-steps">
+                <li>Open the page that shows &P11_TABLE_NAME. rows in Page Designer.</li>
+                <li>Create a region of type <strong>Classic Report</strong>. Set its source to <strong>SQL Query</strong> and paste the SQL below.</li>
+                <li>Set <strong>Page Items to Submit</strong> to <code>&P11_ITEMS_TO_SUBMIT.</code></li>
+                <li>Add a <strong>Server-side Condition</strong>: Item is NOT NULL, <code>&P11_FIRST_ITEM.</code>, so the region hides while a new row is being created.</li>
+                </ol>
+                ```
+        }
+        layout {
+            sequence: 30
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P11_SQL
+        }
+    )
+
+    region apexlang-region (
+        name: APEXlang Region
+        type: staticContent
+        source {
+            htmlCode: <p class="ua-steps">For apps kept as APEXlang source: paste this block inside the page's <code>page ( ... )</code> in its <code>.apx</code> file, before the closing parenthesis. On a modal dialog page, change <code>slot: body</code> to <code>slot: contentBody</code>.</p>
+        }
+        layout {
+            sequence: 40
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P11_APX
+        }
+    )
+
+    region audit-history-plugin (
+        name: Audit History Plugin
+        type: staticContent
+        source {
+            htmlCode:
+                ```html
+                <ol class="ua-steps">
+                <li>Once per app, add the plugin. App Builder: Shared Components, Plug-ins, Import <code>export/region_type_plugin_util_audit_history.sql</code>. APEXlang: copy the folder <code>shared-components/plugins/region/utilAuditHistory</code> from the Util Audit app.</li>
+                <li>Add a region of type <strong>Audit History [Plug-in]</strong>. Set <strong>Table</strong> to <code>&P11_TABLE_NAME.</code> and <strong>Key Items</strong> to <code>&P11_ITEMS_TO_SUBMIT.</code>.</li>
+                <li>Or, in an APEXlang app, paste this block into the page's <code>.apx</code> file.</li>
+                </ol>
+                ```
+        }
+        layout {
+            sequence: 45
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P11_PLUGIN_APX
+        }
+    )
+
+    region preview (
+        name: Preview
+        type: staticContent
+        source {
+            htmlCode: <p class="ua-muted">What the region shows for a row that already has audit events.</p>
+        }
+        layout {
+            sequence: 50
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P11_SQL
+        }
+    )
+
+    region preview-result (
+        name: Preview Result
+        type: dynamicContent
+        source {
+            language: plsql
+            plsqlFunctionBody:
+                ```plsql
+                -- Runs the generated query for the chosen key and draws it as a
+                -- table. The query binds :SAMPLE_KEY, a PK_VALUE_VC value.
+                declare
+                    l_sql   clob;
+                    l_cur   integer;
+                    l_cols  integer;
+                    l_desc  dbms_sql.desc_tab2;
+                    l_val   varchar2(4000);
+                    l_out   clob;
+                    l_rows  pls_integer := 0;
+                begin
+                    if :P11_TABLE_NAME is null or :P11_SAMPLE_KEY is null then
+                        return '<p class="ua-muted">Pick a key to see what the region will show.</p>';
+                    end if;
+                    l_sql := util_audit_query.get_preview_query(
+                                 p_table_name     => :P11_TABLE_NAME,
+                                 p_style          => :P11_STYLE,
+                                 p_columns        => replace(:P11_COLUMNS, ':', ','),
+                                 p_child_tables   => replace(:P11_CHILD_TABLES, ':', ','),
+                                 p_friendly_names => nvl(:P11_FRIENDLY, 'N'));
+                    l_cur := dbms_sql.open_cursor;
+                    dbms_sql.parse(l_cur, l_sql, dbms_sql.native);
+                    dbms_sql.bind_variable(l_cur, 'SAMPLE_KEY', :P11_SAMPLE_KEY);
+                    dbms_sql.describe_columns2(l_cur, l_cols, l_desc);
+                    for i in 1 .. l_cols loop
+                        dbms_sql.define_column(l_cur, i, l_val, 4000);
+                    end loop;
+                    l_out := '<table class="t-Report-report"><thead><tr>';
+                    for i in 1 .. l_cols loop
+                        l_out := l_out || '<th class="t-Report-colHead">' || apex_escape.html(
+                                     case l_desc(i).col_name
+                                         when 'CHANGED_AT' then 'Changed'
+                                         when 'CHANGED_BY' then 'By'
+                                         when 'RECORD_KEY' then 'Record'
+                                         when 'TABLE_NAME' then 'Table'
+                                         else initcap(replace(l_desc(i).col_name, '_', ' '))
+                                     end) || '</th>';
+                    end loop;
+                    l_out := l_out || '</tr></thead><tbody>';
+                    l_rows := dbms_sql.execute(l_cur);
+                    l_rows := 0;
+                    while l_rows < 50 and dbms_sql.fetch_rows(l_cur) > 0 loop
+                        l_rows := l_rows + 1;
+                        l_out := l_out || '<tr>';
+                        for i in 1 .. l_cols loop
+                            dbms_sql.column_value(l_cur, i, l_val);
+                            if length(l_val) > 200 then
+                                l_val := substr(l_val, 1, 200) || '...';
+                            end if;
+                            l_out := l_out || '<td class="t-Report-cell">' || apex_escape.html(l_val) || '</td>';
+                        end loop;
+                        l_out := l_out || '</tr>';
+                    end loop;
+                    dbms_sql.close_cursor(l_cur);
+                    if l_rows = 0 then
+                        return '<p class="ua-muted">No changes recorded for this row.</p>';
+                    end if;
+                    return l_out || '</tbody></table><p class="ua-muted">' || l_rows || ' row(s)' ||
+                           case when l_rows = 50 then ', first 50 shown' end || '.</p>';
+                exception
+                    when others then
+                        if dbms_sql.is_open(l_cur) then
+                            dbms_sql.close_cursor(l_cur);
+                        end if;
+                        return '<p>' || apex_escape.html(sqlerrm) || '</p>';
+                end;
+                ```
+            pageItemsToSubmit: [
+                P11_SAMPLE_KEY
+            ]
+        }
+        layout {
+            sequence: 60
+            slot: body
+        }
+        appearance {
+            template: @/blank-with-attributes
+            templateOptions: #DEFAULT#
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P11_SQL
+        }
+    )
+
+    pageItem P11_TABLE_NAME (
+        type: selectList
+        label {
+            label: Table
+            alignment: left
+        }
+        layout {
+            sequence: 10
+            region: @settings
+            slot: regionBody
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+        }
+        lov {
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select table_name d,
+                       table_name r
+                  from v_util_audit_tables
+                 where trigger_name is not null
+                 order by 1
+                ```
+            displayExtraValues: false
+            displayNullValue: true
+            nullDisplayValue: - Select an audited table -
+        }
+        help {
+            helpText: The audited table your page shows or edits.
+        }
+    )
+
+    pageItem P11_PAGE_ID (
+        type: numberField
+        label {
+            label: Page number in your app
+            alignment: left
+        }
+        layout {
+            sequence: 20
+            region: @settings
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: Used to name the key items P<page>_<key column>, for example P10_EMP_ID.
+        }
+    )
+
+    pageItem P11_KEY_ITEMS (
+        type: textField
+        label {
+            label: Key page items
+            alignment: left
+        }
+        layout {
+            sequence: 30
+            region: @settings
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+            valuePlaceholder: P10_EMP_ID
+        }
+        help {
+            helpText: Only if your items are not named P<page>_<key column>. Give one item per key column, comma-separated, in key column order.
+        }
+    )
+
+    pageItem P11_STYLE (
+        type: radioGroup
+        label {
+            label: Show
+            alignment: left
+        }
+        lov {
+            type: staticValues
+            staticValues: STATIC:One row per changed column;COLUMNS,One row per change;EVENTS
+        }
+        layout {
+            sequence: 40
+            region: @settings
+            slot: regionBody
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        default {
+            type: static
+            staticValue: COLUMNS
+        }
+    )
+
+    pageItem P11_FRIENDLY (
+        type: switch
+        label {
+            label: Readable column names
+            alignment: left
+        }
+        layout {
+            sequence: 50
+            region: @settings
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        default {
+            type: static
+            staticValue: Y
+        }
+        help {
+            helpText: Show "Hire Date" instead of HIRE_DATE.
+        }
+    )
+
+    pageItem P11_SCHEMA (
+        type: textField
+        label {
+            label: util_audit schema
+            alignment: left
+        }
+        layout {
+            sequence: 60
+            region: @settings
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: Leave empty when your app uses the same schema as util_audit. Otherwise enter the util_audit schema and grant your app's schema EXECUTE on UTIL_AUDIT_QUERY (for plain SQL, SELECT on V_UTIL_AUDIT_ROW_HISTORY, V_UTIL_AUDIT_EVENTS and UTIL_AUDIT_RECORDS instead).
+        }
+    )
+
+    pageItem P11_PLAIN (
+        type: switch
+        label {
+            label: Plain SQL
+            alignment: left
+        }
+        layout {
+            sequence: 65
+            region: @settings
+            slot: regionBody
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        default {
+            type: static
+            staticValue: N
+        }
+        help {
+            helpText: Off: short SQL that reads util_audit_query.history and follows util_audit upgrades. On: the full query, which needs no package call.
+        }
+    )
+
+    pageItem P11_COLUMNS (
+        type: shuttle
+        label {
+            label: Only these columns
+            alignment: left
+        }
+        lov {
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select column_name d,
+                       column_name r
+                  from user_tab_columns
+                 where table_name = :P11_TABLE_NAME
+                 order by column_id
+                ```
+        }
+        cascadingLov {
+            parentItems: [
+                P11_TABLE_NAME
+            ]
+            parentRequired: true
+        }
+        layout {
+            sequence: 70
+            region: @settings
+            slot: regionBody
+            alignment: left
+            columnSpan: 8
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: Leave empty to show changes to every column.
+        }
+    )
+
+    pageItem P11_CHILD_TABLES (
+        type: selectMany
+        label {
+            label: Include child tables
+            alignment: left
+        }
+        lov {
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select distinct child_table d,
+                       child_table r
+                  from v_util_audit_child_tables
+                 where parent_table = :P11_TABLE_NAME
+                   and child_audited = 'Y'
+                 order by 1
+                ```
+        }
+        cascadingLov {
+            parentItems: [
+                P11_TABLE_NAME
+            ]
+            parentRequired: true
+        }
+        layout {
+            sequence: 80
+            region: @settings
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        multipleValues {
+            type: delimitedList
+            separator: :
+        }
+        help {
+            helpText: Also show changes to rows of these audited tables that point at this row, for example an employee's tasks.
+        }
+    )
+
+    pageItem P11_ITEMS_TO_SUBMIT (
+        type: hidden
+        layout {
+            sequence: 90
+            region: @settings
+            slot: regionBody
+        }
+    )
+
+    pageItem P11_FIRST_ITEM (
+        type: hidden
+        layout {
+            sequence: 100
+            region: @settings
+            slot: regionBody
+        }
+    )
+
+    pageItem P11_SQL (
+        type: textarea
+        label {
+            label: SQL
+            alignment: left
+        }
+        layout {
+            sequence: 10
+            region: @app-builder-sql
+            slot: regionBody
+            alignment: left
+            columnSpan: 12
+        }
+        appearance {
+            template: @/optional
+            templateOptions: [
+                #DEFAULT#
+                t-Form-fieldContainer--stretchInputs
+            ]
+            height: 18
+        }
+        settings {
+            resizable: true
+            autoHeight: false
+        }
+        advanced {
+            cssClasses: ua-monospace
+        }
+        readOnly {
+            type: always
+        }
+    )
+
+    pageItem P11_APX (
+        type: textarea
+        label {
+            label: Region
+            alignment: left
+        }
+        layout {
+            sequence: 10
+            region: @apexlang-region
+            slot: regionBody
+            alignment: left
+            columnSpan: 12
+        }
+        appearance {
+            template: @/optional
+            templateOptions: [
+                #DEFAULT#
+                t-Form-fieldContainer--stretchInputs
+            ]
+            height: 18
+        }
+        settings {
+            resizable: true
+            autoHeight: false
+        }
+        advanced {
+            cssClasses: ua-monospace
+        }
+        readOnly {
+            type: always
+        }
+    )
+
+    pageItem P11_PLUGIN_APX (
+        type: textarea
+        label {
+            label: Plugin region
+            alignment: left
+        }
+        layout {
+            sequence: 10
+            region: @audit-history-plugin
+            slot: regionBody
+            alignment: left
+            columnSpan: 12
+        }
+        appearance {
+            template: @/optional
+            templateOptions: [
+                #DEFAULT#
+                t-Form-fieldContainer--stretchInputs
+            ]
+            height: 14
+        }
+        settings {
+            resizable: true
+            autoHeight: false
+        }
+        advanced {
+            cssClasses: ua-monospace
+        }
+        readOnly {
+            type: always
+        }
+    )
+
+    pageItem P11_SAMPLE_KEY (
+        type: selectList
+        label {
+            label: Key
+            alignment: left
+        }
+        lov {
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select pk_value_vc d,
+                       pk_value_vc r
+                  from (select distinct pk_value_vc
+                          from util_audit_txn
+                         where table_name = :P11_TABLE_NAME)
+                 order by 1
+                 fetch first 200 rows only
+                ```
+            displayExtraValues: false
+            displayNullValue: true
+            nullDisplayValue: - Pick a key -
+        }
+        cascadingLov {
+            parentItems: [
+                P11_TABLE_NAME
+            ]
+            parentRequired: true
+        }
+        layout {
+            sequence: 10
+            region: @preview
+            slot: regionBody
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    button generate (
+        buttonName: GENERATE
+        label: Generate
+        layout {
+            sequence: 10
+            region: @settings
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: true
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            warnOnUnsavedChanges: doNotCheck
+        }
+    )
+
+    button copy-sql (
+        buttonName: COPY_SQL
+        label: Copy SQL
+        layout {
+            sequence: 10
+            region: @app-builder-sql
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: definedByDynamicAction
+        }
+    )
+
+    button copy-apx (
+        buttonName: COPY_APX
+        label: Copy Region
+        layout {
+            sequence: 10
+            region: @apexlang-region
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: definedByDynamicAction
+        }
+    )
+
+    button copy-plugin (
+        buttonName: COPY_PLUGIN
+        label: Copy Region
+        layout {
+            sequence: 10
+            region: @audit-history-plugin
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: definedByDynamicAction
+        }
+    )
+
+    validation table-required (
+        name: Table Required
+        execution {
+            sequence: 10
+        }
+        validation {
+            type: itemIsNotNull
+            item: P11_TABLE_NAME
+        }
+        error {
+            errorMessage: Choose a table.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P11_TABLE_NAME
+        }
+        serverSideCondition {
+            whenButtonPressed: @generate
+        }
+    )
+
+    process generate (
+        name: Generate
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                    l_cols     varchar2(4000) := replace(:P11_COLUMNS, ':', ',');
+                    l_children varchar2(4000) := replace(:P11_CHILD_TABLES, ':', ',');
+                begin
+                    :P11_ITEMS_TO_SUBMIT := util_audit_query.get_key_items(:P11_TABLE_NAME, :P11_KEY_ITEMS, :P11_PAGE_ID);
+                    :P11_FIRST_ITEM := regexp_substr(:P11_ITEMS_TO_SUBMIT, '[^,]+');
+                    :P11_SQL := dbms_lob.substr(
+                        case when :P11_PLAIN = 'Y' then util_audit_query.get_history_query(
+                            p_table_name     => :P11_TABLE_NAME,
+                            p_key_items      => :P11_KEY_ITEMS,
+                            p_page_id        => :P11_PAGE_ID,
+                            p_style          => :P11_STYLE,
+                            p_columns        => l_cols,
+                            p_child_tables   => l_children,
+                            p_schema         => :P11_SCHEMA,
+                            p_friendly_names => nvl(:P11_FRIENDLY, 'N'))
+                        else util_audit_query.get_history_function_query(
+                            p_table_name     => :P11_TABLE_NAME,
+                            p_key_items      => :P11_KEY_ITEMS,
+                            p_page_id        => :P11_PAGE_ID,
+                            p_style          => :P11_STYLE,
+                            p_columns        => l_cols,
+                            p_child_tables   => l_children,
+                            p_schema         => :P11_SCHEMA,
+                            p_friendly_names => nvl(:P11_FRIENDLY, 'N')) end, 32000, 1);
+                    :P11_APX := dbms_lob.substr(
+                        util_audit_apx.get_history_region_apx(
+                            p_table_name     => :P11_TABLE_NAME,
+                            p_key_items      => :P11_KEY_ITEMS,
+                            p_page_id        => :P11_PAGE_ID,
+                            p_style          => :P11_STYLE,
+                            p_columns        => l_cols,
+                            p_child_tables   => l_children,
+                            p_schema         => :P11_SCHEMA,
+                            p_friendly_names => nvl(:P11_FRIENDLY, 'N')), 32000, 1);
+                    :P11_PLUGIN_APX := dbms_lob.substr(
+                        util_audit_apx.get_plugin_region_apx(
+                            p_table_name     => :P11_TABLE_NAME,
+                            p_key_items      => :P11_KEY_ITEMS,
+                            p_page_id        => :P11_PAGE_ID,
+                            p_style          => :P11_STYLE,
+                            p_columns        => l_cols,
+                            p_child_tables   => l_children,
+                            p_schema         => :P11_SCHEMA,
+                            p_friendly_names => nvl(:P11_FRIENDLY, 'N')), 32000, 1);
+                    :P11_SAMPLE_KEY := null;
+                exception
+                    when others then
+                        :P11_SQL := null;
+                        :P11_APX := null;
+                        :P11_PLUGIN_APX := null;
+                        -- util_audit_query raises ORA-2xxxx with a plain message
+                        apex_error.add_error(
+                            p_message          => regexp_replace(sqlerrm, '^ORA-2[0-9]{4}: '),
+                            p_display_location => apex_error.c_inline_in_notification);
+                end;
+                ```
+        }
+        execution {
+            sequence: 10
+        }
+        serverSideCondition {
+            whenButtonPressed: @generate
+        }
+    )
+
+    branch back-to-generator (
+        name: Back to Generator
+        execution {
+            sequence: 10
+            point: afterProcessing
+        }
+        behavior {
+            type: pageOrUrl
+            target: {
+                page: 11
+            }
+        }
+    )
+
+    dynamicAction table-changed (
+        name: Table Changed
+        execution {
+            sequence: 5
+        }
+        when {
+            event: change
+            selectionType: items
+            items: [
+                P11_TABLE_NAME
+            ]
+        }
+
+        // Output generated for the previous table must never show next to a
+        // new table: clear it in session state and hide the output regions
+        // until Generate runs again.
+        action clear-generated-output (
+            action: executeServerSideCode
+            settings {
+                plsqlCode:
+                    ```plsql
+                    :P11_SQL             := null;
+                    :P11_APX             := null;
+                    :P11_PLUGIN_APX      := null;
+                    :P11_ITEMS_TO_SUBMIT := null;
+                    :P11_FIRST_ITEM      := null;
+                    :P11_SAMPLE_KEY      := null;
+                    ```
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+        action hide-app-builder-sql (
+            action: hide
+            affectedElements {
+                selectionType: region
+                region: @app-builder-sql
+            }
+            execution {
+                sequence: 20
+                fireOnInit: false
+            }
+        )
+
+        action hide-apexlang-region (
+            action: hide
+            affectedElements {
+                selectionType: region
+                region: @apexlang-region
+            }
+            execution {
+                sequence: 30
+                fireOnInit: false
+            }
+        )
+
+        action hide-audit-history-plugin (
+            action: hide
+            affectedElements {
+                selectionType: region
+                region: @audit-history-plugin
+            }
+            execution {
+                sequence: 40
+                fireOnInit: false
+            }
+        )
+
+        action hide-preview (
+            action: hide
+            affectedElements {
+                selectionType: region
+                region: @preview
+            }
+            execution {
+                sequence: 50
+                fireOnInit: false
+            }
+        )
+
+        action hide-preview-result (
+            action: hide
+            affectedElements {
+                selectionType: region
+                region: @preview-result
+            }
+            execution {
+                sequence: 60
+                fireOnInit: false
+            }
+        )
+
+    )
+
+    dynamicAction copy-sql-to-clipboard (
+        name: Copy SQL to Clipboard
+        execution {
+            sequence: 10
+        }
+        when {
+            event: click
+            selectionType: button
+            button: @copy-sql
+        }
+
+        action copy-sql-js (
+            action: executeJsCode
+            settings {
+                jsCode: navigator.clipboard.writeText(apex.item("P11_SQL").getValue()).then(function () { apex.message.showPageSuccess("SQL copied."); });
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+    dynamicAction copy-apx-to-clipboard (
+        name: Copy Region to Clipboard
+        execution {
+            sequence: 20
+        }
+        when {
+            event: click
+            selectionType: button
+            button: @copy-apx
+        }
+
+        action copy-apx-js (
+            action: executeJsCode
+            settings {
+                jsCode: navigator.clipboard.writeText(apex.item("P11_APX").getValue()).then(function () { apex.message.showPageSuccess("Region copied."); });
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+    dynamicAction copy-plugin-to-clipboard (
+        name: Copy Plugin Region to Clipboard
+        execution {
+            sequence: 25
+        }
+        when {
+            event: click
+            selectionType: button
+            button: @copy-plugin
+        }
+
+        action copy-plugin-js (
+            action: executeJsCode
+            settings {
+                jsCode: navigator.clipboard.writeText(apex.item("P11_PLUGIN_APX").getValue()).then(function () { apex.message.showPageSuccess("Region copied."); });
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+    dynamicAction refresh-preview (
+        name: Refresh Preview
+        execution {
+            sequence: 30
+        }
+        when {
+            event: change
+            selectionType: items
+            items: [
+                P11_SAMPLE_KEY
+            ]
+        }
+
+        action refresh-preview-result (
+            action: refresh
+            affectedElements {
+                selectionType: region
+                region: @preview-result
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+)

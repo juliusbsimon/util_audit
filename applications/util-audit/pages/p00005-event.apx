@@ -1,0 +1,775 @@
+page 5 (
+    name: Event
+    alias: EVENT
+    title: Event
+    appearance {
+        pageMode: modalDialog
+        dialogTemplate: @/drawer
+        templateOptions: [
+            #DEFAULT#
+            js-dialog-class-t-Drawer--pullOutEnd
+        ]
+    }
+    dialog {
+        chained: false
+    }
+    navigation {
+        warnOnUnsavedChanges: false
+    }
+    security {
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+    css {
+        inline:
+            ```css
+            /* Result of Preview Restore / Restore: keep dbms_output layout readable */
+            .ua-monospace,
+            #P5_RESTORE_OUTPUT,
+            #P5_RESTORE_OUTPUT_DISPLAY {
+                font-family: var(--a-font-family-mono, monospace);
+                white-space: pre-wrap;
+            }
+            /* Long values without spaces must wrap, not widen the page */
+            .t-Report-cell {
+                overflow-wrap: anywhere;
+                max-width: 40rem;
+            }
+            ```
+    }
+    help {
+        helpText: Shows one audit event, the session context it was recorded in, and the column values before and after. Administrators can restore the row to the state it had just before this event.
+    }
+
+    region event (
+        name: Event
+        type: staticContent
+        layout {
+            sequence: 10
+            slot: contentBody
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region context (
+        name: Context
+        type: classicReport
+        source {
+            location: localDatabase
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select key_label,
+                       value
+                from (
+                    select j.*
+                    from util_audit_txn t,
+                         json_table(t.audit_context, '$'
+                             columns (
+                                 app_id     varchar2(4000) path '$.app_id',
+                                 page_id    varchar2(4000) path '$.page_id',
+                                 session_id varchar2(4000) path '$.session_id',
+                                 module     varchar2(4000) path '$.module',
+                                 client_id  varchar2(4000) path '$.client_id',
+                                 action     varchar2(4000) path '$.action',
+                                 ip         varchar2(4000) path '$.ip',
+                                 host       varchar2(4000) path '$.host',
+                                 os_user    varchar2(4000) path '$.os_user',
+                                 app_user   varchar2(4000) path '$.app_user',
+                                 schema     varchar2(4000) path '$.schema'
+                             )) j
+                    where t.transaction_id = :P5_TRANSACTION_ID
+                )
+                unpivot exclude nulls (
+                    value for key_label in (
+                        app_id     as 'APEX App',
+                        page_id    as 'APEX Page',
+                        session_id as 'APEX Session',
+                        module     as 'Module',
+                        client_id  as 'Client Identifier',
+                        action     as 'Action',
+                        ip         as 'IP Address',
+                        host       as 'Host',
+                        os_user    as 'OS User',
+                        app_user   as 'App User',
+                        schema     as 'Schema'
+                    )
+                )
+                ```
+        }
+        layout {
+            sequence: 20
+            slot: contentBody
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Report--stretch
+                t-Report--horizontalBorders
+            ]
+        }
+        messages {
+            whenNoDataFound: No context recorded.
+        }
+
+        column KEY_LABEL (
+            reportColumnQueryId: 1
+            derivedColumn: N
+            heading {
+                heading: Key
+            }
+            layout {
+                sequence: 10
+            }
+        )
+
+        column VALUE (
+            reportColumnQueryId: 2
+            derivedColumn: N
+            heading {
+                heading: Value
+            }
+            layout {
+                sequence: 20
+            }
+        )
+
+    )
+
+    region column-changes (
+        name: Column Changes
+        type: classicReport
+        source {
+            location: localDatabase
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select r.column_name,
+                       r.data_type,
+                       coalesce(r.old_value, dbms_lob.substr(r.old_clob, 1000, 1)) old_value,
+                       coalesce(r.new_value, dbms_lob.substr(r.new_clob, 1000, 1)) new_value
+                from util_audit_records r
+                left join user_tab_columns c
+                  on c.table_name = r.table_name
+                 and c.column_name = r.column_name
+                where r.transaction_id = :P5_TRANSACTION_ID
+                order by c.column_id nulls last, r.column_name
+                ```
+        }
+        layout {
+            sequence: 30
+            slot: contentBody
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Report--stretch
+                t-Report--horizontalBorders
+            ]
+        }
+        pagination {
+            type: rowRangesXToYNoPagination
+        }
+        reportLayout {
+            numberOfRowsType: staticValue
+            numberOfRows: 200
+        }
+        messages {
+            whenNoDataFound: No column changes recorded.
+        }
+
+        column COLUMN_NAME (
+            reportColumnQueryId: 1
+            derivedColumn: N
+            heading {
+                heading: Column
+            }
+            layout {
+                sequence: 10
+            }
+        )
+
+        column DATA_TYPE (
+            reportColumnQueryId: 2
+            derivedColumn: N
+            heading {
+                heading: Type
+            }
+            layout {
+                sequence: 20
+            }
+        )
+
+        column OLD_VALUE (
+            reportColumnQueryId: 3
+            derivedColumn: N
+            heading {
+                heading: Old Value
+            }
+            layout {
+                sequence: 30
+            }
+        )
+
+        column NEW_VALUE (
+            reportColumnQueryId: 4
+            derivedColumn: N
+            heading {
+                heading: New Value
+            }
+            layout {
+                sequence: 40
+            }
+        )
+
+    )
+
+    region restore (
+        name: Restore
+        type: staticContent
+        source {
+            htmlCode: <p>Puts the row back the way it was just before this event. Restoring a DELETE also brings back child rows deleted with it. Preview runs the restore and rolls it back.</p>
+        }
+        layout {
+            sequence: 40
+            slot: contentBody
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        serverSideCondition {
+            type: item=value
+            item: P5_CAN_RESTORE
+            value: Y
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    region cannot-restore (
+        name: Cannot Restore
+        type: staticContent
+        source {
+            htmlCode: INSERT events, and events recorded before this version, cannot be restored.
+        }
+        layout {
+            sequence: 50
+            slot: contentBody
+        }
+        appearance {
+            template: @/alert
+            templateOptions: [
+                #DEFAULT#
+                t-Alert--horizontal
+                t-Alert--defaultIcons
+                t-Alert--info
+            ]
+        }
+        serverSideCondition {
+            type: item=value
+            item: P5_CAN_RESTORE
+            value: N
+        }
+    )
+
+    region buttons (
+        name: Buttons
+        type: staticContent
+        layout {
+            sequence: 60
+            slot: REGION_POSITION_03
+        }
+        appearance {
+            template: @/buttons-container
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    pageItem P5_TRANSACTION_ID (
+        type: hidden
+        layout {
+            sequence: 10
+            region: @event
+            slot: regionBody
+        }
+        settings {
+            valueProtected: true
+        }
+        security {
+            sessionStateProtection: checksumRequiredSessionLevel
+        }
+    )
+
+    pageItem P5_AUDIT_TS (
+        type: displayOnly
+        label {
+            label: When
+            alignment: left
+        }
+        layout {
+            sequence: 20
+            region: @event
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+    )
+
+    pageItem P5_TABLE_NAME (
+        type: displayOnly
+        label {
+            label: Table
+            alignment: left
+        }
+        layout {
+            sequence: 30
+            region: @event
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+    )
+
+    pageItem P5_PK_VALUE (
+        type: displayOnly
+        label {
+            label: Key
+            alignment: left
+        }
+        layout {
+            sequence: 40
+            region: @event
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+    )
+
+    pageItem P5_TRANSACTION_TYPE (
+        type: displayOnly
+        label {
+            label: Type
+            alignment: left
+        }
+        layout {
+            sequence: 50
+            region: @event
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+    )
+
+    pageItem P5_USERNAME (
+        type: displayOnly
+        label {
+            label: User
+            alignment: left
+        }
+        layout {
+            sequence: 60
+            region: @event
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+    )
+
+    pageItem P5_DB_TRANSACTION_ID (
+        type: displayOnly
+        label {
+            label: Database Transaction
+            alignment: left
+        }
+        layout {
+            sequence: 70
+            region: @event
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+    )
+
+    pageItem P5_CAN_RESTORE (
+        type: hidden
+        layout {
+            sequence: 80
+            region: @event
+            slot: regionBody
+        }
+        settings {
+            valueProtected: true
+        }
+    )
+
+    pageItem P5_INCLUDE_CHILDREN (
+        type: switch
+        label {
+            label: Include child rows
+            alignment: left
+        }
+        layout {
+            sequence: 10
+            region: @restore
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        default {
+            type: static
+            staticValue: Y
+        }
+        help {
+            helpText: Also bring back child rows that were deleted together with this row. Only child tables that are audited can be restored.
+        }
+    )
+
+    pageItem P5_FORCE (
+        type: switch
+        label {
+            label: Overwrite later changes
+            alignment: left
+        }
+        layout {
+            sequence: 20
+            region: @restore
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        default {
+            type: static
+            staticValue: N
+        }
+        help {
+            helpText: Restore even when the row was changed again after this event. Those later changes are overwritten.
+        }
+    )
+
+    pageItem P5_RESTORE_OUTPUT (
+        type: textarea
+        label {
+            label: Result
+            alignment: left
+        }
+        layout {
+            sequence: 30
+            region: @restore
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+            width: 80
+            height: 12
+        }
+        settings {
+            resizable: true
+            autoHeight: false
+        }
+        advanced {
+            cssClasses: ua-monospace
+        }
+        readOnly {
+            type: always
+        }
+        help {
+            helpText: Output of the last preview or restore, including any error.
+        }
+    )
+
+    pageItem P5_RESTORE_STATUS (
+        type: hidden
+        layout {
+            sequence: 40
+            region: @restore
+            slot: regionBody
+        }
+        settings {
+            valueProtected: true
+        }
+    )
+
+    button close (
+        buttonName: CLOSE
+        label: Close
+        layout {
+            sequence: 10
+            region: @buttons
+            slot: CLOSE
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: definedByDynamicAction
+        }
+    )
+
+    button preview-restore (
+        buttonName: PREVIEW_RESTORE
+        label: Preview Restore
+        layout {
+            sequence: 10
+            region: @restore
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: submitPage
+            warnOnUnsavedChanges: doNotCheck
+        }
+        serverSideCondition {
+            type: item=value
+            item: P5_CAN_RESTORE
+            value: Y
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    button restore (
+        buttonName: RESTORE
+        label: Restore
+        layout {
+            sequence: 20
+            region: @restore
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: true
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: submitPage
+            warnOnUnsavedChanges: doNotCheck
+            requiresConfirmation: true
+        }
+        confirmation {
+            message: Restore this row now? This changes live data.
+            style: danger
+        }
+        serverSideCondition {
+            type: item=value
+            item: P5_CAN_RESTORE
+            value: Y
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    dynamicAction close-dialog (
+        name: Close Dialog
+        execution {
+            sequence: 10
+        }
+        when {
+            event: click
+            selectionType: button
+            button: @close
+        }
+
+        action native-dialog-close (
+            action: closeDialog
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+    process fetch-event (
+        name: Fetch Event
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                begin
+                    select to_char(audit_ts, 'YYYY-MM-DD HH24:MI:SS'),
+                           table_name,
+                           pk_value_vc,
+                           transaction_type,
+                           username,
+                           db_transaction_id,
+                           case
+                               when transaction_type in ('UPDATE', 'DELETE')
+                                and old_row_json is not null then 'Y'
+                               else 'N'
+                           end
+                      into :P5_AUDIT_TS,
+                           :P5_TABLE_NAME,
+                           :P5_PK_VALUE,
+                           :P5_TRANSACTION_TYPE,
+                           :P5_USERNAME,
+                           :P5_DB_TRANSACTION_ID,
+                           :P5_CAN_RESTORE
+                      from util_audit_txn
+                     where transaction_id = :P5_TRANSACTION_ID;
+                exception
+                    when no_data_found then
+                        :P5_AUDIT_TS          := null;
+                        :P5_TABLE_NAME        := null;
+                        :P5_PK_VALUE          := null;
+                        :P5_TRANSACTION_TYPE  := null;
+                        :P5_USERNAME          := null;
+                        :P5_DB_TRANSACTION_ID := null;
+                        :P5_CAN_RESTORE       := null;
+                end;
+                ```
+        }
+        execution {
+            sequence: 10
+            point: beforeHeader
+        }
+    )
+
+    process run-restore (
+        name: Run Restore
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                    l_lines dbms_output.chararr;
+                    l_count integer := 10000;
+                    l_out   varchar2(32767);
+                    l_err   varchar2(4000);
+                begin
+                    dbms_output.enable(null);
+                    begin
+                        util_audit.restore_row(
+                            p_transaction_id   => :P5_TRANSACTION_ID,
+                            p_include_children => nvl(:P5_INCLUDE_CHILDREN, 'N') = 'Y',
+                            p_force            => nvl(:P5_FORCE, 'N') = 'Y',
+                            p_preview          => :REQUEST = 'PREVIEW_RESTORE');
+                    exception
+                        when others then
+                            l_err := sqlerrm;   -- restore_row already rolled back its own changes
+                    end;
+                    dbms_output.get_lines(l_lines, l_count);
+                    for i in 1 .. l_count loop
+                        l_out := substr(l_out || l_lines(i) || chr(10), 1, 32000);
+                    end loop;
+                    dbms_output.disable;
+                    :P5_RESTORE_OUTPUT := substr(l_out || case when l_err is not null then chr(10) || 'ERROR: ' || l_err end, 1, 32000);
+                    :P5_RESTORE_STATUS := case
+                                              when l_err is not null then 'ERROR'
+                                              when :REQUEST = 'PREVIEW_RESTORE' then 'PREVIEW'
+                                              else 'DONE'
+                                          end;
+                    apex_application.g_print_success_message := case :P5_RESTORE_STATUS
+                        when 'PREVIEW' then 'Preview finished. Nothing was changed.'
+                        when 'DONE' then 'Row restored.'
+                        else null end;
+                    if l_err is not null then
+                        -- Show the failure without raising; the output above stays in P5_RESTORE_OUTPUT.
+                        apex_error.add_error(
+                            p_message          => 'Restore failed. Nothing was changed. See Result for details.',
+                            p_display_location => apex_error.c_inline_in_notification);
+                    end if;
+                end;
+                ```
+        }
+        execution {
+            sequence: 10
+            point: afterSubmit
+        }
+        serverSideCondition {
+            type: requestIsContainedInValue
+            value: PREVIEW_RESTORE,RESTORE
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    branch go-to-event (
+        name: Go To Event
+        execution {
+            sequence: 10
+            point: afterProcessing
+        }
+        behavior {
+            type: pageOrUrl
+            target: {
+                page: 5
+                items: {
+                    P5_TRANSACTION_ID: &P5_TRANSACTION_ID.
+                }
+            }
+        }
+    )
+
+)

@@ -1,0 +1,38 @@
+lov boolean (
+    name: BOOLEAN
+    source {
+        location: staticValues
+    }
+
+    entry false (
+        sequence: 2
+        display: No
+        return: FALSE
+    )
+
+    entry true (
+        sequence: 1
+        display: Yes
+        return: TRUE
+    )
+
+)
+
+lov audited-tables (
+    name: AUDITED_TABLES
+    source {
+        type: sqlQuery
+        sqlQuery:
+            ```sql
+            select table_name d, table_name r
+            from v_util_audit_tables
+            where event_count > 0
+            ```
+    }
+    columnMapping {
+        return: R
+        display: D
+        defaultSort: D
+    }
+)
+

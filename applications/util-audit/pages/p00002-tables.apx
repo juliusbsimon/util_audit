@@ -1,0 +1,324 @@
+page 2 (
+    name: Tables
+    alias: TABLES
+    title: Tables
+    appearance {
+        pageTemplate: @/standard
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+    }
+    security {
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+    help {
+        helpText: Lists every table in the schema with its audit status. Click a table name to start, pause, resume or stop auditing, choose ignored columns and preview the trigger code.
+    }
+
+    region tables (
+        name: Tables
+        type: breadcrumb
+        source {
+            breadcrumb: @breadcrumb
+        }
+        layout {
+            sequence: 10
+            slot: breadcrumbBar
+        }
+        appearance {
+            template: @/title-bar
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            breadcrumbTemplate: @/breadcrumb
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region audited-tables (
+        name: Audited Tables
+        type: interactiveReport
+        source {
+            location: localDatabase
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select table_name,
+                       audit_status,
+                       trigger_name,
+                       enabled_flag,
+                       ignored_columns,
+                       has_pk,
+                       child_tables,
+                       unaudited_child_tables,
+                       event_count,
+                       last_event_ts
+                  from v_util_audit_tables
+                ```
+        }
+        layout {
+            sequence: 20
+            slot: body
+        }
+        appearance {
+            template: @/interactive-report
+            templateOptions: #DEFAULT#
+        }
+        advanced {
+            htmlDomId: audited_tables
+        }
+        link {
+            linkColumn: exclude
+        }
+        componentAppearance {
+            showNullValuesAs: -
+        }
+        pagination {
+            type: rowRangesXToY
+        }
+        messages {
+            whenNoDataFound: No tables in this schema.
+        }
+        download {
+            formats: [
+                csv
+                html
+            ]
+        }
+
+        column TABLE_NAME (
+            type: link
+            heading {
+                heading: Table
+            }
+            layout {
+                sequence: 10
+            }
+            source {
+                dataType: STRING
+            }
+            link {
+                target: {
+                    page: 3
+                    items: {
+                        P3_TABLE_NAME: #TABLE_NAME#
+                    }
+                    clearCache: 3
+                }
+                linkText: #TABLE_NAME#
+            }
+        )
+
+        column AUDIT_STATUS (
+            type: plainText
+            heading {
+                heading: Status
+            }
+            layout {
+                sequence: 20
+            }
+            source {
+                dataType: STRING
+            }
+        )
+
+        column TRIGGER_NAME (
+            type: plainText
+            heading {
+                heading: Trigger
+            }
+            layout {
+                sequence: 30
+            }
+            source {
+                dataType: STRING
+            }
+        )
+
+        column ENABLED_FLAG (
+            type: hidden
+            heading {
+                heading: Enabled
+            }
+            layout {
+                sequence: 40
+            }
+            source {
+                dataType: STRING
+            }
+        )
+
+        column IGNORED_COLUMNS (
+            type: plainText
+            heading {
+                heading: Ignored Columns
+            }
+            layout {
+                sequence: 50
+            }
+            source {
+                dataType: STRING
+            }
+        )
+
+        column HAS_PK (
+            type: plainText
+            heading {
+                heading: Has Primary Key
+                alignment: center
+            }
+            layout {
+                sequence: 60
+                columnAlignment: center
+            }
+            source {
+                dataType: STRING
+            }
+        )
+
+        column CHILD_TABLES (
+            type: plainText
+            heading {
+                heading: Child Tables
+                alignment: end
+            }
+            layout {
+                sequence: 70
+                columnAlignment: end
+            }
+            source {
+                dataType: NUMBER
+            }
+        )
+
+        column UNAUDITED_CHILD_TABLES (
+            type: plainText
+            heading {
+                heading: Unaudited Child Tables
+                alignment: end
+            }
+            layout {
+                sequence: 80
+                columnAlignment: end
+            }
+            source {
+                dataType: NUMBER
+            }
+        )
+
+        column EVENT_COUNT (
+            type: plainText
+            heading {
+                heading: Events
+                alignment: end
+            }
+            layout {
+                sequence: 90
+                columnAlignment: end
+            }
+            appearance {
+                formatMask: 999G999G999G999G990
+            }
+            source {
+                dataType: NUMBER
+            }
+        )
+
+        column LAST_EVENT_TS (
+            type: plainText
+            heading {
+                heading: Last Event
+            }
+            layout {
+                sequence: 100
+            }
+            appearance {
+                formatMask: SINCE
+            }
+            source {
+                dataType: TIMESTAMP
+            }
+        )
+
+        savedReport primary (
+            visibility: primaryDefault
+            view {
+                rowsPerPage: 50
+            }
+
+            displayColumn TABLE_NAME (
+                sequence: 1
+            )
+
+            displayColumn AUDIT_STATUS (
+                sequence: 2
+            )
+
+            displayColumn TRIGGER_NAME (
+                sequence: 3
+            )
+
+            displayColumn IGNORED_COLUMNS (
+                sequence: 4
+            )
+
+            displayColumn HAS_PK (
+                sequence: 5
+            )
+
+            displayColumn CHILD_TABLES (
+                sequence: 6
+            )
+
+            displayColumn UNAUDITED_CHILD_TABLES (
+                sequence: 7
+            )
+
+            displayColumn EVENT_COUNT (
+                sequence: 8
+            )
+
+            displayColumn LAST_EVENT_TS (
+                sequence: 9
+            )
+
+            sort (
+                column: TABLE_NAME
+                sort {
+                    direction: asc
+                    sequence: 1
+                }
+            )
+
+        )
+
+    )
+
+    dynamicAction refresh-audited-tables (
+        name: Refresh Audited Tables
+        execution {
+            sequence: 10
+        }
+        when {
+            event: apexafterclosedialog
+            selectionType: region
+            region: @audited-tables
+        }
+
+        action refresh-audited-tables-action (
+            action: refresh
+            affectedElements {
+                selectionType: region
+                region: @audited-tables
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+)

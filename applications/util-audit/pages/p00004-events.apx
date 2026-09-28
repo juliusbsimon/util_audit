@@ -1,0 +1,351 @@
+page 4 (
+    name: Events
+    alias: EVENTS
+    title: Events
+    appearance {
+        pageTemplate: @/left-side-column
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        warnOnUnsavedChanges: false
+    }
+    security {
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+    help {
+        helpText: Use the filters to narrow the audit events by table, event type, user or time. Click the time of an event to see its details, or History to see every change to that row.
+    }
+
+    region events (
+        name: Events
+        type: breadcrumb
+        source {
+            breadcrumb: @breadcrumb
+        }
+        layout {
+            sequence: 10
+            slot: breadcrumbBar
+        }
+        appearance {
+            template: @/title-bar
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            breadcrumbTemplate: @/breadcrumb
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region search (
+        name: Search
+        type: facetedSearch
+        source {
+            filteredRegion: @event-results
+        }
+        layout {
+            sequence: 20
+            slot: leftColumn
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        accessibility {
+            landmarkLabel: Filters
+        }
+
+        facet P4_SEARCH (
+            type: search
+            label {
+                label: Search
+            }
+            layout {
+                sequence: 10
+            }
+            source {
+                dbColumns: TABLE_NAME,PK_VALUE_VC,USERNAME,CHANGED_COLUMNS
+            }
+        )
+
+        facet P4_TABLE_NAME (
+            type: checkboxGroup
+            label {
+                label: Table
+            }
+            lov {
+                type: distinctValues
+            }
+            layout {
+                sequence: 20
+            }
+            listEntries {
+                maxDisplayedEntries: 10
+                displayFilterInitially: true
+            }
+            source {
+                databaseColumn: TABLE_NAME
+            }
+        )
+
+        facet P4_TRANSACTION_TYPE (
+            type: checkboxGroup
+            label {
+                label: Type
+            }
+            lov {
+                type: distinctValues
+            }
+            layout {
+                sequence: 30
+            }
+            listEntries {
+                maxDisplayedEntries: 10
+            }
+            source {
+                databaseColumn: TRANSACTION_TYPE
+            }
+        )
+
+        facet P4_USERNAME (
+            type: checkboxGroup
+            label {
+                label: User
+            }
+            lov {
+                type: distinctValues
+            }
+            layout {
+                sequence: 40
+            }
+            listEntries {
+                maxDisplayedEntries: 10
+                displayFilterInitially: true
+            }
+            source {
+                databaseColumn: USERNAME
+            }
+        )
+
+        facet P4_AUDIT_TS (
+            type: range
+            label {
+                label: When
+            }
+            layout {
+                sequence: 50
+            }
+            source {
+                databaseColumn: AUDIT_TS
+                dataType: date
+            }
+        )
+
+    )
+
+    region event-results (
+        name: Event Results
+        type: classicReport
+        source {
+            location: localDatabase
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select transaction_id,
+                       audit_ts,
+                       table_name,
+                       pk_value_vc,
+                       transaction_type,
+                       username,
+                       changed_columns,
+                       'History' history,
+                       to_char(audit_ts, 'YYYY-MM-DD HH24:MI:SS') audit_ts_display
+                from v_util_audit_event_summary
+                ```
+        }
+        layout {
+            sequence: 30
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Report--stretch
+                t-Report--horizontalBorders
+            ]
+        }
+        pagination {
+            type: rowRangesXToYOfZWithPagination
+        }
+        reportLayout {
+            numberOfRowsType: staticValue
+            numberOfRows: 25
+        }
+        messages {
+            whenNoDataFound: No audit events match.
+        }
+
+        column TRANSACTION_ID (
+            reportColumnQueryId: 1
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 10
+            }
+        )
+
+        column AUDIT_TS (
+            reportColumnQueryId: 2
+            derivedColumn: N
+            type: link
+            heading {
+                heading: When
+            }
+            layout {
+                sequence: 20
+            }
+            link {
+                target: {
+                    page: 5
+                    items: {
+                        P5_TRANSACTION_ID: #TRANSACTION_ID#
+                    }
+                    clearCache: 5
+                }
+                linkText: #AUDIT_TS_DISPLAY#
+            }
+            sorting {
+                defaultSequence: 1
+                direction: desc
+                sortable: true
+            }
+        )
+
+        column TABLE_NAME (
+            reportColumnQueryId: 3
+            derivedColumn: N
+            heading {
+                heading: Table
+            }
+            layout {
+                sequence: 30
+            }
+            sorting {
+                sortable: true
+            }
+        )
+
+        column PK_VALUE_VC (
+            reportColumnQueryId: 4
+            derivedColumn: N
+            heading {
+                heading: Key
+            }
+            layout {
+                sequence: 40
+            }
+        )
+
+        column TRANSACTION_TYPE (
+            reportColumnQueryId: 5
+            derivedColumn: N
+            heading {
+                heading: Type
+            }
+            layout {
+                sequence: 50
+            }
+            sorting {
+                sortable: true
+            }
+        )
+
+        column USERNAME (
+            reportColumnQueryId: 6
+            derivedColumn: N
+            heading {
+                heading: User
+            }
+            layout {
+                sequence: 60
+            }
+            sorting {
+                sortable: true
+            }
+        )
+
+        column CHANGED_COLUMNS (
+            reportColumnQueryId: 7
+            derivedColumn: N
+            heading {
+                heading: Changed Columns
+            }
+            layout {
+                sequence: 70
+            }
+        )
+
+        column HISTORY (
+            reportColumnQueryId: 8
+            derivedColumn: N
+            type: link
+            heading {
+                heading: History
+            }
+            layout {
+                sequence: 80
+            }
+            link {
+                target: {
+                    page: 6
+                    items: {
+                        P6_TABLE_NAME: #TABLE_NAME#
+                        P6_PK_VALUE: #PK_VALUE_VC#
+                    }
+                    clearCache: 6
+                }
+                linkText: #HISTORY#
+            }
+        )
+
+        column AUDIT_TS_DISPLAY (
+            reportColumnQueryId: 9
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 90
+            }
+        )
+
+    )
+
+    dynamicAction refresh-event-results (
+        name: Refresh Event Results
+        execution {
+            sequence: 10
+        }
+        when {
+            event: apexafterclosedialog
+            selectionType: region
+            region: @event-results
+        }
+
+        action refresh-results (
+            action: refresh
+            affectedElements {
+                selectionType: region
+                region: @event-results
+            }
+            execution {
+                sequence: 10
+            }
+        )
+
+    )
+
+)
