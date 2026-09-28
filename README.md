@@ -177,14 +177,12 @@ code.
 
 # 🧩 Audit History in Your Own Apps
 
-Show a row's history on the page that edits it, three ways:
+Show a row's history on the page that edits it. There are three ways,
+from least to most work:
 
-1.  **The Audit History region plugin.** Import
-    `export/region_type_plugin_util_audit_history.sql` into your app
-    (APEXlang apps: copy
-    `applications/util-audit/shared-components/plugins/region/utilAuditHistory`).
-    Add a region of type Audit History and set **Table** and **Key Items**.
-2.  **The table function**, in any region type:
+1.  **The Audit History region plugin** (below). Add a region, set the
+    table and the key item, done.
+2.  **The table function**, in any region type you like:
 
     ``` sql
     select * from table(util_audit_query.history('EMP', :P10_EMP_ID))
@@ -198,9 +196,145 @@ Show a row's history on the page that edits it, three ways:
     `util_audit_apx.get_plugin_region_apx` / `get_history_region_apx`
     (a region to paste into an APEXlang page file).
 
-With `p_child_tables`, changes to child rows show too, for example a
+With child tables, changes to child rows show too, for example a
 department's employees. They are matched through the foreign key values
 recorded in each audited row.
+
+## The Audit History region plugin
+
+A region plugin (internal name `UTIL_AUDIT_HISTORY`) that lists the
+changes util_audit recorded for the row the page is showing. It reads
+`util_audit_query.history`, so it follows util_audit upgrades without
+being regenerated.
+
+What it shows, newest first:
+
+  Changed         By     Action   Field       Old Value   New Value
+  --------------- ------ -------- ----------- ----------- -----------
+  5 minutes ago   ANN    Update   Salary      1000        1200
+                                  Job Title   Clerk       Analyst
+  2 days ago      BOB    Insert   Salary                  1000
+
+-   One group per change. Later lines of the same change leave the
+    first columns empty, so each change reads as one block.
+-   Old values are shown struck through and muted. Values longer than
+    200 characters are cut, and the full value shows on hover.
+-   With child tables it adds **Table** and **Record** columns.
+-   With **Display = One row per change**, it shows one line per change
+    with a **Fields Changed** list instead of old and new values.
+-   It works in light and dark mode, using the theme's colours.
+
+### Install it in your app
+
+The plugin needs util_audit (`setup.sql`) in the app's parsing schema,
+or in another schema (see below). Then pick one of three ways:
+
+-   **App Builder:** Shared Components > Plug-ins > Import, and choose
+    `export/region_type_plugin_util_audit_history.sql`.
+-   **SQL:** set the target app, then run the export:
+
+    ``` sql
+    begin
+      apex_application_install.set_workspace('MY_WORKSPACE');
+      apex_application_install.set_application_id(100);   -- your app
+      apex_application_install.generate_offset;
+      apex_application_install.set_schema('MY_SCHEMA');
+    end;
+    /
+    @export/region_type_plugin_util_audit_history.sql
+    ```
+
+-   **APEXlang apps:** copy the folder
+    `applications/util-audit/shared-components/plugins/region/utilAuditHistory`
+    into your app's `shared-components/plugins/region/`.
+
+### Add the region
+
+1.  On the form page, create a region of type **Audit History [Plug-in]**.
+2.  Set **Table** to the audited table, for example `EMP`.
+3.  Set **Key Items** to the page item or items that hold the primary
+    key, for example `P10_EMP_ID`. For a composite key, list one item per
+    key column, in key column order, up to four.
+4.  Optionally, give it a server-side condition "Item is NOT NULL" on the
+    key item, so it stays hidden while creating a new row.
+
+In APEXlang:
+
+```
+region audit-history (
+    name: Audit History
+    type: plugin/utilAuditHistory
+    settings {
+        table: EMP
+        keyItems: P10_EMP_ID
+        display: columns
+        childTables: EMP_TASK,PROJECT
+        readableNames: true
+        maxRows: 100
+        dateFormat: SINCE
+    }
+    layout {
+        sequence: 100
+        slot: body
+    }
+    appearance {
+        template: @/standard
+        templateOptions: #DEFAULT#
+    }
+    serverSideCondition {
+        type: itemIsNotNull
+        item: P10_EMP_ID
+    }
+)
+```
+
+`util_audit_apx.get_plugin_region_apx('EMP', p_page_id => 10)` writes
+this for you, and so does the **Query Generator** page.
+
+### Settings
+
+  Setting                 APEXlang name       Default   What it does
+  ----------------------- ------------------- --------- ------------------------------------------------------------
+  Table                   `table`             (needed)  The audited table the page shows
+  Key Items               `keyItems`          (needed)  Page items holding the primary key, comma-separated, in key column order
+  Display                 `display`           Columns   `COLUMNS`: one line per changed column, with old and new value. `EVENTS`: one line per change, listing the columns
+  Child Tables            `childTables`                 Audited tables that point at this one, comma-separated, whose changes also show
+  Columns                 `columns`                     Only show these columns, comma-separated. Empty: all
+  Readable Column Names   `readableNames`     Yes       "Hire Date" instead of `HIRE_DATE`
+  Maximum Lines           `maxRows`           100       The most lines to show. A note says when the list is cut
+  Date Format             `dateFormat`        SINCE     `SINCE` shows "5 minutes ago"; any Oracle format works, e.g. `DD-MON-YYYY HH24:MI`
+  util_audit Schema       `utilAuditSchema`             Only when util_audit lives in another schema (see below)
+
+The region's **No Data Found** message is shown when the row has no
+recorded changes, and while the key item is empty. The default is "No
+changes recorded yet."
+
+### util_audit in a different schema
+
+If the app parses as `APP_SCHEMA` and util_audit is installed in
+`AUDIT_SCHEMA`, set **util_audit Schema** to `AUDIT_SCHEMA` and grant:
+
+``` sql
+grant execute on audit_schema.util_audit_query to app_schema;
+```
+
+`util_audit_query` runs with its owner's rights, so the app schema needs
+no access to the audit tables themselves.
+
+### Good to know
+
+-   The region reads the key items' session state when the page is
+    rendered. So the key items must have their value by then, as a form
+    page's items do after its "Initialize form" process. After a save,
+    the history is current once the page shows again.
+-   The region does not support a Refresh dynamic action. To show new
+    changes without a page submit, reload the page.
+-   If something is wrong, such as a mistyped table name or a missing
+    grant, the region shows the error message in place of the list, and
+    the rest of the page still works.
+-   The region shows what `util_audit_query.history` returns: the table's
+    audit rows for that key. It does not apply any other access rules of
+    your app. Give it the same authorization as the data it describes.
 
 ------------------------------------------------------------------------
 
