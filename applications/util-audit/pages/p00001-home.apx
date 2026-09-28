@@ -1,0 +1,381 @@
+page 1 (
+    name: Home
+    alias: HOME
+    title: Home
+    appearance {
+        pageTemplate: @/standard
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+    }
+    security {
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+
+    region home (
+        name: Home
+        type: breadcrumb
+        source {
+            breadcrumb: @breadcrumb
+        }
+        layout {
+            sequence: 10
+            slot: breadcrumbBar
+        }
+        appearance {
+            template: @/title-bar
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            breadcrumbTemplate: @/breadcrumb
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region overview (
+        name: Overview
+        type: themeTemplateComponent/metricCard
+        source {
+            location: localDatabase
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select LABEL,
+                       VALUE,
+                       ICON,
+                       SEQ
+                  from (
+                        select 'Audited Tables' as LABEL,
+                               count(*) as VALUE,
+                               'fa-table' as ICON,
+                               1 as SEQ
+                          from v_util_audit_tables
+                         where audit_status <> 'Not audited'
+                        union all
+                        select 'Events (24h)',
+                               count(*),
+                               'fa-history',
+                               2
+                          from util_audit_txn
+                         where audit_ts > systimestamp - interval '1' day
+                        union all
+                        select 'Events (7 days)',
+                               count(*),
+                               'fa-calendar',
+                               3
+                          from util_audit_txn
+                         where audit_ts > systimestamp - interval '7' day
+                        union all
+                        select 'Errors (7 days)',
+                               count(*),
+                               'fa-exclamation-triangle',
+                               4
+                          from util_audit_errors
+                         where error_ts > systimestamp - interval '7' day
+                       )
+                 order by SEQ
+                ```
+        }
+        layout {
+            sequence: 20
+            slot: BODY
+        }
+        appearance {
+            template: @/blank-with-attributes
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            display: report
+        }
+        settings {
+            title: &LABEL.
+            metric: &VALUE.
+            layout: 4Columns
+        }
+        plugin-avatar {
+            displayAvatar: true
+            type: icon
+            icon: &ICON.
+        }
+
+        column LABEL (
+            layout {
+                sequence: 10
+            }
+            source {
+                databaseColumn: LABEL
+                dataType: varchar2
+            }
+        )
+
+        column VALUE (
+            layout {
+                sequence: 20
+            }
+            source {
+                databaseColumn: VALUE
+                dataType: number
+            }
+        )
+
+        column ICON (
+            layout {
+                sequence: 30
+            }
+            source {
+                databaseColumn: ICON
+                dataType: varchar2
+            }
+        )
+
+        column SEQ (
+            layout {
+                sequence: 40
+            }
+            source {
+                databaseColumn: SEQ
+                dataType: number
+                primaryKey: true
+            }
+        )
+    )
+
+    region events-per-day (
+        name: Events per Day
+        type: chart
+        layout {
+            sequence: 30
+            slot: BODY
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        chart {
+            type: bar
+        }
+        chartAppearance {
+            stack: true
+        }
+        messages {
+            whenNoDataFound: No audit events in the last 14 days.
+        }
+        legend {
+            show: true
+            position: bottom
+        }
+
+        series events-by-type (
+            name: Events by Type
+            execution {
+                sequence: 10
+            }
+            source {
+                type: sqlQuery
+                sqlQuery:
+                    ```sql
+                    select to_char(trunc(audit_ts), 'YYYY-MM-DD') as DAY,
+                           transaction_type as TRANSACTION_TYPE,
+                           count(*) as EVENTS,
+                           case transaction_type
+                               when 'INSERT' then '#007a55'
+                               when 'UPDATE' then '#79697b'
+                               else '#e7000b'
+                           end as COLOR
+                      from util_audit_txn
+                     where audit_ts >= trunc(sysdate) - 13
+                     group by trunc(audit_ts),
+                              transaction_type
+                     order by 1
+                    ```
+            }
+            columnMapping {
+                seriesName: TRANSACTION_TYPE
+                label: DAY
+                value: EVENTS
+            }
+            appearance {
+                color: &COLOR.
+                assignedToY2Axis: false
+            }
+        )
+
+        axis x (
+            name: x
+            value {
+            }
+            majorTicks {
+                show: false
+            }
+        )
+
+        axis y (
+            name: y
+            value {
+                format: decimal
+                decimalPlaces: 0
+                formatScaling: none
+            }
+            majorTicks {
+                show: true
+            }
+        )
+    )
+
+    region recent-events (
+        name: Recent Events
+        type: classicReport
+        source {
+            location: localDatabase
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select transaction_id,
+                       audit_ts,
+                       table_name,
+                       pk_value_vc,
+                       transaction_type,
+                       username,
+                       changed_columns
+                  from v_util_audit_event_summary
+                 order by audit_ts desc
+                 fetch first 10 rows only
+                ```
+        }
+        layout {
+            sequence: 40
+            slot: BODY
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Report--stretch
+                t-Report--horizontalBorders
+            ]
+        }
+        messages {
+            whenNoDataFound: No audit events yet.
+        }
+
+        column TRANSACTION_ID (
+            reportColumnQueryId: 1
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 10
+            }
+        )
+
+        column AUDIT_TS (
+            reportColumnQueryId: 2
+            derivedColumn: N
+            type: link
+            heading {
+                heading: When
+            }
+            layout {
+                sequence: 20
+            }
+            appearance {
+                formatMask: SINCE
+            }
+            link {
+                target: {
+                    page: 5
+                    items: {
+                        P5_TRANSACTION_ID: #TRANSACTION_ID#
+                    }
+                    clearCache: 5
+                }
+                linkText: #AUDIT_TS#
+            }
+        )
+
+        column TABLE_NAME (
+            reportColumnQueryId: 3
+            derivedColumn: N
+            heading {
+                heading: Table
+            }
+            layout {
+                sequence: 30
+            }
+        )
+
+        column PK_VALUE_VC (
+            reportColumnQueryId: 4
+            derivedColumn: N
+            heading {
+                heading: Key
+            }
+            layout {
+                sequence: 40
+            }
+        )
+
+        column TRANSACTION_TYPE (
+            reportColumnQueryId: 5
+            derivedColumn: N
+            heading {
+                heading: Type
+            }
+            layout {
+                sequence: 50
+            }
+        )
+
+        column USERNAME (
+            reportColumnQueryId: 6
+            derivedColumn: N
+            heading {
+                heading: User
+            }
+            layout {
+                sequence: 60
+            }
+        )
+
+        column CHANGED_COLUMNS (
+            reportColumnQueryId: 7
+            derivedColumn: N
+            heading {
+                heading: Changed Columns
+            }
+            layout {
+                sequence: 70
+            }
+        )
+    )
+
+    dynamicAction refresh-recent-events (
+        name: Refresh Recent Events
+        execution {
+            sequence: 10
+        }
+        when {
+            event: apexafterclosedialog
+            selectionType: region
+            region: @recent-events
+        }
+
+        action refresh-recent-events-action (
+            action: refresh
+            affectedElements {
+                selectionType: region
+                region: @recent-events
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+    )
+
+)

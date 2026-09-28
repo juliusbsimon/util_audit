@@ -1,0 +1,496 @@
+page 9 (
+    name: Documentation
+    alias: DOCUMENTATION
+    title: Documentation
+    appearance {
+        pageTemplate: @/standard
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+        warnOnUnsavedChanges: false
+    }
+    css {
+        inline:
+            ```css
+            /* Page-scoped: the topic list is navigation, not a data grid.
+               Its column headings are hidden visually but stay available to
+               screen readers (same rules as Universal Theme u-VisuallyHidden).
+               The article prints its own title, so the article region's title
+               is hidden the same way; its header only shows Edit. */
+            .t-Report-report thead,
+            .t-Region:has(.doc-article) .t-Region-title { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+            .t-Report, .t-Report-wrap, .t-Report-tableWrap, .t-Report-report { width: 100%; }
+            .t-Report-report td.t-Report-cell { padding: 12px 16px; }
+            /* Markdown inside an article */
+            .doc-article { line-height: 1.6; max-width: 52rem; }
+            .doc-article .doc-title { font-size: 1.5rem; font-weight: 400; margin: 0 0 1rem; }
+            .doc-article h2 { font-size: 1.125rem; font-weight: 500; margin: 1.5rem 0 .5rem; }
+            .doc-article table { border-collapse: collapse; margin: .5rem 0 1rem; }
+            .doc-article th, .doc-article td { border: 1px solid var(--ua-line, #ddd); padding: .4rem .7rem; text-align: left; }
+            .doc-article th { background: var(--ua-row, #f6f7f9); font-weight: 500; }
+            .doc-article code { background: var(--ua-row, #f6f7f9); padding: 0 .25rem; border-radius: 4px; }
+            ```
+    }
+    security {
+        formAutoComplete: false
+    }
+
+    region documentation (
+        name: Documentation
+        type: breadcrumb
+        source {
+            breadcrumb: @breadcrumb
+        }
+        layout {
+            sequence: 5
+            slot: breadcrumbBar
+        }
+        appearance {
+            template: @/title-bar
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            breadcrumbTemplate: @/breadcrumb
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region article (
+        name: Article
+        type: plSqlDynamicContent
+        source {
+            plsqlCode:
+                ```plsql
+                -- Markdown rendered to HTML by APEX_MARKDOWN (raw HTML in an article is
+                -- escaped, not executed). The result is a CLOB, which a report region
+                -- cannot hold, so it is printed in 8000-character pieces.
+                declare
+                    l_html  clob;
+                    l_title varchar2(200);
+                    l_len   pls_integer;
+                    l_pos  pls_integer := 1;
+                begin
+                    select apex_markdown.to_html(a.body), a.title
+                    into   l_html, l_title
+                    from   util_audit_doc_article a
+                    where  a.active = 'Y'
+                    and    ( a.admin_only = 'N' or :UA_IS_AUDIT_ADMIN = 'Y' )
+                    and    ( a.id = :P9_ARTICLE_ID
+                             or ( :P9_ARTICLE_ID is null and a.page_id = :P9_PAGE_ID ) )
+                    and    rownum = 1;
+
+                    l_len := nvl(dbms_lob.getlength(l_html), 0);
+                    htp.prn('<div class="doc-article"><h1 class="doc-title">' || apex_escape.html(l_title) || '</h1>');
+                    while l_pos <= l_len loop
+                        htp.prn(dbms_lob.substr(l_html, 8000, l_pos));
+                        l_pos := l_pos + 8000;
+                    end loop;
+                    htp.prn('</div>');
+                exception
+                    when no_data_found then
+                        -- Deliberate: the region condition only shows this region when an
+                        -- article resolves, so this is a race (article deactivated between
+                        -- the check and the render). Render nothing rather than an error.
+                        null;
+                end;
+                ```
+        }
+        layout {
+            sequence: 20
+            slot: body
+            startNewRow: false
+            newColumn: true
+            columnSpan: 8
+        }
+        appearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Region--scrollBody
+            ]
+        }
+        serverSideCondition {
+            type: rowsReturned
+            sqlQuery: select 1 from util_audit_doc_article a where a.active = 'Y' and ( a.admin_only = 'N' or :UA_IS_AUDIT_ADMIN = 'Y' ) and ( a.id = :P9_ARTICLE_ID or ( :P9_ARTICLE_ID is null and a.page_id = :P9_PAGE_ID ) )
+        }
+    )
+
+    region no-article (
+        name: Documentation
+        type: staticContent
+        source {
+            htmlCode: <p>Choose a topic on the left, or type a word in the search box. Press <strong>Help</strong> in the top bar on any screen to open the article for that screen.</p>
+        }
+        layout {
+            sequence: 20
+            slot: body
+            startNewRow: false
+            newColumn: true
+            columnSpan: 8
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        serverSideCondition {
+            type: rowsReturned
+            sqlQuery: select 1 from dual where :P9_ARTICLE_ID is null and :P9_PAGE_ID is null
+        }
+    )
+
+    region no-article-for-screen (
+        name: No article for this screen yet
+        type: staticContent
+        source {
+            htmlCode: <p>There is no help article for the screen you came from yet. Choose a topic on the left. Administrators can press <strong>New Article</strong>: the screen is filled in for them.</p>
+        }
+        layout {
+            sequence: 15
+            slot: body
+            startNewRow: false
+            newColumn: true
+            columnSpan: 8
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        serverSideCondition {
+            type: rowsReturned
+            sqlQuery: select 1 from dual where :P9_ARTICLE_ID is null and :P9_PAGE_ID is not null and not exists ( select 1 from util_audit_doc_article a where a.active = 'Y' and ( a.admin_only = 'N' or :UA_IS_AUDIT_ADMIN = 'Y' ) and a.page_id = :P9_PAGE_ID )
+        }
+    )
+
+    region topics (
+        name: Topics
+        type: classicReport
+        source {
+            location: localDatabase
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                -- Screen title from the APEX dictionary, so the list reads
+                -- "Vessel Information" rather than "page 12".
+                select a.id,
+                       a.title,
+                       ( select p.page_name
+                         from   apex_application_pages p
+                         where  p.application_id = :APP_ID
+                         and    p.page_id = a.page_id ) page_ref
+                from   util_audit_doc_article a
+                where  a.active = 'Y'
+                and    ( a.admin_only = 'N' or :UA_IS_AUDIT_ADMIN = 'Y' )
+                and    ( :P9_SEARCH is null
+                         or instr(upper(a.title || ' ' || a.body), upper(:P9_SEARCH)) > 0 )
+                order  by a.sort_order, a.title
+                ```
+            pageItemsToSubmit: [
+                P9_SEARCH
+                P9_ARTICLE_ID
+            ]
+        }
+        layout {
+            sequence: 10
+            slot: body
+            columnSpan: 4
+        }
+        appearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Region--noPadding
+                t-Region--scrollBody
+            ]
+        }
+        componentAppearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Report--rowHighlight
+            ]
+        }
+        // Show every topic: 100 per page, with pagination if there are ever more
+        pagination {
+            type: rowRangesXToYOfZWithPagination
+        }
+        reportLayout {
+            numberOfRowsType: staticValue
+            numberOfRows: 100
+        }
+
+        column ID (
+            reportColumnQueryId: 1
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 1
+            }
+        )
+
+        column PAGE_REF (
+            reportColumnQueryId: 3
+            derivedColumn: N
+            heading {
+                heading: Screen
+            }
+            layout {
+                sequence: 3
+            }
+        )
+
+        column TITLE (
+            reportColumnQueryId: 2
+            derivedColumn: N
+            type: link
+            heading {
+                heading: Topic
+            }
+            layout {
+                sequence: 2
+            }
+            link {
+                target: {
+                    page: 9
+                    items: {
+                        P9_ARTICLE_ID: \#ID#\
+                    }
+                    clearCache: 9
+                }
+                linkText: #TITLE#
+            }
+            accessibility {
+                valueIdentifiesRow: true
+            }
+        )
+
+    )
+
+    pageItem P9_ARTICLE_ID (
+        type: hidden
+        settings {
+            valueProtected: false
+        }
+        layout {
+            sequence: 10
+            region: @topics
+            slot: regionBody
+        }
+        source {
+            used: always
+        }
+    )
+
+    pageItem P9_PAGE_ID (
+        type: hidden
+        settings {
+            valueProtected: false
+        }
+        layout {
+            sequence: 20
+            region: @topics
+            slot: regionBody
+        }
+        source {
+            used: always
+        }
+    )
+
+    pageItem P9_RESOLVED_ID (
+        type: hidden
+        layout {
+            sequence: 25
+            region: @topics
+            slot: regionBody
+        }
+        source {
+            type: sqlQuerySingleValue
+            sqlQuery: select a.id from util_audit_doc_article a where a.active = 'Y' and ( a.admin_only = 'N' or :UA_IS_AUDIT_ADMIN = 'Y' ) and ( a.id = :P9_ARTICLE_ID or ( :P9_ARTICLE_ID is null and a.page_id = :P9_PAGE_ID ) ) and rownum = 1
+            used: always
+        }
+    )
+
+    pageItem P9_SEARCH (
+        type: textField
+        label {
+            label: Search
+            alignment: left
+        }
+        settings {
+            submitWhenEnterPressed: true
+        }
+        layout {
+            sequence: 30
+            region: @topics
+            slot: regionBody
+            alignment: left
+            columnSpan: 12
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: [
+                #DEFAULT#
+                t-Form-fieldContainer--stretchInputs
+            ]
+        }
+        advanced {
+            warnOnUnsavedChanges: ignore
+        }
+    )
+
+    button edit-article (
+        buttonName: EDIT_ARTICLE
+        label: Edit
+        layout {
+            sequence: 10
+            region: @article
+            slot: edit
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: redirectThisApp
+            target: {
+                page: 10
+                items: {
+                    P10_ID: &P9_RESOLVED_ID.
+                }
+                clearCache: 10
+            }
+            warnOnUnsavedChanges: doNotCheck
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    button new-article (
+        buttonName: NEW_ARTICLE
+        label: New Article
+        layout {
+            sequence: 10
+            region: @topics
+            slot: edit
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: true
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: redirectThisApp
+            target: {
+                page: 10
+                items: {
+                    P10_PAGE_ID: &P9_PAGE_ID.
+                }
+                clearCache: 10
+            }
+            warnOnUnsavedChanges: doNotCheck
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    // UA_IS_AUDIT_ADMIN is an application item with session state protection
+    // "Restricted", so it cannot be set from a URL or a page submit; only this
+    // computation sets it, on every visit.
+    computation p9-is-admin (
+        itemName: UA_IS_AUDIT_ADMIN
+        execution {
+            sequence: 5
+            point: beforeHeader
+        }
+        computation {
+            type: expression
+            language: plsql
+            plsqlExpression: case when apex_authorization.is_authorized('Audit Administrator') then 'Y' else 'N' end
+        }
+    )
+
+    computation p9-article-from-page (
+        itemName: P9_ARTICLE_ID
+        execution {
+            sequence: 10
+            point: beforeHeader
+        }
+        computation {
+            type: functionBody
+            plsqlFunctionBody:
+                ```plsql
+                -- Arriving from the Help entry: open the article linked to the
+                -- screen the user was on. A chosen article always wins.
+                declare
+                    l_id number;
+                begin
+                    if :P9_ARTICLE_ID is not null then
+                        return :P9_ARTICLE_ID;
+                    end if;
+                    if :P9_PAGE_ID is not null then
+                        select max(a.id) into l_id
+                        from   util_audit_doc_article a
+                        where  a.page_id = :P9_PAGE_ID
+                        and    a.active = 'Y'
+                        and    ( a.admin_only = 'N' or :UA_IS_AUDIT_ADMIN = 'Y' );
+                    end if;
+                    return l_id;
+                end;
+                ```
+        }
+    )
+
+    dynamicAction article-dialog-closed (
+        name: Article Dialog Closed
+        execution {
+            sequence: 10
+        }
+        when {
+            event: apexafterclosedialog
+            selectionType: region
+            region: @topics
+        }
+
+        // Reload from the URL: the article region is PL/SQL Dynamic Content,
+        // which cannot be refreshed, and a new article changes which regions
+        // show at all. A submit would lose P9_ARTICLE_ID / P9_PAGE_ID.
+        action reload-after-new (
+            action: executeJsCode
+            settings {
+                jsCode: location.reload();
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+    dynamicAction article-dialog-closed-2 (
+        name: Article Dialog Closed (from article)
+        execution {
+            sequence: 20
+        }
+        when {
+            event: apexafterclosedialog
+            selectionType: region
+            region: @article
+        }
+
+        action reload-after-edit (
+            action: executeJsCode
+            settings {
+                jsCode: location.reload();
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+)

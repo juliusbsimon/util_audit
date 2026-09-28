@@ -1,0 +1,570 @@
+{
+  "sourceEvidence": {
+    "requirements": [
+      "FR-001",
+      "FR-002",
+      "FR-003",
+      "FR-004",
+      "FR-005",
+      "FR-006",
+      "FR-007",
+      "FR-008",
+      "FR-009",
+      "FR-010",
+      "FR-011",
+      "FR-012",
+      "FR-013",
+      "FR-014",
+      "FR-015",
+      "FR-016",
+      "FR-017",
+      "FR-018",
+      "FR-019",
+      "FR-020",
+      "DW-001",
+      "DW-002"
+    ],
+    "schema": {
+      "source": "setup.sql",
+      "liveDb": "ua_test_local"
+    },
+    "objects": [
+      "V_UTIL_AUDIT_TABLES",
+      "V_UTIL_AUDIT_CHILD_TABLES",
+      "V_UTIL_AUDIT_EVENT_SUMMARY",
+      "V_UTIL_AUDIT_CHANGES",
+      "UTIL_AUDIT_TXN",
+      "UTIL_AUDIT_RECORDS",
+      "UTIL_AUDIT_ERRORS",
+      "UTIL_AUDIT_CONFIG",
+      "UTIL_AUDIT",
+      "UTIL_AUDIT_GEN",
+      "USER_TAB_COLUMNS",
+      "APEX_WORKSPACE_APEX_USERS"
+    ]
+  },
+  "pageInventory": [
+    {
+      "page": 1,
+      "name": "Home",
+      "type": "dashboard",
+      "requirementId": "FR-003",
+      "regions": [
+        "Home",
+        "Overview",
+        "Events per Day",
+        "Recent Events"
+      ]
+    },
+    {
+      "page": 2,
+      "name": "Tables",
+      "type": "interactiveReport",
+      "requirementId": "FR-004",
+      "regions": [
+        "Tables",
+        "Audited Tables"
+      ]
+    },
+    {
+      "page": 3,
+      "name": "Table",
+      "type": "modalDrawer",
+      "requirementId": "FR-005",
+      "regions": [
+        "Status",
+        "Ignored Columns",
+        "Child Tables",
+        "Trigger Code",
+        "Buttons"
+      ]
+    },
+    {
+      "page": 4,
+      "name": "Events",
+      "type": "facetedSearch",
+      "requirementId": "FR-012",
+      "regions": [
+        "Events",
+        "Search",
+        "Event Results"
+      ]
+    },
+    {
+      "page": 5,
+      "name": "Event",
+      "type": "modalDrawer",
+      "requirementId": "FR-013",
+      "regions": [
+        "Event",
+        "Context",
+        "Column Changes",
+        "Restore",
+        "Buttons"
+      ]
+    },
+    {
+      "page": 6,
+      "name": "Row History",
+      "type": "timeline",
+      "requirementId": "FR-015",
+      "regions": [
+        "Row History",
+        "Row",
+        "Timeline",
+        "All Column Changes"
+      ]
+    },
+    {
+      "page": 7,
+      "name": "Errors",
+      "type": "interactiveReport",
+      "requirementId": "FR-016",
+      "regions": [
+        "Errors",
+        "Audit Errors"
+      ]
+    },
+    {
+      "page": 8,
+      "name": "Maintenance",
+      "type": "actionPage",
+      "requirementId": "FR-017",
+      "regions": [
+        "Maintenance",
+        "Purge Audit History",
+        "Purge Errors",
+        "Re-create All Triggers"
+      ]
+    }
+  ],
+  "compositionPlan": {
+    "breadcrumbs": [
+      {
+        "page": 1,
+        "entry": "home",
+        "root": true
+      },
+      {
+        "page": 2,
+        "entry": "tables",
+        "parentEntry": "home"
+      },
+      {
+        "page": 4,
+        "entry": "events",
+        "parentEntry": "home"
+      },
+      {
+        "page": 6,
+        "entry": "row-history",
+        "parentEntry": "home"
+      },
+      {
+        "page": 7,
+        "entry": "errors",
+        "parentEntry": "home"
+      },
+      {
+        "page": 8,
+        "entry": "maintenance",
+        "parentEntry": "home"
+      }
+    ],
+    "navigationMenu": [
+      "Home",
+      "Tables",
+      "Events",
+      "Row History",
+      "Errors",
+      "Maintenance"
+    ],
+    "pageGroups": [
+      {
+        "name": "Administration",
+        "pages": [
+          8
+        ]
+      }
+    ],
+    "modalTargets": [
+      {
+        "sourcePage": 1,
+        "sourceRegion": "Recent Events",
+        "sourceColumn": "AUDIT_TS",
+        "targetPage": 5,
+        "targetItems": {
+          "P5_TRANSACTION_ID": "TRANSACTION_ID"
+        },
+        "keyColumn": "TRANSACTION_ID",
+        "presentation": "drawerEnd",
+        "closeRefreshRegion": "Recent Events"
+      },
+      {
+        "sourcePage": 2,
+        "sourceRegion": "Audited Tables",
+        "sourceColumn": "TABLE_NAME",
+        "targetPage": 3,
+        "targetItems": {
+          "P3_TABLE_NAME": "TABLE_NAME"
+        },
+        "keyColumn": "TABLE_NAME",
+        "presentation": "drawerEnd",
+        "closeRefreshRegion": "Audited Tables"
+      },
+      {
+        "sourcePage": 4,
+        "sourceRegion": "Event Results",
+        "sourceColumn": "AUDIT_TS",
+        "targetPage": 5,
+        "targetItems": {
+          "P5_TRANSACTION_ID": "TRANSACTION_ID"
+        },
+        "keyColumn": "TRANSACTION_ID",
+        "presentation": "drawerEnd",
+        "closeRefreshRegion": "Event Results"
+      },
+      {
+        "sourcePage": 6,
+        "sourceRegion": "Timeline",
+        "sourceColumn": "TRANSACTION_ID",
+        "targetPage": 5,
+        "targetItems": {
+          "P5_TRANSACTION_ID": "TRANSACTION_ID"
+        },
+        "keyColumn": "TRANSACTION_ID",
+        "presentation": "drawerEnd",
+        "closeRefreshRegion": "Timeline"
+      }
+    ],
+    "links": [
+      {
+        "sourcePage": 4,
+        "sourceRegion": "Event Results",
+        "sourceColumn": "HISTORY",
+        "targetPage": 6,
+        "targetItems": {
+          "P6_TABLE_NAME": "TABLE_NAME",
+          "P6_PK_VALUE": "PK_VALUE_VC"
+        }
+      }
+    ]
+  },
+  "richUiPatternPlan": [
+    {
+      "pattern": "metricCard",
+      "page": 1,
+      "region": "Overview"
+    },
+    {
+      "pattern": "barChart",
+      "page": 1,
+      "region": "Events per Day"
+    },
+    {
+      "pattern": "facetedSearch",
+      "page": 4,
+      "region": "Search",
+      "facets": [
+        {
+          "item": "P4_TABLE_NAME",
+          "column": "TABLE_NAME",
+          "type": "checkbox",
+          "maxDisplayedEntries": 10,
+          "displayFilterInitially": true
+        },
+        {
+          "item": "P4_TRANSACTION_TYPE",
+          "column": "TRANSACTION_TYPE",
+          "type": "checkbox",
+          "maxDisplayedEntries": 10
+        },
+        {
+          "item": "P4_USERNAME",
+          "column": "USERNAME",
+          "type": "checkbox",
+          "maxDisplayedEntries": 10,
+          "displayFilterInitially": true
+        },
+        {
+          "item": "P4_AUDIT_TS",
+          "column": "AUDIT_TS",
+          "type": "dateRange",
+          "dataType": "date"
+        }
+      ]
+    },
+    {
+      "pattern": "timeline",
+      "page": 6,
+      "region": "Timeline"
+    },
+    {
+      "pattern": "drawer",
+      "pages": [
+        3,
+        5
+      ],
+      "placement": "end"
+    }
+  ],
+  "lovPlan": [
+    {
+      "lov": "audited-tables",
+      "type": "dynamic",
+      "display": "TABLE_NAME",
+      "return": "TABLE_NAME",
+      "source": "V_UTIL_AUDIT_TABLES",
+      "consumers": [
+        "P6_TABLE_NAME",
+        "P8_PURGE_TABLE"
+      ]
+    },
+    {
+      "lov": "P3_IGNORED_COLUMNS (page-local)",
+      "type": "dynamic",
+      "display": "COLUMN_NAME",
+      "return": "COLUMN_NAME",
+      "source": "USER_TAB_COLUMNS"
+    },
+    {
+      "lov": "P6_PK_VALUE (page-local, cascading P6_TABLE_NAME)",
+      "type": "dynamic",
+      "display": "PK_VALUE_VC",
+      "return": "PK_VALUE_VC",
+      "source": "UTIL_AUDIT_TXN"
+    }
+  ],
+  "behaviorPlan": {
+    "modalTargets": "see compositionPlan.modalTargets",
+    "pageActions": [
+      {
+        "page": 3,
+        "button": "START_AUDITING",
+        "process": "util_audit_gen.create_audit_trigger",
+        "authorization": "audit-administrator",
+        "placement": "dialogFooter"
+      },
+      {
+        "page": 3,
+        "button": "RECREATE_TRIGGER",
+        "process": "util_audit_gen.create_audit_trigger",
+        "authorization": "audit-administrator",
+        "placement": "dialogFooter"
+      },
+      {
+        "page": 3,
+        "button": "PAUSE_AUDITING",
+        "process": "util_audit.disable_table",
+        "authorization": "audit-administrator",
+        "placement": "dialogFooter"
+      },
+      {
+        "page": 3,
+        "button": "RESUME_AUDITING",
+        "process": "util_audit.enable_table",
+        "authorization": "audit-administrator",
+        "placement": "dialogFooter"
+      },
+      {
+        "page": 3,
+        "button": "STOP_AUDITING",
+        "process": "util_audit_gen.drop_audit_trigger",
+        "authorization": "audit-administrator",
+        "placement": "dialogFooter"
+      },
+      {
+        "page": 3,
+        "button": "SAVE_IGNORED",
+        "process": "util_audit_gen.set_table_ignored_columns",
+        "authorization": "audit-administrator",
+        "placement": "region Ignored Columns"
+      },
+      {
+        "page": 5,
+        "button": "PREVIEW_RESTORE",
+        "process": "util_audit.restore_row(p_preview=>true)",
+        "authorization": "audit-administrator",
+        "placement": "region Restore"
+      },
+      {
+        "page": 5,
+        "button": "RESTORE",
+        "process": "util_audit.restore_row",
+        "authorization": "audit-administrator",
+        "placement": "region Restore"
+      },
+      {
+        "page": 8,
+        "button": "PURGE_HISTORY",
+        "process": "util_audit.purge",
+        "placement": "region Purge Audit History"
+      },
+      {
+        "page": 8,
+        "button": "PURGE_ERRORS",
+        "process": "util_audit.purge_errors",
+        "placement": "region Purge Errors"
+      },
+      {
+        "page": 8,
+        "button": "RECREATE_ALL",
+        "process": "util_audit_gen.recreate_all_triggers",
+        "placement": "region Re-create All Triggers"
+      }
+    ],
+    "parentChildContext": [
+      {
+        "page": 6,
+        "parentRegion": "Row",
+        "contextItems": [
+          "P6_TABLE_NAME",
+          "P6_PK_VALUE"
+        ],
+        "childRegions": [
+          "Timeline",
+          "All Column Changes"
+        ],
+        "actionCoverage": [
+          {
+            "behavior": "child detail",
+            "sourceRegion": "Timeline",
+            "targetPage": 5,
+            "targetItems": {
+              "P5_TRANSACTION_ID": "TRANSACTION_ID"
+            },
+            "keyColumn": "TRANSACTION_ID",
+            "placement": "row link"
+          },
+          {
+            "behavior": "parent edit",
+            "excluded": true,
+            "reason": "audit rows are read-only"
+          },
+          {
+            "behavior": "child create",
+            "excluded": true,
+            "reason": "audit rows are read-only"
+          },
+          {
+            "behavior": "page-level create",
+            "excluded": true,
+            "reason": "audit rows are read-only"
+          }
+        ]
+      }
+    ],
+    "validations": [
+      {
+        "page": 8,
+        "item": "P8_PURGE_BEFORE",
+        "rule": "required when request = PURGE_HISTORY"
+      },
+      {
+        "page": 8,
+        "item": "P8_ERRORS_BEFORE",
+        "rule": "required when request = PURGE_ERRORS"
+      }
+    ],
+    "formContext": [
+      {
+        "page": 3,
+        "item": "P3_TABLE_NAME",
+        "source": "P2 link",
+        "editable": false
+      },
+      {
+        "page": 5,
+        "item": "P5_TRANSACTION_ID",
+        "source": "P1/P4/P6 links",
+        "editable": false
+      }
+    ],
+    "formDefaults": [
+      {
+        "page": 5,
+        "item": "P5_INCLUDE_CHILDREN",
+        "default": "Y",
+        "userOverride": true
+      },
+      {
+        "page": 5,
+        "item": "P5_FORCE",
+        "default": "N",
+        "userOverride": true
+      },
+      {
+        "page": 8,
+        "item": "P8_PURGE_BEFORE",
+        "default": "trunc(sysdate) - 365",
+        "userOverride": true
+      },
+      {
+        "page": 8,
+        "item": "P8_ERRORS_BEFORE",
+        "default": "trunc(sysdate) - 30",
+        "userOverride": true
+      }
+    ],
+    "refreshDependencies": [
+      {
+        "page": 1,
+        "event": "apexafterclosedialog",
+        "region": "Recent Events"
+      },
+      {
+        "page": 2,
+        "event": "apexafterclosedialog",
+        "region": "Audited Tables"
+      },
+      {
+        "page": 4,
+        "event": "apexafterclosedialog",
+        "region": "Event Results"
+      },
+      {
+        "page": 6,
+        "event": "apexafterclosedialog",
+        "region": "Timeline"
+      },
+      {
+        "page": 6,
+        "event": "change P6_TABLE_NAME, P6_PK_VALUE",
+        "regions": [
+          "Timeline",
+          "All Column Changes"
+        ]
+      }
+    ],
+    "security": {
+      "authentication": "oracle-apex-accounts",
+      "authorization": "audit-administrator: workspace admin or application developer"
+    }
+  },
+  "testPlan": [
+    {
+      "scenario": "import with supporting objects",
+      "requirement": "FR-001, FR-002"
+    },
+    {
+      "scenario": "start/pause/resume/stop auditing",
+      "requirement": "FR-005..FR-008"
+    },
+    {
+      "scenario": "ignored columns saved and trigger re-created",
+      "requirement": "FR-009"
+    },
+    {
+      "scenario": "restore preview and restore",
+      "requirement": "FR-014"
+    },
+    {
+      "scenario": "read-only user cannot change anything",
+      "requirement": "FR-020"
+    },
+    {
+      "scenario": "live APEX validation passes",
+      "requirement": "all"
+    }
+  ]
+}

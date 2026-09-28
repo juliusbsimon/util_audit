@@ -1,0 +1,39 @@
+file "icons/app-icon-144-rounded.png" (
+    mimeType: image/png
+    charSet: utf-8
+)
+
+file "icons/app-icon-192.png" (
+    mimeType: image/png
+    charSet: utf-8
+)
+
+file "icons/app-icon-256-rounded.png" (
+    mimeType: image/png
+    charSet: utf-8
+)
+
+file "icons/app-icon-32.png" (
+    mimeType: image/png
+    charSet: utf-8
+)
+
+file "icons/app-icon-512.png" (
+    mimeType: image/png
+    charSet: utf-8
+)
+
+
+file "css/util-audit.css" (
+    mimeType: text/css
+    charSet: utf-8
+)
+
+file "fonts/montserrat-latin.woff2" (
+    mimeType: font/woff2
+)
+
+file "js/util-audit.js" (
+    mimeType: text/javascript
+    charSet: utf-8
+)

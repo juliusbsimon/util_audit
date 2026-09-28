@@ -1,0 +1,23 @@
+page 0 (
+    name: Global Page
+
+    region theme-mode (
+        name: Theme Mode
+        type: staticContent
+        source {
+            htmlCode: <span id="ua-theme-mode" data-mode="&UA_THEME_MODE." hidden></span>
+        }
+        layout {
+            sequence: 10
+            slot: body
+        }
+        appearance {
+            template: @/blank-with-attributes
+            templateOptions: #DEFAULT#
+        }
+        serverSideCondition {
+            type: userIsAuthenticated
+        }
+    )
+
+)

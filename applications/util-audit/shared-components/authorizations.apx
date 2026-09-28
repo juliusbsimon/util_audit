@@ -1,0 +1,27 @@
+authorization audit-administrator (
+    name: Audit Administrator
+    type: plSqlFunctionBody
+    settings {
+        plsqlFunctionBody:
+            ```plsql
+            -- Workspace administrators and developers may change auditing,
+            -- restore rows and purge history. Everyone else is read-only.
+            for u in (
+                select 1
+                from apex_workspace_apex_users
+                where workspace_name = apex_util.find_workspace(apex_application.get_security_group_id)
+                  and user_name = upper(:APP_USER)
+                  and (is_admin = 'Yes' or is_application_developer = 'Yes')
+            ) loop
+                return true;
+            end loop;
+            return false;
+            ```
+    }
+    advanced {
+        evaluationType: perSession
+    }
+    error {
+        errorMessage: Only workspace administrators and developers can change auditing.
+    }
+)

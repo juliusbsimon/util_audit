@@ -1,0 +1,342 @@
+list navigation-bar (
+    name: Navigation Bar
+
+    entry --- (
+        label: ---
+        layout {
+            sequence: 20
+            parentEntry: @app-user
+        }
+        link {
+            target: {
+                type: url
+                url: separator
+            }
+        }
+        serverSideCondition {
+            type: userIsAuthenticated
+        }
+    )
+
+    entry theme (
+        label: &UA_THEME_LABEL.
+        icon {
+            imageIconCssClasses: fa-adjust
+        }
+        layout {
+            sequence: 3
+        }
+        link {
+            target: {
+                type: url
+                url: #
+            }
+        }
+        serverSideCondition {
+            type: userIsAuthenticated
+        }
+    )
+
+    entry theme-auto (
+        label: Match system
+        icon {
+            imageIconCssClasses: fa-desktop
+        }
+        layout {
+            sequence: 1
+            parentEntry: @theme
+        }
+        link {
+            target: {
+                type: url
+                url: f?p=&APP_ID.:&APP_PAGE_ID.:&APP_SESSION.:THEME_AUTO
+            }
+        }
+        serverSideCondition {
+            type: userIsAuthenticated
+        }
+    )
+
+    entry theme-light (
+        label: Light
+        icon {
+            imageIconCssClasses: fa-sun-o
+        }
+        layout {
+            sequence: 2
+            parentEntry: @theme
+        }
+        link {
+            target: {
+                type: url
+                url: f?p=&APP_ID.:&APP_PAGE_ID.:&APP_SESSION.:THEME_LIGHT
+            }
+        }
+        serverSideCondition {
+            type: userIsAuthenticated
+        }
+    )
+
+    entry theme-dark (
+        label: Dark
+        icon {
+            imageIconCssClasses: fa-moon-o
+        }
+        layout {
+            sequence: 3
+            parentEntry: @theme
+        }
+        link {
+            target: {
+                type: url
+                url: f?p=&APP_ID.:&APP_PAGE_ID.:&APP_SESSION.:THEME_DARK
+            }
+        }
+        serverSideCondition {
+            type: userIsAuthenticated
+        }
+    )
+
+    entry help (
+        label: Help
+        icon {
+            imageIconCssClasses: fa-question-circle-o
+        }
+        layout {
+            sequence: 5
+        }
+        link {
+            target: {
+                type: url
+                url: f?p=&APP_ID.:9:&APP_SESSION.::&DEBUG.:9:P9_PAGE_ID:&APP_PAGE_ID.
+            }
+        }
+        serverSideCondition {
+            type: userIsAuthenticated
+        }
+    )
+
+    entry app-user (
+        label: &APP_USER.
+        icon {
+            imageIconCssClasses: fa-user
+        }
+        layout {
+            sequence: 10
+        }
+        link {
+            target: {
+                type: url
+                url: #
+            }
+        }
+        userDefinedAttributes {
+            2: has-username
+        }
+    )
+
+    entry sign-out (
+        label: Sign Out
+        icon {
+            imageIconCssClasses: fa-sign-out
+        }
+        layout {
+            sequence: 30
+            parentEntry: @app-user
+        }
+        link {
+            target: {
+                type: url
+                url: &LOGOUT_URL.
+            }
+        }
+        serverSideCondition {
+            type: userIsAuthenticated
+        }
+    )
+
+)
+
+list navigation-menu (
+    name: Navigation Menu
+
+    entry home (
+        label: Home
+        icon {
+            imageIconCssClasses: fa-home
+        }
+        layout {
+            sequence: 10
+        }
+        isCurrent {
+            type: pages
+            pages: 1
+        }
+        link {
+            target: {
+                page: 1
+            }
+        }
+    )
+
+    entry tables (
+        label: Tables
+        icon {
+            imageIconCssClasses: fa-table
+        }
+        layout {
+            sequence: 20
+        }
+        isCurrent {
+            type: pages
+            pages: 2
+        }
+        link {
+            target: {
+                page: 2
+            }
+        }
+    )
+
+    entry events (
+        label: Events
+        icon {
+            imageIconCssClasses: fa-history
+        }
+        layout {
+            sequence: 30
+        }
+        isCurrent {
+            type: pages
+            pages: 4
+        }
+        link {
+            target: {
+                page: 4
+            }
+        }
+    )
+
+    entry row-history (
+        label: Row History
+        icon {
+            imageIconCssClasses: fa-clock-o
+        }
+        layout {
+            sequence: 40
+        }
+        isCurrent {
+            type: pages
+            pages: 6
+        }
+        link {
+            target: {
+                page: 6
+            }
+        }
+    )
+
+    entry errors (
+        label: Errors
+        icon {
+            imageIconCssClasses: fa-exclamation-triangle
+        }
+        layout {
+            sequence: 50
+        }
+        isCurrent {
+            type: pages
+            pages: 7
+        }
+        link {
+            target: {
+                page: 7
+            }
+        }
+    )
+
+    entry maintenance (
+        label: Maintenance
+        icon {
+            imageIconCssClasses: fa-wrench
+        }
+        layout {
+            sequence: 60
+        }
+        isCurrent {
+            type: pages
+            pages: 8
+        }
+        link {
+            target: {
+                page: 8
+                clearCache: 8
+            }
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    entry archive (
+        label: Archive
+        icon {
+            imageIconCssClasses: fa-archive
+        }
+        layout {
+            sequence: 62
+        }
+        isCurrent {
+            type: pages
+            pages: 12
+        }
+        link {
+            target: {
+                page: 12
+                clearCache: 12
+            }
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
+    entry query-generator (
+        label: Query Generator
+        icon {
+            imageIconCssClasses: fa-code
+        }
+        layout {
+            sequence: 65
+        }
+        isCurrent {
+            type: pages
+            pages: 11
+        }
+        link {
+            target: {
+                page: 11
+            }
+        }
+    )
+
+    entry documentation (
+        label: Documentation
+        icon {
+            imageIconCssClasses: fa-book
+        }
+        layout {
+            sequence: 70
+        }
+        isCurrent {
+            type: pages
+            pages: 9
+        }
+        link {
+            target: {
+                page: 9
+            }
+        }
+    )
+
+)

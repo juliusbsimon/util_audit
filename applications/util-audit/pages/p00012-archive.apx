@@ -1,0 +1,1704 @@
+page 12 (
+    name: Archive
+    alias: ARCHIVE
+    title: Archive
+    pageGroup: @administration
+    appearance {
+        pageTemplate: @/standard
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+        warnOnUnsavedChanges: false
+    }
+    // A plain form POST on every submit: Download answers the POST with the
+    // file itself, which an Ajax submit cannot hand to the browser
+    advanced {
+        reloadOnSubmit: always
+    }
+    javaScript {
+        functionAndGlobalVariableDeclaration:
+            ```javascript-browser
+            // Row actions of the Archive Files report. Store, Purge and Restore
+            // change data, so they ask first and then POST the page; nothing
+            // changes on a GET. Download needs no confirmation.
+            function uaArchiveAction(btn) {
+                var action = btn.getAttribute("data-action"),
+                    id     = btn.getAttribute("data-id"),
+                    esc    = apex.util.escapeHTML,
+                    what   = esc(btn.getAttribute("data-table")) + " " + esc(btn.getAttribute("data-month")),
+                    text, label, style;
+
+                function go() {
+                    apex.submit({ request: action, set: { P12_ARCHIVE_ID: id } });
+                }
+
+                if (action === "DOWNLOAD") {
+                    go();
+                    return;
+                }
+                if (action === "STORE") {
+                    text  = "Store the archive file of " + what + " in the storage set above, then read it back and check it?";
+                    label = "Store";
+                    style = "information";
+                } else if (action === "PURGE") {
+                    text  = "Purge " + what + "? The month's events will be deleted from the audit tables. " +
+                            "The archive file keeps them, and Restore brings them back.";
+                    label = "Purge";
+                    style = "danger";
+                } else if (action === "RESTORE") {
+                    text  = "Restore " + what + "? The file's events are loaded back into the audit tables. " +
+                            "Events that are already there are skipped.";
+                    label = "Restore";
+                    style = "warning";
+                } else {
+                    return;
+                }
+                apex.message.confirm(text, function (ok) {
+                    if (ok) {
+                        go();
+                    }
+                }, { style: style, confirmLabel: label });
+            }
+            ```
+        executeWhenPageLoads:
+            ```javascript-browser
+            // Delegated, so the buttons keep working after pagination
+            // refreshes the report
+            $("#archive_files").on("click", ".ua-archive-action", function () {
+                uaArchiveAction(this);
+            });
+            ```
+    }
+    security {
+        authorizationScheme: @audit-administrator
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+    help {
+        helpText: Move old audit history out of the audit tables into archive files (one file per table and month), and bring it back when needed. Choose where the files go and how many months stay in the tables, schedule the archive job or run it now, and store, purge, restore or download each file. Only workspace administrators and developers can use this page.
+    }
+
+    region archive (
+        name: Archive
+        type: breadcrumb
+        source {
+            breadcrumb: @breadcrumb
+        }
+        layout {
+            sequence: 10
+            slot: breadcrumbBar
+        }
+        appearance {
+            template: @/title-bar
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            breadcrumbTemplate: @/breadcrumb
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region storage-and-retention (
+        name: Storage and Retention
+        type: staticContent
+        source {
+            htmlCode: <p>Where archive files are kept, and how many months of audit history stay in the audit tables. The archive job and the buttons below use the saved values.</p>
+        }
+        layout {
+            sequence: 20
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region schedule (
+        name: Schedule
+        type: staticContent
+        source {
+            htmlCode: <p>The database job UTIL_AUDIT_ARCHIVE_JOB archives every month older than the months to keep, stores the files and, when Delete archived months is on, purges them from the audit tables.</p>
+        }
+        layout {
+            sequence: 30
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region archive-a-month-now (
+        name: Archive a Month Now
+        type: staticContent
+        source {
+            htmlCode: <p>Builds the archive file of one table and month and stores it. The events stay in the audit tables until you purge the file.</p>
+        }
+        layout {
+            sequence: 40
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region archive-files (
+        name: Archive Files
+        type: classicReport
+        source {
+            location: localDatabase
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select archive_id,
+                       table_name,
+                       to_char(period_start, 'YYYY-MM') month,
+                       event_count,
+                       record_count,
+                       file_bytes,
+                       storage,
+                       status,
+                       initcap(status) status_label,
+                       location,
+                       message,
+                       created_on,
+                       to_char(created_on, 'YYYY-MM-DD HH24:MI') created_text,
+                       to_char(stored_on, 'YYYY-MM-DD HH24:MI') stored_text,
+                       to_char(purged_on, 'YYYY-MM-DD HH24:MI') purged_text,
+                       to_char(restored_on, 'YYYY-MM-DD HH24:MI') restored_text,
+                       case when status in ('CREATED', 'FAILED') then 'Y' end can_store,
+                       case when status = 'STORED' then 'Y' end can_purge,
+                       case when status in ('STORED', 'PURGED', 'FAILED') then 'Y' end can_restore,
+                       null actions
+                  from util_audit_archive_files
+                ```
+        }
+        layout {
+            sequence: 50
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        advanced {
+            htmlDomId: archive_files
+        }
+        componentAppearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Report--stretch
+                t-Report--horizontalBorders
+            ]
+        }
+        pagination {
+            type: rowRangesXToYOfZWithPagination
+        }
+        reportLayout {
+            numberOfRowsType: staticValue
+            numberOfRows: 25
+        }
+        messages {
+            whenNoDataFound: No archive files yet.
+        }
+
+        column ARCHIVE_ID (
+            reportColumnQueryId: 1
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 10
+            }
+        )
+
+        column TABLE_NAME (
+            reportColumnQueryId: 2
+            derivedColumn: N
+            heading {
+                heading: Table
+            }
+            layout {
+                sequence: 20
+            }
+            sorting {
+                sortable: true
+            }
+        )
+
+        column MONTH (
+            reportColumnQueryId: 3
+            derivedColumn: N
+            heading {
+                heading: Month
+            }
+            layout {
+                sequence: 30
+            }
+            sorting {
+                sortable: true
+            }
+        )
+
+        column EVENT_COUNT (
+            reportColumnQueryId: 4
+            derivedColumn: N
+            heading {
+                heading: Events
+                alignment: end
+            }
+            layout {
+                sequence: 40
+                columnAlignment: end
+            }
+        )
+
+        column RECORD_COUNT (
+            reportColumnQueryId: 5
+            derivedColumn: N
+            heading {
+                heading: Changes
+                alignment: end
+            }
+            layout {
+                sequence: 50
+                columnAlignment: end
+            }
+        )
+
+        column FILE_BYTES (
+            reportColumnQueryId: 6
+            derivedColumn: N
+            heading {
+                heading: Size
+                alignment: end
+            }
+            layout {
+                sequence: 60
+                columnAlignment: end
+            }
+            appearance {
+                formatMask: FILESIZE
+            }
+        )
+
+        column STORAGE (
+            reportColumnQueryId: 7
+            derivedColumn: N
+            heading {
+                heading: Storage
+            }
+            layout {
+                sequence: 70
+            }
+        )
+
+        column STATUS (
+            reportColumnQueryId: 8
+            derivedColumn: N
+            heading {
+                heading: Status
+            }
+            layout {
+                sequence: 80
+            }
+            columnFormatting {
+                htmlExpression: <span class="ua-archive-status ua-archive-status--#STATUS#">#STATUS_LABEL#</span>
+            }
+            sorting {
+                sortable: true
+            }
+        )
+
+        column STATUS_LABEL (
+            reportColumnQueryId: 9
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 90
+            }
+        )
+
+        column LOCATION (
+            reportColumnQueryId: 10
+            derivedColumn: N
+            heading {
+                heading: Location
+            }
+            layout {
+                sequence: 100
+            }
+        )
+
+        column MESSAGE (
+            reportColumnQueryId: 11
+            derivedColumn: N
+            heading {
+                heading: Message
+            }
+            layout {
+                sequence: 110
+            }
+        )
+
+        column CREATED_ON (
+            reportColumnQueryId: 12
+            derivedColumn: N
+            heading {
+                heading: History
+            }
+            layout {
+                sequence: 120
+            }
+            columnFormatting {
+                htmlExpression:
+                    ```html
+                    <span class="ua-archive-history">Created #CREATED_TEXT#{if STORED_TEXT/}<br>Stored #STORED_TEXT#{endif/}{if PURGED_TEXT/}<br>Purged #PURGED_TEXT#{endif/}{if RESTORED_TEXT/}<br>Restored #RESTORED_TEXT#{endif/}</span>
+                    ```
+            }
+            sorting {
+                defaultSequence: 1
+                direction: desc
+                sortable: true
+            }
+        )
+
+        column CREATED_TEXT (
+            reportColumnQueryId: 13
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 130
+            }
+        )
+
+        column STORED_TEXT (
+            reportColumnQueryId: 14
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 140
+            }
+        )
+
+        column PURGED_TEXT (
+            reportColumnQueryId: 15
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 150
+            }
+        )
+
+        column RESTORED_TEXT (
+            reportColumnQueryId: 16
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 160
+            }
+        )
+
+        column CAN_STORE (
+            reportColumnQueryId: 17
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 170
+            }
+        )
+
+        column CAN_PURGE (
+            reportColumnQueryId: 18
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 180
+            }
+        )
+
+        column CAN_RESTORE (
+            reportColumnQueryId: 19
+            derivedColumn: N
+            type: hidden
+            layout {
+                sequence: 190
+            }
+        )
+
+        // Buttons only; uaArchiveAction (page JavaScript) confirms and submits
+        column ACTIONS (
+            reportColumnQueryId: 20
+            derivedColumn: N
+            heading {
+                heading: Actions
+            }
+            layout {
+                sequence: 200
+            }
+            columnFormatting {
+                htmlExpression:
+                    ```html
+                    <span class="ua-archive-actions">{if CAN_STORE/}<button type="button" class="t-Button t-Button--small ua-archive-action" data-action="STORE" data-id="#ARCHIVE_ID#" data-table="#TABLE_NAME#" data-month="#MONTH#">Store</button>{endif/}{if CAN_PURGE/}<button type="button" class="t-Button t-Button--small t-Button--danger ua-archive-action" data-action="PURGE" data-id="#ARCHIVE_ID#" data-table="#TABLE_NAME#" data-month="#MONTH#">Purge</button>{endif/}{if CAN_RESTORE/}<button type="button" class="t-Button t-Button--small ua-archive-action" data-action="RESTORE" data-id="#ARCHIVE_ID#" data-table="#TABLE_NAME#" data-month="#MONTH#">Restore</button>{endif/}<button type="button" class="t-Button t-Button--small ua-archive-action" data-action="DOWNLOAD" data-id="#ARCHIVE_ID#" data-table="#TABLE_NAME#" data-month="#MONTH#">Download</button></span>
+                    ```
+            }
+        )
+
+    )
+
+    pageItem P12_STORAGE (
+        type: selectList
+        label {
+            label: Storage
+            alignment: left
+        }
+        lov {
+            type: staticValues
+            staticValues: STATIC2:Database;DATABASE,Amazon S3 via AWS4_S3_PKG;AWS4_S3_PKG,Object storage via DBMS_CLOUD;DBMS_CLOUD,Custom procedure;CUSTOM
+            displayExtraValues: false
+            displayNullValue: false
+        }
+        layout {
+            sequence: 10
+            region: @storage-and-retention
+            slot: regionBody
+            alignment: left
+            columnSpan: 6
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: Database: the files stay in the table UTIL_AUDIT_ARCHIVE_FILES, so the audit tables shrink but the database does not. Amazon S3 via AWS4_S3_PKG: upload to an S3 bucket with the aws4_s3_pkg package in this schema. Object storage via DBMS_CLOUD: upload to S3, OCI Object Storage or Azure with DBMS_CLOUD and a credential. Custom procedure: your own procedure puts each file and your own function reads it back.
+        }
+    )
+
+    pageItem P12_BUCKET (
+        type: textField
+        label {
+            label: Bucket
+            alignment: left
+        }
+        layout {
+            sequence: 20
+            region: @storage-and-retention
+            slot: regionBody
+            alignment: left
+            columnSpan: 6
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: The S3 bucket that aws4_s3_pkg uploads to. The package must already be set up with its access keys and region.
+        }
+    )
+
+    pageItem P12_CREDENTIAL (
+        type: textField
+        label {
+            label: Credential
+            alignment: left
+        }
+        layout {
+            sequence: 30
+            region: @storage-and-retention
+            slot: regionBody
+            alignment: left
+            columnSpan: 6
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: Name of the DBMS_CLOUD credential (created with dbms_cloud.create_credential) that can write to the bucket.
+        }
+    )
+
+    pageItem P12_BASE_URI (
+        type: textField
+        label {
+            label: Base URI
+            alignment: left
+        }
+        layout {
+            sequence: 40
+            region: @storage-and-retention
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 6
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+            valuePlaceholder: https://mybucket.s3.eu-west-1.amazonaws.com
+        }
+        help {
+            helpText: The bucket's URI. Each file goes to this URI followed by the prefix and the file's folder and name.
+        }
+    )
+
+    pageItem P12_PUT_PROCEDURE (
+        type: textField
+        label {
+            label: Put procedure
+            alignment: left
+        }
+        layout {
+            sequence: 50
+            region: @storage-and-retention
+            slot: regionBody
+            alignment: left
+            columnSpan: 6
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+            valuePlaceholder: my_pkg.put_file
+        }
+        help {
+            helpText: Your procedure that stores a file, called as proc(p_object_key => ..., p_content => ...) with a VARCHAR2 key and a BLOB.
+        }
+    )
+
+    pageItem P12_GET_FUNCTION (
+        type: textField
+        label {
+            label: Get function
+            alignment: left
+        }
+        layout {
+            sequence: 60
+            region: @storage-and-retention
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 6
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+            valuePlaceholder: my_pkg.get_file
+        }
+        help {
+            helpText: Your function that reads a file back, called as func(p_object_key => ...) and returning the BLOB. Used to check every stored file and to restore and download.
+        }
+    )
+
+    pageItem P12_PREFIX (
+        type: textField
+        label {
+            label: Prefix
+            alignment: left
+        }
+        layout {
+            sequence: 70
+            region: @storage-and-retention
+            slot: regionBody
+            alignment: left
+            columnSpan: 6
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+            valuePlaceholder: util_audit/&OWNER.
+        }
+        help {
+            helpText: Folder for the files. Empty means util_audit/ followed by the schema name. Each file goes to prefix/table=TABLE/month=YYYY-MM/file name.
+        }
+    )
+
+    pageItem P12_KEEP_MONTHS (
+        type: numberField
+        label {
+            label: Months to keep
+            alignment: left
+        }
+        layout {
+            sequence: 80
+            region: @storage-and-retention
+            slot: regionBody
+            alignment: left
+            columnSpan: 3
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: The current month and this many months before it stay in the audit tables; the archive job archives older months. With 12, the last full year stays.
+        }
+    )
+
+    pageItem P12_PURGE (
+        type: switch
+        label {
+            label: Delete archived months
+            alignment: left
+        }
+        layout {
+            sequence: 90
+            region: @storage-and-retention
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 3
+        }
+        appearance {
+            template: @/optional
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: When on, the archive job deletes each stored month from the audit tables, so they get smaller. Only turn this on after checking that a restore works with your storage (archive a month, purge it, restore it). When off, the job only copies.
+        }
+    )
+
+    pageItem P12_JOB_EXISTS (
+        type: hidden
+        layout {
+            sequence: 10
+            region: @schedule
+            slot: regionBody
+        }
+        settings {
+            valueProtected: true
+        }
+    )
+
+    pageItem P12_RUN_CONFIRM (
+        type: hidden
+        layout {
+            sequence: 20
+            region: @schedule
+            slot: regionBody
+        }
+        settings {
+            valueProtected: true
+        }
+    )
+
+    pageItem P12_JOB_STATE (
+        type: displayOnly
+        label {
+            label: Job
+            alignment: left
+        }
+        layout {
+            sequence: 30
+            region: @schedule
+            slot: regionBody
+            alignment: left
+            columnSpan: 3
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+    )
+
+    pageItem P12_JOB_INTERVAL (
+        type: displayOnly
+        label {
+            label: Repeats
+            alignment: left
+        }
+        layout {
+            sequence: 40
+            region: @schedule
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 3
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P12_JOB_INTERVAL
+        }
+    )
+
+    pageItem P12_JOB_NEXT_RUN (
+        type: displayOnly
+        label {
+            label: Next run
+            alignment: left
+        }
+        layout {
+            sequence: 50
+            region: @schedule
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 3
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P12_JOB_NEXT_RUN
+        }
+    )
+
+    pageItem P12_LAST_RUN (
+        type: displayOnly
+        label {
+            label: Last run
+            alignment: left
+        }
+        layout {
+            sequence: 60
+            region: @schedule
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 3
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+    )
+
+    pageItem P12_LAST_ERROR (
+        type: displayOnly
+        label {
+            label: Last run error
+            alignment: left
+        }
+        layout {
+            sequence: 70
+            region: @schedule
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        settings {
+            sendOnPageSubmit: false
+            format: plainText
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P12_LAST_ERROR
+        }
+    )
+
+    pageItem P12_REPEAT_INTERVAL (
+        type: textField
+        label {
+            label: Repeat interval
+            alignment: left
+        }
+        layout {
+            sequence: 80
+            region: @schedule
+            slot: regionBody
+            alignment: left
+            columnSpan: 6
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: A DBMS_SCHEDULER calendar expression. FREQ=DAILY;BYHOUR=2;BYMINUTE=0 runs every night at 02:00 database time; FREQ=WEEKLY;BYDAY=SUN;BYHOUR=3 runs on Sundays at 03:00.
+        }
+    )
+
+    pageItem P12_RUN_OUTPUT (
+        type: textarea
+        label {
+            label: Result
+            alignment: left
+        }
+        layout {
+            sequence: 90
+            region: @schedule
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional-above
+            templateOptions: [
+                #DEFAULT#
+                t-Form-fieldContainer--stretchInputs
+            ]
+            height: 8
+        }
+        readOnly {
+            type: always
+        }
+        serverSideCondition {
+            type: itemIsNotNull
+            item: P12_RUN_OUTPUT
+        }
+    )
+
+    pageItem P12_ARCH_TABLE (
+        type: selectList
+        label {
+            label: Table
+            alignment: left
+        }
+        lov {
+            type: sharedComponent
+            lov: @audited-tables
+            displayExtraValues: false
+            displayNullValue: true
+            nullDisplayValue: - Select a table -
+        }
+        layout {
+            sequence: 10
+            region: @archive-a-month-now
+            slot: regionBody
+            alignment: left
+            columnSpan: 4
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: Tables that have audit events.
+        }
+    )
+
+    pageItem P12_ARCH_MONTH (
+        type: datePicker
+        label {
+            label: Month
+            alignment: left
+        }
+        layout {
+            sequence: 20
+            region: @archive-a-month-now
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+            columnSpan: 3
+        }
+        appearance {
+            template: @/required-floating
+            templateOptions: #DEFAULT#
+            formatMask: YYYY-MM
+        }
+        help {
+            helpText: The month to archive, as YYYY-MM. Picking any day selects its month. A month can only be archived once; restore its file first to archive it again.
+        }
+    )
+
+    pageItem P12_ARCHIVE_ID (
+        type: hidden
+        layout {
+            sequence: 10
+            region: @archive-files
+            slot: regionBody
+        }
+        settings {
+            valueProtected: false
+        }
+        security {
+            sessionStateProtection: unrestricted
+        }
+    )
+
+    button save (
+        buttonName: SAVE
+        label: Save
+        layout {
+            sequence: 10
+            region: @storage-and-retention
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: true
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: submitPage
+            warnOnUnsavedChanges: doNotCheck
+        }
+    )
+
+    button run-now (
+        buttonName: RUN_NOW
+        label: Run Now
+        layout {
+            sequence: 10
+            region: @schedule
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: false
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: submitPage
+            executeValidations: true
+            showProcessing: true
+            warnOnUnsavedChanges: doNotCheck
+            requiresConfirmation: true
+        }
+        confirmation {
+            message: &P12_RUN_CONFIRM.
+            style: warning
+        }
+    )
+
+    button stop-schedule (
+        buttonName: STOP_SCHEDULE
+        label: Stop Schedule
+        layout {
+            sequence: 20
+            region: @schedule
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: false
+            templateOptions: [
+                #DEFAULT#
+                t-Button--danger
+            ]
+        }
+        behavior {
+            action: submitPage
+            warnOnUnsavedChanges: doNotCheck
+            requiresConfirmation: true
+        }
+        confirmation {
+            message: Stop the archive job? Archive files and settings are kept.
+            style: danger
+        }
+        serverSideCondition {
+            type: item=value
+            item: P12_JOB_EXISTS
+            value: Y
+        }
+    )
+
+    button schedule (
+        buttonName: SCHEDULE
+        label: Schedule
+        layout {
+            sequence: 30
+            region: @schedule
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: true
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: submitPage
+            warnOnUnsavedChanges: doNotCheck
+        }
+    )
+
+    button archive-month (
+        buttonName: ARCHIVE_MONTH
+        label: Archive Month
+        layout {
+            sequence: 10
+            region: @archive-a-month-now
+            slot: next
+        }
+        appearance {
+            buttonTemplate: @/text
+            hot: false
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: submitPage
+            showProcessing: true
+            warnOnUnsavedChanges: doNotCheck
+        }
+    )
+
+    validation keep-months-valid (
+        name: Months To Keep Is Valid
+        execution {
+            sequence: 10
+        }
+        validation {
+            type: expression
+            language: plsql
+            plsqlExpression: validate_conversion(:P12_KEEP_MONTHS as number) = 1 and to_number(:P12_KEEP_MONTHS) >= 1 and to_number(:P12_KEEP_MONTHS) = trunc(to_number(:P12_KEEP_MONTHS))
+        }
+        error {
+            errorMessage: Months to keep must be a whole number, 1 or more.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P12_KEEP_MONTHS
+        }
+        serverSideCondition {
+            whenButtonPressed: @save
+        }
+    )
+
+    validation bucket-for-s3 (
+        name: Bucket For AWS4_S3_PKG
+        execution {
+            sequence: 20
+        }
+        validation {
+            type: expression
+            language: plsql
+            plsqlExpression: :P12_STORAGE <> 'AWS4_S3_PKG' or :P12_BUCKET is not null
+        }
+        error {
+            errorMessage: Enter the S3 bucket.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P12_BUCKET
+        }
+        serverSideCondition {
+            whenButtonPressed: @save
+        }
+    )
+
+    validation credential-for-dbms-cloud (
+        name: Credential For DBMS_CLOUD
+        execution {
+            sequence: 30
+        }
+        validation {
+            type: expression
+            language: plsql
+            plsqlExpression: :P12_STORAGE <> 'DBMS_CLOUD' or :P12_CREDENTIAL is not null
+        }
+        error {
+            errorMessage: Enter the DBMS_CLOUD credential name.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P12_CREDENTIAL
+        }
+        serverSideCondition {
+            whenButtonPressed: @save
+        }
+    )
+
+    validation base-uri-for-dbms-cloud (
+        name: Base URI For DBMS_CLOUD
+        execution {
+            sequence: 40
+        }
+        validation {
+            type: expression
+            language: plsql
+            plsqlExpression: :P12_STORAGE <> 'DBMS_CLOUD' or :P12_BASE_URI is not null
+        }
+        error {
+            errorMessage: Enter the bucket's base URI.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P12_BASE_URI
+        }
+        serverSideCondition {
+            whenButtonPressed: @save
+        }
+    )
+
+    validation put-procedure-for-custom (
+        name: Put Procedure For CUSTOM
+        execution {
+            sequence: 50
+        }
+        validation {
+            type: expression
+            language: plsql
+            plsqlExpression: :P12_STORAGE <> 'CUSTOM' or :P12_PUT_PROCEDURE is not null
+        }
+        error {
+            errorMessage: Enter the procedure that stores a file.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P12_PUT_PROCEDURE
+        }
+        serverSideCondition {
+            whenButtonPressed: @save
+        }
+    )
+
+    validation get-function-for-custom (
+        name: Get Function For CUSTOM
+        execution {
+            sequence: 60
+        }
+        validation {
+            type: expression
+            language: plsql
+            plsqlExpression: :P12_STORAGE <> 'CUSTOM' or :P12_GET_FUNCTION is not null
+        }
+        error {
+            errorMessage: Enter the function that reads a file back.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P12_GET_FUNCTION
+        }
+        serverSideCondition {
+            whenButtonPressed: @save
+        }
+    )
+
+    validation repeat-interval-not-null (
+        name: Repeat Interval Is Not Null
+        execution {
+            sequence: 70
+        }
+        validation {
+            type: itemIsNotNull
+            item: P12_REPEAT_INTERVAL
+        }
+        error {
+            errorMessage: Enter how often the archive job runs.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P12_REPEAT_INTERVAL
+        }
+        serverSideCondition {
+            whenButtonPressed: @schedule
+        }
+    )
+
+    validation arch-table-not-null (
+        name: Archive Table Is Not Null
+        execution {
+            sequence: 80
+        }
+        validation {
+            type: itemIsNotNull
+            item: P12_ARCH_TABLE
+        }
+        error {
+            errorMessage: Select the table to archive.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P12_ARCH_TABLE
+        }
+        serverSideCondition {
+            whenButtonPressed: @archive-month
+        }
+    )
+
+    validation arch-month-valid (
+        name: Archive Month Is Valid
+        execution {
+            sequence: 90
+        }
+        validation {
+            type: expression
+            language: plsql
+            plsqlExpression: to_date(:P12_ARCH_MONTH default null on conversion error, 'YYYY-MM') is not null
+        }
+        error {
+            errorMessage: Enter the month to archive as YYYY-MM.
+            displayLocation: inlineWithFieldAndInNotification
+            associatedItem: @P12_ARCH_MONTH
+        }
+        serverSideCondition {
+            whenButtonPressed: @archive-month
+        }
+    )
+
+    // P12_ARCHIVE_ID comes from the browser (the row buttons set it), so it
+    // is checked here before any row action uses it
+    validation archive-id-exists (
+        name: Archive File Exists
+        execution {
+            sequence: 100
+        }
+        validation {
+            type: functionBody
+            language: plsql
+            plsqlFunctionBody:
+                ```plsql
+                declare
+                    l_found number;
+                begin
+                    if validate_conversion(:P12_ARCHIVE_ID as number) = 1 then
+                        select count(*)
+                          into l_found
+                          from util_audit_archive_files
+                         where archive_id = to_number(:P12_ARCHIVE_ID);
+                    end if;
+                    if nvl(l_found, 0) = 0 then
+                        return 'That archive file does not exist any more. Reload the page and try again.';
+                    end if;
+                    return null;
+                end;
+                ```
+        }
+        error {
+            displayLocation: inlineInNotification
+        }
+        serverSideCondition {
+            type: requestIsContainedInValue
+            value: STORE,PURGE,RESTORE,DOWNLOAD
+        }
+    )
+
+    dynamicAction show-storage-settings (
+        name: Show Storage Settings
+        execution {
+            sequence: 10
+        }
+        when {
+            event: change
+            selectionType: items
+            items: [
+                P12_STORAGE
+            ]
+        }
+
+        // Only the settings the chosen storage uses are shown. Hidden fields
+        // keep their values and are saved as they are.
+        action show-hide-storage-items (
+            action: executeJsCode
+            settings {
+                jsCode:
+                    ```javascript-browser
+                    var storage = $v("P12_STORAGE"),
+                        shown = {
+                            P12_BUCKET:        storage === "AWS4_S3_PKG",
+                            P12_CREDENTIAL:    storage === "DBMS_CLOUD",
+                            P12_BASE_URI:      storage === "DBMS_CLOUD",
+                            P12_PUT_PROCEDURE: storage === "CUSTOM",
+                            P12_GET_FUNCTION:  storage === "CUSTOM",
+                            P12_PREFIX:        storage !== "DATABASE"
+                        };
+                    Object.keys(shown).forEach(function (name) {
+                        if (shown[name]) {
+                            apex.item(name).show();
+                        } else {
+                            apex.item(name).hide();
+                        }
+                    });
+                    ```
+            }
+            execution {
+                sequence: 10
+                fireOnInit: true
+            }
+        )
+
+    )
+
+    process load-settings (
+        name: Load Settings
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                -- Skipped when Save failed validation, so the values the
+                -- user entered stay on the page
+                :P12_STORAGE       := nvl(util_audit_archive.get_setting('ARCHIVE_STORAGE'), 'DATABASE');
+                :P12_BUCKET        := util_audit_archive.get_setting('ARCHIVE_BUCKET');
+                :P12_PREFIX        := util_audit_archive.get_setting('ARCHIVE_PREFIX');
+                :P12_CREDENTIAL    := util_audit_archive.get_setting('ARCHIVE_CREDENTIAL');
+                :P12_BASE_URI      := util_audit_archive.get_setting('ARCHIVE_BASE_URI');
+                :P12_PUT_PROCEDURE := util_audit_archive.get_setting('ARCHIVE_PUT_PROCEDURE');
+                :P12_GET_FUNCTION  := util_audit_archive.get_setting('ARCHIVE_GET_FUNCTION');
+                :P12_KEEP_MONTHS   := nvl(util_audit_archive.get_setting('ARCHIVE_KEEP_MONTHS'), '12');
+                :P12_PURGE         := nvl(util_audit_archive.get_setting('ARCHIVE_PURGE'), 'N');
+                ```
+        }
+        execution {
+            sequence: 10
+            point: beforeHeader
+        }
+        serverSideCondition {
+            type: request!=Value
+            value: SAVE
+        }
+    )
+
+    process load-schedule (
+        name: Load Schedule
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                    l_keep  varchar2(100) := nvl(util_audit_archive.get_setting('ARCHIVE_KEEP_MONTHS'), '12');
+                    l_purge varchar2(100) := nvl(util_audit_archive.get_setting('ARCHIVE_PURGE'), 'N');
+                begin
+                    :P12_JOB_EXISTS   := 'N';
+                    :P12_JOB_STATE    := 'Not scheduled';
+                    :P12_JOB_INTERVAL := null;
+                    :P12_JOB_NEXT_RUN := null;
+                    for j in (
+                        select enabled, state, repeat_interval, next_run_date
+                          from user_scheduler_jobs
+                         where job_name = 'UTIL_AUDIT_ARCHIVE_JOB'
+                    ) loop
+                        :P12_JOB_EXISTS   := 'Y';
+                        :P12_JOB_STATE    := case
+                                                 when j.enabled = 'TRUE' then 'Scheduled (' || lower(j.state) || ')'
+                                                 else 'Disabled'
+                                             end;
+                        :P12_JOB_INTERVAL := j.repeat_interval;
+                        :P12_JOB_NEXT_RUN := to_char(j.next_run_date, 'YYYY-MM-DD HH24:MI TZR');
+                    end loop;
+
+                    -- The run log outlives the job, so the last run shows
+                    -- even after Stop Schedule
+                    :P12_LAST_RUN   := 'Never';
+                    :P12_LAST_ERROR := null;
+                    for r in (
+                        select status,
+                               actual_start_date,
+                               nvl(errors, additional_info) error_text
+                          from user_scheduler_job_run_details
+                         where job_name = 'UTIL_AUDIT_ARCHIVE_JOB'
+                         order by log_date desc, log_id desc
+                         fetch first 1 row only
+                    ) loop
+                        :P12_LAST_RUN   := initcap(r.status) || ', ' ||
+                                           to_char(r.actual_start_date, 'YYYY-MM-DD HH24:MI TZR');
+                        :P12_LAST_ERROR := case when r.status <> 'SUCCEEDED' then substr(r.error_text, 1, 4000) end;
+                    end loop;
+
+                    -- Keep an interval the user typed (a failed Schedule, say)
+                    :P12_REPEAT_INTERVAL := coalesce(:P12_REPEAT_INTERVAL, :P12_JOB_INTERVAL,
+                                                     'FREQ=DAILY;BYHOUR=2;BYMINUTE=0');
+
+                    -- Run Now asks with the saved settings, which are what run() uses
+                    :P12_RUN_CONFIRM := 'Archive every month older than ' || l_keep ||
+                                        case l_keep when '1' then ' month' else ' months' end || ' now?' ||
+                                        case when l_purge = 'Y'
+                                             then ' Delete archived months is on, so they are also deleted from the audit tables.'
+                                        end;
+                end;
+                ```
+        }
+        execution {
+            sequence: 20
+            point: beforeHeader
+        }
+    )
+
+    process clear-run-output (
+        name: Clear Run Output
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                -- The Result of Run Now belongs to that one run only.
+                -- Runs before validations, so no submit ever shows an older Result.
+                :P12_RUN_OUTPUT := null;
+                ```
+        }
+        execution {
+            sequence: 5
+            point: afterSubmit
+        }
+    )
+
+    process save-settings (
+        name: Save Settings
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                util_audit_archive.set_setting('ARCHIVE_STORAGE',       :P12_STORAGE);
+                util_audit_archive.set_setting('ARCHIVE_BUCKET',        trim(:P12_BUCKET));
+                util_audit_archive.set_setting('ARCHIVE_PREFIX',        trim(:P12_PREFIX));
+                util_audit_archive.set_setting('ARCHIVE_CREDENTIAL',    trim(:P12_CREDENTIAL));
+                util_audit_archive.set_setting('ARCHIVE_BASE_URI',      trim(:P12_BASE_URI));
+                util_audit_archive.set_setting('ARCHIVE_PUT_PROCEDURE', trim(:P12_PUT_PROCEDURE));
+                util_audit_archive.set_setting('ARCHIVE_GET_FUNCTION',  trim(:P12_GET_FUNCTION));
+                util_audit_archive.set_setting('ARCHIVE_KEEP_MONTHS',   to_char(to_number(:P12_KEEP_MONTHS)));
+                util_audit_archive.set_setting('ARCHIVE_PURGE',         case when :P12_PURGE = 'Y' then 'Y' else 'N' end);
+                ```
+        }
+        execution {
+            sequence: 10
+            point: processing
+        }
+        successMessage {
+            successMessage: Archive settings saved.
+        }
+        serverSideCondition {
+            whenButtonPressed: @save
+        }
+    )
+
+    process schedule (
+        name: Schedule
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                begin
+                    util_audit_archive.schedule(p_repeat_interval => trim(:P12_REPEAT_INTERVAL));
+                    apex_application.g_print_success_message := 'Archive job scheduled.';
+                exception
+                    when others then
+                        -- ORA-20052 says which privilege is missing
+                        apex_error.add_error(
+                            p_message          => 'Scheduling failed: ' || regexp_replace(sqlerrm, '^ORA-2[0-9]{4}: '),
+                            p_display_location => apex_error.c_inline_in_notification);
+                end;
+                ```
+        }
+        execution {
+            sequence: 20
+            point: processing
+        }
+        serverSideCondition {
+            whenButtonPressed: @schedule
+        }
+    )
+
+    process stop-schedule (
+        name: Stop Schedule
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                begin
+                    util_audit_archive.unschedule;
+                    apex_application.g_print_success_message := 'Archive job stopped.';
+                exception
+                    when others then
+                        apex_error.add_error(
+                            p_message          => 'Stopping the job failed: ' || regexp_replace(sqlerrm, '^ORA-2[0-9]{4}: '),
+                            p_display_location => apex_error.c_inline_in_notification);
+                end;
+                ```
+        }
+        execution {
+            sequence: 30
+            point: processing
+        }
+        serverSideCondition {
+            whenButtonPressed: @stop-schedule
+        }
+    )
+
+    process run-now (
+        name: Run Now
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                    l_lines  dbms_output.chararr;
+                    l_count  integer := 32767;
+                    l_error  varchar2(4000);
+                    l_output varchar2(32767);
+                begin
+                    dbms_output.enable(null);
+                    begin
+                        util_audit_archive.run;
+                    exception
+                        when others then
+                            l_error := sqlerrm;
+                    end;
+                    dbms_output.get_lines(l_lines, l_count);
+                    for i in 1 .. l_count loop
+                        if nvl(length(l_output), 0) + nvl(length(l_lines(i)), 0) < 30000 then
+                            l_output := l_output || l_lines(i) || chr(10);
+                        end if;
+                    end loop;
+                    dbms_output.disable;
+                    if l_error is not null then
+                        l_output := l_output || 'ERROR: ' || substr(l_error, 1, 2000);
+                    end if;
+                    :P12_RUN_OUTPUT := nvl(rtrim(l_output, chr(10)), 'Nothing to archive.');
+                    if l_error is null then
+                        apex_application.g_print_success_message := 'Archive run finished.';
+                    else
+                        apex_error.add_error(
+                            p_message          => 'The archive run did not finish cleanly: ' ||
+                                                  regexp_replace(l_error, '^ORA-2[0-9]{4}: ') || ' See Result for details.',
+                            p_display_location => apex_error.c_inline_in_notification);
+                    end if;
+                end;
+                ```
+        }
+        execution {
+            sequence: 40
+            point: processing
+        }
+        serverSideCondition {
+            whenButtonPressed: @run-now
+        }
+    )
+
+    process archive-month (
+        name: Archive Month
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                    l_month date := to_date(:P12_ARCH_MONTH, 'YYYY-MM');
+                    l_id    number;
+                    l_what  varchar2(400) := :P12_ARCH_TABLE || ' ' || to_char(l_month, 'YYYY-MM');
+                begin
+                    l_id := util_audit_archive.archive_month(:P12_ARCH_TABLE, l_month);
+                    if l_id is null then
+                        apex_application.g_print_success_message := 'No events in that month: nothing to archive for ' || l_what || '.';
+                    else
+                        begin
+                            util_audit_archive.store(l_id);
+                            apex_application.g_print_success_message :=
+                                l_what || ' archived and stored as archive ' || l_id || '.';
+                        exception
+                            when others then
+                                apex_error.add_error(
+                                    p_message          => l_what || ' was archived as archive ' || l_id ||
+                                                          ', but storing it failed: ' || regexp_replace(sqlerrm, '^ORA-2[0-9]{4}: '),
+                                    p_display_location => apex_error.c_inline_in_notification);
+                        end;
+                    end if;
+                exception
+                    when others then
+                        apex_error.add_error(
+                            p_message          => 'Archiving ' || l_what || ' failed: ' || regexp_replace(sqlerrm, '^ORA-2[0-9]{4}: '),
+                            p_display_location => apex_error.c_inline_in_notification);
+                end;
+                ```
+        }
+        execution {
+            sequence: 50
+            point: processing
+        }
+        serverSideCondition {
+            whenButtonPressed: @archive-month
+        }
+    )
+
+    // Row actions from the Archive Files report (apex.submit with a request)
+    process archive-file-action (
+        name: Store, Purge or Restore Archive File
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                    l_id   number := to_number(:P12_ARCHIVE_ID);
+                    l_what varchar2(400);
+                begin
+                    select table_name || ' ' || to_char(period_start, 'YYYY-MM')
+                      into l_what
+                      from util_audit_archive_files
+                     where archive_id = l_id;
+                    begin
+                        case :REQUEST
+                            when 'STORE' then
+                                util_audit_archive.store(l_id);
+                                apex_application.g_print_success_message := l_what || ' stored.';
+                            when 'PURGE' then
+                                util_audit_archive.purge(l_id);
+                                apex_application.g_print_success_message :=
+                                    l_what || ' purged: its events were deleted from the audit tables.';
+                            when 'RESTORE' then
+                                util_audit_archive.restore(l_id);
+                                apex_application.g_print_success_message :=
+                                    l_what || ' restored: its events are back in the audit tables.';
+                        end case;
+                    exception
+                        when others then
+                            apex_error.add_error(
+                                p_message          => initcap(:REQUEST) || ' of ' || l_what || ' failed: ' ||
+                                                      regexp_replace(sqlerrm, '^ORA-2[0-9]{4}: '),
+                                p_display_location => apex_error.c_inline_in_notification);
+                    end;
+                end;
+                ```
+        }
+        execution {
+            sequence: 60
+            point: processing
+        }
+        serverSideCondition {
+            type: requestIsContainedInValue
+            value: STORE,PURGE,RESTORE
+        }
+    )
+
+    process download-archive-file (
+        name: Download Archive File
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                declare
+                    l_name util_audit_archive_files.file_name%type;
+                    l_file blob;
+                begin
+                    select file_name
+                      into l_name
+                      from util_audit_archive_files
+                     where archive_id = to_number(:P12_ARCHIVE_ID);
+                    l_file := util_audit_archive.get_file(to_number(:P12_ARCHIVE_ID));
+                    apex_http.download(
+                        p_blob         => l_file,
+                        p_content_type => 'application/gzip',
+                        p_filename     => l_name);
+                    apex_application.stop_apex_engine;
+                exception
+                    when apex_application.e_stop_apex_engine then
+                        raise;
+                    when others then
+                        apex_error.add_error(
+                            p_message          => 'Download failed: ' || regexp_replace(sqlerrm, '^ORA-2[0-9]{4}: '),
+                            p_display_location => apex_error.c_inline_in_notification);
+                end;
+                ```
+        }
+        execution {
+            sequence: 70
+            point: processing
+        }
+        serverSideCondition {
+            type: request=Value
+            value: DOWNLOAD
+        }
+    )
+
+    branch go-to-archive (
+        name: Go To Archive
+        execution {
+            sequence: 10
+            point: afterProcessing
+        }
+        behavior {
+            type: pageOrUrl
+            target: {
+                page: 12
+            }
+        }
+    )
+
+)

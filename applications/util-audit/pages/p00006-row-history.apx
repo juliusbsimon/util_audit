@@ -1,0 +1,448 @@
+page 6 (
+    name: Row History
+    alias: ROW-HISTORY
+    title: Row History
+    appearance {
+        pageTemplate: @/standard
+        templateOptions: #DEFAULT#
+    }
+    navigation {
+        cursorFocus: doNotFocusCursor
+        warnOnUnsavedChanges: false
+    }
+    security {
+        pageAccessProtection: argumentsMustHaveChecksum
+        formAutoComplete: false
+    }
+    css {
+        inline:
+            ```css
+            /* Long values without spaces must wrap, not widen the page */
+            .t-Report-cell {
+                overflow-wrap: anywhere;
+                max-width: 40rem;
+            }
+            ```
+    }
+    help {
+        helpText: Pick an audited table and a row key to see every recorded change to that row, newest first. Open an event to see its full detail.
+    }
+
+    region row-history (
+        name: Row History
+        type: breadcrumb
+        source {
+            breadcrumb: @breadcrumb
+        }
+        layout {
+            sequence: 10
+            slot: breadcrumbBar
+        }
+        appearance {
+            template: @/title-bar
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            breadcrumbTemplate: @/breadcrumb
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region row (
+        name: Row
+        type: staticContent
+        layout {
+            sequence: 20
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+    )
+
+    region timeline (
+        name: Timeline
+        type: themeTemplateComponent/timeline
+        source {
+            location: localDatabase
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select transaction_id,
+                       audit_ts,
+                       transaction_type,
+                       username,
+                       transaction_type || ' by ' || username as event_title,
+                       changed_columns
+                  from v_util_audit_event_summary
+                 where table_name = :P6_TABLE_NAME
+                   and pk_value_vc = :P6_PK_VALUE
+                 order by audit_ts desc
+                ```
+            pageItemsToSubmit: [
+                P6_TABLE_NAME
+                P6_PK_VALUE
+            ]
+        }
+        layout {
+            sequence: 30
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            display: report
+        }
+        settings {
+            userName: USERNAME
+            date: AUDIT_TS
+            title: EVENT_TITLE
+            description: CHANGED_COLUMNS
+        }
+        messages {
+            whenNoDataFound: Pick a table and key to see the row's history.
+        }
+
+        action open-event (
+            position: titleLink
+            layout {
+                sequence: 10
+            }
+            behavior {
+                type: redirectThisApp
+                target: {
+                    page: 5
+                    items: {
+                        P5_TRANSACTION_ID: &TRANSACTION_ID.
+                    }
+                    clearCache: 5
+                }
+            }
+        )
+
+        column TRANSACTION_ID (
+            layout {
+                sequence: 10
+            }
+            source {
+                databaseColumn: TRANSACTION_ID
+                dataType: varchar2
+                primaryKey: true
+            }
+        )
+
+        column AUDIT_TS (
+            layout {
+                sequence: 20
+            }
+            appearance {
+                formatMask: YYYY-MM-DD HH24":"MI
+            }
+            source {
+                databaseColumn: AUDIT_TS
+                dataType: timestamp
+            }
+        )
+
+        column TRANSACTION_TYPE (
+            layout {
+                sequence: 30
+            }
+            source {
+                databaseColumn: TRANSACTION_TYPE
+                dataType: varchar2
+            }
+        )
+
+        column USERNAME (
+            layout {
+                sequence: 40
+            }
+            source {
+                databaseColumn: USERNAME
+                dataType: varchar2
+            }
+        )
+
+        column EVENT_TITLE (
+            layout {
+                sequence: 50
+            }
+            source {
+                databaseColumn: EVENT_TITLE
+                dataType: varchar2
+            }
+        )
+
+        column CHANGED_COLUMNS (
+            layout {
+                sequence: 60
+            }
+            source {
+                databaseColumn: CHANGED_COLUMNS
+                dataType: varchar2
+            }
+        )
+
+    )
+
+    region all-column-changes (
+        name: All Column Changes
+        type: classicReport
+        source {
+            location: localDatabase
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select audit_ts,
+                       transaction_type,
+                       username,
+                       column_name,
+                       case when coalesce(length(old_value), dbms_lob.getlength(old_clob)) > 200
+                            then substr(coalesce(old_value, dbms_lob.substr(old_clob, 200, 1)), 1, 200) || '...'
+                            else coalesce(old_value, dbms_lob.substr(old_clob, 200, 1))
+                       end as old_value,
+                       case when coalesce(length(new_value), dbms_lob.getlength(new_clob)) > 200
+                            then substr(coalesce(new_value, dbms_lob.substr(new_clob, 200, 1)), 1, 200) || '...'
+                            else coalesce(new_value, dbms_lob.substr(new_clob, 200, 1))
+                       end as new_value
+                  from v_util_audit_changes
+                 where table_name = :P6_TABLE_NAME
+                   and pk_value_vc = :P6_PK_VALUE
+                 order by audit_ts desc, column_name
+                ```
+            pageItemsToSubmit: [
+                P6_TABLE_NAME
+                P6_PK_VALUE
+            ]
+        }
+        layout {
+            sequence: 40
+            slot: body
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        componentAppearance {
+            template: @/standard
+            templateOptions: [
+                #DEFAULT#
+                t-Report--stretch
+            ]
+        }
+        pagination {
+            type: rowRangesXToYOfZWithPagination
+        }
+        messages {
+            whenNoDataFound: No column changes recorded for this row.
+        }
+
+        column AUDIT_TS (
+            reportColumnQueryId: 1
+            derivedColumn: N
+            type: plainText
+            heading {
+                heading: When
+            }
+            layout {
+                sequence: 10
+            }
+            appearance {
+                formatMask: YYYY-MM-DD HH24":"MI":"SS
+            }
+        )
+
+        column TRANSACTION_TYPE (
+            reportColumnQueryId: 2
+            derivedColumn: N
+            type: plainText
+            heading {
+                heading: Type
+            }
+            layout {
+                sequence: 20
+            }
+        )
+
+        column USERNAME (
+            reportColumnQueryId: 3
+            derivedColumn: N
+            type: plainText
+            heading {
+                heading: User
+            }
+            layout {
+                sequence: 30
+            }
+        )
+
+        column COLUMN_NAME (
+            reportColumnQueryId: 4
+            derivedColumn: N
+            type: plainText
+            heading {
+                heading: Column
+            }
+            layout {
+                sequence: 40
+            }
+        )
+
+        column OLD_VALUE (
+            reportColumnQueryId: 5
+            derivedColumn: N
+            type: plainText
+            heading {
+                heading: Old Value
+            }
+            layout {
+                sequence: 50
+            }
+        )
+
+        column NEW_VALUE (
+            reportColumnQueryId: 6
+            derivedColumn: N
+            type: plainText
+            heading {
+                heading: New Value
+            }
+            layout {
+                sequence: 60
+            }
+        )
+
+    )
+
+    pageItem P6_TABLE_NAME (
+        type: selectList
+        label {
+            label: Table
+            alignment: right
+        }
+        layout {
+            sequence: 10
+            region: @row
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        lov {
+            type: sharedComponent
+            lov: @audited-tables
+            displayExtraValues: false
+            displayNullValue: true
+            nullDisplayValue: - Select a table -
+        }
+    )
+
+    pageItem P6_PK_VALUE (
+        type: popupLov
+        label {
+            label: Key
+            alignment: right
+        }
+        layout {
+            sequence: 20
+            region: @row
+            slot: regionBody
+            startNewRow: false
+            alignment: left
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        lov {
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select distinct pk_value_vc d,
+                       pk_value_vc r
+                  from util_audit_txn
+                 where table_name = :P6_TABLE_NAME
+                 order by 1
+                ```
+            displayExtraValues: true
+        }
+        cascadingLov {
+            parentItems: [
+                P6_TABLE_NAME
+            ]
+            parentRequired: true
+        }
+    )
+
+    dynamicAction refresh-on-row-change (
+        name: Refresh on Row Change
+        execution {
+            sequence: 10
+        }
+        when {
+            event: change
+            selectionType: items
+            items: [
+                P6_TABLE_NAME
+                P6_PK_VALUE
+            ]
+        }
+
+        action refresh-timeline (
+            action: refresh
+            affectedElements {
+                selectionType: region
+                region: @timeline
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+        action refresh-all-column-changes (
+            action: refresh
+            affectedElements {
+                selectionType: region
+                region: @all-column-changes
+            }
+            execution {
+                sequence: 20
+                fireOnInit: false
+            }
+        )
+
+    )
+
+    dynamicAction refresh-timeline-after-dialog (
+        name: Refresh Timeline After Dialog
+        execution {
+            sequence: 20
+        }
+        when {
+            event: apexafterclosedialog
+            selectionType: region
+            region: @timeline
+        }
+
+        action refresh-timeline-after-dialog-action (
+            action: refresh
+            affectedElements {
+                selectionType: region
+                region: @timeline
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
+    )
+
+)

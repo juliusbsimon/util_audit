@@ -1,0 +1,21 @@
+appItem UA_THEME_MODE (
+    security {
+        escapeSpecialChars: true
+    }
+)
+
+appItem UA_THEME_LABEL (
+    security {
+        escapeSpecialChars: true
+    }
+)
+
+appItem UA_IS_AUDIT_ADMIN (
+    comments {
+        comments: Y when the user passes the audit-administrator authorization. Set by page 9 (Documentation) to show admin-only articles; restricted so it cannot be set from the browser.
+    }
+    security {
+        sessionStateProtection: restricted
+        escapeSpecialChars: true
+    }
+)
