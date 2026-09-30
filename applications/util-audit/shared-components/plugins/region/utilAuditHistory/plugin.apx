@@ -70,10 +70,21 @@ plugin utilAuditHistory (
                     return case when l_datefmt = 'SINCE' then apex_util.get_since(cast(p_ts as date))
                                 else to_char(p_ts, l_datefmt) end;
                 end;
+                -- The Changed cell. "5 minutes ago" shows the exact time on hover.
+                function when_cell(p_ts in timestamp) return varchar2 is
+                begin
+                    if l_datefmt <> 'SINCE' then
+                        return cell(when_text(p_ts), 'ua-hist-event');
+                    end if;
+                    return '<td class="t-Report-cell ua-hist-event"><time datetime="' ||
+                           to_char(p_ts, 'YYYY-MM-DD"T"HH24:MI:SS', 'NLS_CALENDAR=GREGORIAN') || '" title="' ||
+                           apex_escape.html_attribute(to_char(p_ts, 'YYYY-MM-DD HH24:MI:SS', 'NLS_CALENDAR=GREGORIAN')) ||
+                           '">' || apex_escape.html(when_text(p_ts)) || '</time></td>';
+                end;
             begin
                 apex_css.add(
                     p_css => '.ua-hist .ua-hist-cont td.ua-hist-event{color:transparent;user-select:none}' ||
-                             '.ua-hist td.ua-hist-old{color:var(--ua-text-muted,var(--ut-component-text-muted-color,#6b6e80));text-decoration:line-through}',
+                             '.ua-hist td.ua-hist-old{color:var(--ua-text-muted,var(--ut-component-text-muted-color,#6b6e80))}',
                     p_key => 'util_audit_history');
 
                 for i in 1 .. least(l_items.count, 4) loop
@@ -122,7 +133,7 @@ plugin utilAuditHistory (
                                or l_rows(i).transaction_id <> nvl(l_prev_txn, '-');
                     l_prev_txn := l_rows(i).transaction_id;
                     sys.htp.p('<tr' || case when not l_first then ' class="ua-hist-cont"' end || '>' ||
-                              cell(when_text(l_rows(i).changed_at), 'ua-hist-event') ||
+                              when_cell(l_rows(i).changed_at) ||
                               cell(l_rows(i).changed_by, 'ua-hist-event') ||
                               cell(initcap(l_rows(i).action), 'ua-hist-event') ||
                               case when l_kids then

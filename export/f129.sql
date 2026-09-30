@@ -33,7 +33,7 @@ prompt APPLICATION 129 - Util Audit
 -- Application Export:
 --   Application:     129
 --   Name:            Util Audit
---   Date and Time:   01:48 Wednesday September 30, 2026
+--   Date and Time:   02:44 Wednesday September 30, 2026
 --   Exported By:     UA_TEST
 --   Flashback:       0
 --   Export Type:     Application Export
@@ -113,7 +113,7 @@ wwv_imp_workspace.create_flow(
 ,p_rejoin_existing_sessions=>'N'
 ,p_csv_encoding=>'Y'
 ,p_file_prefix=>nvl(wwv_flow_application_install.get_static_app_file_prefix,'')
-,p_files_version=>2461314014607
+,p_files_version=>2461314024428
 ,p_print_server_type=>'NATIVE'
 ,p_file_storage=>'DB'
 ,p_is_pwa=>'Y'
@@ -208,10 +208,21 @@ wwv_flow_imp_shared.create_plugin(
 '        return case when l_datefmt = ''SINCE'' then apex_util.get_since(cast(p_ts as date))',
 '                    else to_char(p_ts, l_datefmt) end;',
 '    end;',
+'    -- The Changed cell. "5 minutes ago" shows the exact time on hover.',
+'    function when_cell(p_ts in timestamp) return varchar2 is',
+'    begin',
+'        if l_datefmt <> ''SINCE'' then',
+'            return cell(when_text(p_ts), ''ua-hist-event'');',
+'        end if;',
+'        return ''<td class="t-Report-cell ua-hist-event"><time datetime="'' ||',
+'               to_char(p_ts, ''YYYY-MM-DD"T"HH24:MI:SS'', ''NLS_CALENDAR=GREGORIAN'') || ''" title="'' ||',
+'               apex_escape.html_attribute(to_char(p_ts, ''YYYY-MM-DD HH24:MI:SS'', ''NLS_CALENDAR=GREGORIAN'')) ||',
+'               ''">'' || apex_escape.html(when_text(p_ts)) || ''</time></td>'';',
+'    end;',
 'begin',
 '    apex_css.add(',
 '        p_css => ''.ua-hist .ua-hist-cont td.ua-hist-event{color:transparent;user-select:none}'' ||',
-'                 ''.ua-hist td.ua-hist-old{color:var(--ua-text-muted,var(--ut-component-text-muted-color,#6b6e80));text-decoration:line-through}'',',
+'                 ''.ua-hist td.ua-hist-old{color:var(--ua-text-muted,var(--ut-component-text-muted-color,#6b6e80))}'',',
 '        p_key => ''util_audit_history'');',
 '',
 '    for i in 1 .. least(l_items.count, 4) loop',
@@ -260,7 +271,7 @@ wwv_flow_imp_shared.create_plugin(
 '                   or l_rows(i).transaction_id <> nvl(l_prev_txn, ''-'');',
 '        l_prev_txn := l_rows(i).transaction_id;',
 '        sys.htp.p(''<tr'' || case when not l_first then '' class="ua-hist-cont"'' end || ''>'' ||',
-'                  cell(when_text(l_rows(i).changed_at), ''ua-hist-event'') ||',
+'                  when_cell(l_rows(i).changed_at) ||',
 '                  cell(l_rows(i).changed_by, ''ua-hist-event'') ||',
 '                  cell(initcap(l_rows(i).action), ''ua-hist-event'') ||',
 '                  case when l_kids then',
@@ -297,7 +308,7 @@ wwv_flow_imp_shared.create_plugin(
 '<p>Shows the changes util_audit recorded for the row a page is showing: who changed it, when, and each column''s old and new value. Set <strong>Table</strong> and <strong>Key Items</strong>; everything else is optional.</p>',
 '<p>Needs the util_audit framework installed (the Util Audit app installs it). The region renders when the page loads.</p>'))
 ,p_version_identifier=>'1.0'
-,p_files_version=>2461314014607
+,p_files_version=>2461314024428
 );
 wwv_flow_imp_shared.create_plugin_attribute(
  p_id=>wwv_flow_imp.id(5629537890562798)
@@ -430,7 +441,7 @@ wwv_flow_imp_shared.create_plugin_attribute(
 ,p_is_required=>false
 ,p_default_value=>'SINCE'
 ,p_is_translatable=>false
-,p_help_text=>'SINCE shows "5 minutes ago". Any Oracle date format also works, for example DD-MON-YYYY HH24.MI.'
+,p_help_text=>'SINCE shows "5 minutes ago", with the exact time on hover. Any Oracle date format also works, for example DD-MON-YYYY HH24:MI.'
 );
 wwv_flow_imp_shared.create_plugin_attribute(
  p_id=>wwv_flow_imp.id(5630561309562799)
@@ -2185,7 +2196,7 @@ wwv_flow_imp_shared.create_theme(
 ,p_default_required_label=>1610598484065263269
 ,p_default_navbar_list_template=>2849019392706229583
 ,p_file_prefix=>nvl(wwv_flow_application_install.get_static_theme_file_prefix(42),'#APEX_FILES#themes/theme_42/26.1/')
-,p_files_version=>2461314014607
+,p_files_version=>2461314024428
 ,p_icon_library=>'FONTAPEX'
 ,p_javascript_file_urls=>wwv_flow_string.join(wwv_flow_t_varchar2(
 '#APEX_FILES#libraries/apex/#MIN_DIRECTORY#widget.stickyWidget#MIN#.js?v=#APEX_VERSION#',
@@ -4212,7 +4223,7 @@ wwv_flow_imp_page.create_page_button(
 ,p_security_scheme=>wwv_flow_imp.id(5505069898560897)
 );
 wwv_flow_imp_page.create_page_branch(
- p_id=>wwv_flow_imp.id(7237921659926816)
+ p_id=>wwv_flow_imp.id(7257695824276905)
 ,p_branch_name=>'Go To Event'
 ,p_branch_action=>'f?p=&APP_ID.:5:&SESSION.::&DEBUG.::P5_TRANSACTION_ID:&P5_TRANSACTION_ID.&success_msg=#SUCCESS_MSG#'
 ,p_branch_point=>'AFTER_PROCESSING'
@@ -5193,7 +5204,7 @@ wwv_flow_imp_page.create_page_button(
 ,p_grid_new_row=>'Y'
 );
 wwv_flow_imp_page.create_page_branch(
- p_id=>wwv_flow_imp.id(7238313855926819)
+ p_id=>wwv_flow_imp.id(7258063195276908)
 ,p_branch_name=>'Go To Maintenance'
 ,p_branch_action=>'f?p=&APP_ID.:8:&SESSION.::&DEBUG.&success_msg=#SUCCESS_MSG#'
 ,p_branch_point=>'AFTER_PROCESSING'
@@ -6500,7 +6511,7 @@ wwv_flow_imp_page.create_page_button(
 ,p_grid_new_row=>'Y'
 );
 wwv_flow_imp_page.create_page_branch(
- p_id=>wwv_flow_imp.id(7239570393926823)
+ p_id=>wwv_flow_imp.id(7259282178276912)
 ,p_branch_name=>'Back to Generator'
 ,p_branch_action=>'f?p=&APP_ID.:11:&SESSION.::&DEBUG.&success_msg=#SUCCESS_MSG#'
 ,p_branch_point=>'AFTER_PROCESSING'
@@ -7520,7 +7531,7 @@ wwv_flow_imp_page.create_page_button(
 ,p_grid_new_row=>'Y'
 );
 wwv_flow_imp_page.create_page_branch(
- p_id=>wwv_flow_imp.id(7240938340926826)
+ p_id=>wwv_flow_imp.id(7260687889276915)
 ,p_branch_name=>'Go To Archive'
 ,p_branch_action=>'f?p=&APP_ID.:12:&SESSION.::&DEBUG.&success_msg=#SUCCESS_MSG#'
 ,p_branch_point=>'AFTER_PROCESSING'

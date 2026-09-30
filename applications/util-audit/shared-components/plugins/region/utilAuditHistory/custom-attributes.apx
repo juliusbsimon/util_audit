@@ -144,7 +144,7 @@ customAttribute attribute_08 (
         value: SINCE
     }
     help {
-        helpText: SINCE shows "5 minutes ago". Any Oracle date format also works, for example DD-MON-YYYY HH24.MI.
+        helpText: SINCE shows "5 minutes ago", with the exact time on hover. Any Oracle date format also works, for example DD-MON-YYYY HH24:MI.
     }
 )
 

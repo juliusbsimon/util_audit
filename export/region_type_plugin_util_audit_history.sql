@@ -33,7 +33,7 @@ prompt APPLICATION 129 - Util Audit
 -- Application Export:
 --   Application:     129
 --   Name:            Util Audit
---   Date and Time:   16:02 Monday September 28, 2026
+--   Date and Time:   02:44 Wednesday September 30, 2026
 --   Exported By:     UA_TEST
 --   Flashback:       0
 --   Export Type:     Component Export
@@ -118,10 +118,21 @@ wwv_flow_imp_shared.create_plugin(
 '        return case when l_datefmt = ''SINCE'' then apex_util.get_since(cast(p_ts as date))',
 '                    else to_char(p_ts, l_datefmt) end;',
 '    end;',
+'    -- The Changed cell. "5 minutes ago" shows the exact time on hover.',
+'    function when_cell(p_ts in timestamp) return varchar2 is',
+'    begin',
+'        if l_datefmt <> ''SINCE'' then',
+'            return cell(when_text(p_ts), ''ua-hist-event'');',
+'        end if;',
+'        return ''<td class="t-Report-cell ua-hist-event"><time datetime="'' ||',
+'               to_char(p_ts, ''YYYY-MM-DD"T"HH24:MI:SS'', ''NLS_CALENDAR=GREGORIAN'') || ''" title="'' ||',
+'               apex_escape.html_attribute(to_char(p_ts, ''YYYY-MM-DD HH24:MI:SS'', ''NLS_CALENDAR=GREGORIAN'')) ||',
+'               ''">'' || apex_escape.html(when_text(p_ts)) || ''</time></td>'';',
+'    end;',
 'begin',
 '    apex_css.add(',
 '        p_css => ''.ua-hist .ua-hist-cont td.ua-hist-event{color:transparent;user-select:none}'' ||',
-'                 ''.ua-hist td.ua-hist-old{color:var(--ua-text-muted,var(--ut-component-text-muted-color,#6b6e80));text-decoration:line-through}'',',
+'                 ''.ua-hist td.ua-hist-old{color:var(--ua-text-muted,var(--ut-component-text-muted-color,#6b6e80))}'',',
 '        p_key => ''util_audit_history'');',
 '',
 '    for i in 1 .. least(l_items.count, 4) loop',
@@ -170,7 +181,7 @@ wwv_flow_imp_shared.create_plugin(
 '                   or l_rows(i).transaction_id <> nvl(l_prev_txn, ''-'');',
 '        l_prev_txn := l_rows(i).transaction_id;',
 '        sys.htp.p(''<tr'' || case when not l_first then '' class="ua-hist-cont"'' end || ''>'' ||',
-'                  cell(when_text(l_rows(i).changed_at), ''ua-hist-event'') ||',
+'                  when_cell(l_rows(i).changed_at) ||',
 '                  cell(l_rows(i).changed_by, ''ua-hist-event'') ||',
 '                  cell(initcap(l_rows(i).action), ''ua-hist-event'') ||',
 '                  case when l_kids then',
@@ -207,7 +218,7 @@ wwv_flow_imp_shared.create_plugin(
 '<p>Shows the changes util_audit recorded for the row a page is showing: who changed it, when, and each column''s old and new value. Set <strong>Table</strong> and <strong>Key Items</strong>; everything else is optional.</p>',
 '<p>Needs the util_audit framework installed (the Util Audit app installs it). The region renders when the page loads.</p>'))
 ,p_version_identifier=>'1.0'
-,p_files_version=>2461312155803
+,p_files_version=>2461314024428
 );
 wwv_flow_imp_shared.create_plugin_attribute(
  p_id=>wwv_flow_imp.id(5629537890562798)
@@ -340,7 +351,7 @@ wwv_flow_imp_shared.create_plugin_attribute(
 ,p_is_required=>false
 ,p_default_value=>'SINCE'
 ,p_is_translatable=>false
-,p_help_text=>'SINCE shows "5 minutes ago". Any Oracle date format also works, for example DD-MON-YYYY HH24.MI.'
+,p_help_text=>'SINCE shows "5 minutes ago", with the exact time on hover. Any Oracle date format also works, for example DD-MON-YYYY HH24:MI.'
 );
 wwv_flow_imp_shared.create_plugin_attribute(
  p_id=>wwv_flow_imp.id(5630561309562799)

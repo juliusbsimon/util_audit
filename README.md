@@ -217,8 +217,8 @@ What it shows, newest first:
 
 -   One group per change. Later lines of the same change leave the
     first columns empty, so each change reads as one block.
--   Old values are shown struck through and muted. Values longer than
-    200 characters are cut, and the full value shows on hover.
+-   Old values are shown in a muted colour. Values longer than 200
+    characters are cut, and the full value shows on hover.
 -   With child tables it adds **Table** and **Record** columns.
 -   With **Display = One row per change**, it shows one line per change
     with a **Fields Changed** list instead of old and new values.
@@ -302,7 +302,7 @@ this for you, and so does the **Query Generator** page.
   Columns                 `columns`                     Only show these columns, comma-separated. Empty: all
   Readable Column Names   `readableNames`     Yes       "Hire Date" instead of `HIRE_DATE`
   Maximum Lines           `maxRows`           100       The most lines to show. A note says when the list is cut
-  Date Format             `dateFormat`        SINCE     `SINCE` shows "5 minutes ago"; any Oracle format works, e.g. `DD-MON-YYYY HH24:MI`
+  Date Format             `dateFormat`        SINCE     `SINCE` shows "5 minutes ago", with the exact time on hover; any Oracle format works, e.g. `DD-MON-YYYY HH24:MI`
   util_audit Schema       `utilAuditSchema`             Only when util_audit lives in another schema (see below)
 
 The region's **No Data Found** message is shown when the row has no
