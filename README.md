@@ -405,6 +405,29 @@ Ignored columns are left out of the column changes but kept in the row
 snapshots, so restore can still re-insert a row whose `CREATED` column is
 NOT NULL.
 
+**Secrets need excluding, not ignoring.** An excluded column is never
+recorded: not as a change, and not in the row snapshots. Use it for
+password hashes, tokens and the like:
+
+``` sql
+BEGIN
+  util_audit_gen.set_table_excluded_columns('APP_USER', 'PASSWORD_HASH, RESET_TOKEN');
+END;
+/
+```
+
+-   The names are checked against the table, so a typo is an error
+    instead of a secret that stays audited. Primary key columns cannot be
+    excluded.
+-   The trigger is re-created straight away and never reads the columns.
+-   If the table was audited before, pass `p_scrub_history => TRUE` (or
+    call `util_audit_gen.scrub_columns`) to remove the columns from the
+    history already recorded, then COMMIT. Archive files made earlier are
+    not changed.
+-   A restored row gets NULL or the column default for an excluded
+    column. If the column is NOT NULL without a default, a deleted row
+    cannot be restored, and `restore_row` says so.
+
 A single-column primary key is stored as its value, e.g. `42`.
 A composite key is stored as JSON, e.g.
 `{"ORDER_ID":"100","LINE_NO":"1"}`.
@@ -638,8 +661,8 @@ audited, so you can see the gaps when you set up auditing.
 
 -   Only events recorded by this version have row snapshots. Older
     events, and history copied from util_audit v1, cannot be restored.
--   Unsupported types (e.g. BLOB) are not in the snapshot. A re-inserted
-    row gets NULL or the column default for them.
+-   Excluded columns and unsupported types (e.g. BLOB) are not in the
+    snapshot. A re-inserted row gets NULL or the column default for them.
 -   An UPDATE's snapshot leaves out CLOB columns the UPDATE did not
     change. Restoring that UPDATE leaves those CLOBs as they are.
 -   If the row changed again after the event, `restore_row` stops.

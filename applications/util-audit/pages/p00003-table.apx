@@ -75,6 +75,22 @@ page 3 (
         }
     )
 
+    region excluded-columns (
+        name: Excluded Columns
+        type: staticContent
+        layout {
+            sequence: 25
+            slot: contentBody
+        }
+        appearance {
+            template: @/standard
+            templateOptions: #DEFAULT#
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
     region child-tables (
         name: Child Tables
         type: classicReport
@@ -354,7 +370,7 @@ page 3 (
             templateOptions: #DEFAULT#
         }
         help {
-            helpText: Changes to the columns in this list are not recorded by the audit trigger. Saving re-creates the trigger when the table is audited.
+            helpText: Changes to only these columns record nothing, for bookkeeping columns such as a last-login time. They are still kept in the copy of the whole row each event stores, so a restored row gets them back. For secrets, use Excluded Columns instead. Saving re-creates the trigger when the table is audited.
         }
     )
 
@@ -506,6 +522,86 @@ page 3 (
         }
     )
 
+    // Key columns identify the row, so the list leaves them out
+    pageItem P3_EXCLUDED_COLUMNS (
+        type: shuttle
+        label {
+            label: Columns never recorded
+            alignment: left
+        }
+        lov {
+            type: sqlQuery
+            sqlQuery:
+                ```sql
+                select c.column_name d,
+                       c.column_name r
+                  from user_tab_columns c
+                 where c.table_name = :P3_TABLE_NAME
+                   and not exists (select 1
+                                     from user_constraints k
+                                     join user_cons_columns kc on kc.constraint_name = k.constraint_name
+                                    where k.table_name = c.table_name
+                                      and k.constraint_type = 'P'
+                                      and kc.column_name = c.column_name)
+                 order by c.column_id
+                ```
+        }
+        layout {
+            sequence: 10
+            region: @excluded-columns
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: For secrets such as password or token hashes. These columns are never written to the audit trail, not even in the copy of the whole row that each event keeps. A restored row gets an empty value or the column default for them. Saving re-creates the trigger when the table is audited.
+        }
+    )
+
+    pageItem P3_SCRUB_HISTORY (
+        type: switch
+        label {
+            label: Also remove them from history already recorded
+            alignment: left
+        }
+        layout {
+            sequence: 20
+            region: @excluded-columns
+            slot: regionBody
+            alignment: left
+        }
+        appearance {
+            template: @/optional-floating
+            templateOptions: #DEFAULT#
+        }
+        help {
+            helpText: Deletes these columns from every event this table has recorded so far, in the row copies and the column changes. This cannot be undone. Archive files made earlier are not changed.
+        }
+    )
+
+    button save-excluded (
+        buttonName: SAVE_EXCLUDED
+        label: Save Excluded Columns
+        layout {
+            sequence: 30
+            region: @excluded-columns
+            slot: regionBody
+        }
+        appearance {
+            buttonTemplate: @/text
+            templateOptions: #DEFAULT#
+        }
+        behavior {
+            action: definedByDynamicAction
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
     button save-ignored (
         buttonName: SAVE_IGNORED
         label: Save Ignored Columns
@@ -521,6 +617,50 @@ page 3 (
         security {
             authorizationScheme: @audit-administrator
         }
+    )
+
+    dynamicAction confirm-save-excluded (
+        name: Confirm Save Excluded
+        execution {
+            sequence: 5
+        }
+        when {
+            event: click
+            selectionType: button
+            button: @save-excluded
+        }
+
+        // Removing columns from recorded history cannot be undone, so that
+        // case asks first; a plain save submits straight away
+        action confirm-and-submit-excluded (
+            action: executeJsCode
+            settings {
+                jsCode:
+                    ```javascript-browser
+                    var cols = $v("P3_EXCLUDED_COLUMNS").split(":").filter(Boolean),
+                        esc  = apex.util.escapeHTML;
+                    if ($v("P3_SCRUB_HISTORY") !== "Y" || cols.length === 0) {
+                        apex.submit({ request: "SAVE_EXCLUDED" });
+                    } else {
+                        apex.message.confirm(
+                            "Permanently remove " + esc(cols.join(", ")) + " from every event " +
+                                esc($v("P3_TABLE_NAME")) + " has recorded so far? This cannot be undone.",
+                            function (ok) {
+                                if (ok) {
+                                    apex.submit({ request: "SAVE_EXCLUDED" });
+                                }
+                            },
+                            { style: "danger", confirmLabel: "Remove From History" }
+                        );
+                    }
+                    ```
+            }
+            execution {
+                sequence: 10
+                fireOnInit: false
+            }
+        )
+
     )
 
     dynamicAction cancel-dialog (
@@ -555,7 +695,8 @@ page 3 (
                            trigger_name,
                            has_pk,
                            event_count,
-                           replace(ignored_columns, ',', ':') ignored_columns
+                           replace(ignored_columns, ',', ':') ignored_columns,
+                           replace(excluded_columns, ',', ':') excluded_columns
                       from v_util_audit_tables
                      where table_name = :P3_TABLE_NAME
                 ) loop
@@ -563,7 +704,8 @@ page 3 (
                     :P3_TRIGGER_NAME    := t.trigger_name;
                     :P3_HAS_PK          := t.has_pk;
                     :P3_EVENT_COUNT     := t.event_count;
-                    :P3_IGNORED_COLUMNS := t.ignored_columns;
+                    :P3_IGNORED_COLUMNS  := t.ignored_columns;
+                    :P3_EXCLUDED_COLUMNS := t.excluded_columns;
                 end loop;
                 ```
         }
@@ -579,12 +721,16 @@ page 3 (
         source {
             plsqlCode:
                 ```plsql
-                -- Build the trigger with the ignored columns shown on the page,
-                -- then enable the table: create_audit_trigger keeps an existing
-                -- flag, so a table paused earlier would otherwise stay paused.
+                -- Build the trigger with the ignored and excluded columns shown on
+                -- the page, then enable the table: create_audit_trigger keeps an
+                -- existing flag, so a table paused earlier would otherwise stay paused.
                 util_audit_gen.set_table_ignored_columns(
                     p_table_name => :P3_TABLE_NAME,
                     p_columns    => replace(:P3_IGNORED_COLUMNS, ':', ','),
+                    p_regenerate => false);
+                util_audit_gen.set_table_excluded_columns(
+                    p_table_name => :P3_TABLE_NAME,
+                    p_columns    => replace(:P3_EXCLUDED_COLUMNS, ':', ','),
                     p_regenerate => false);
                 util_audit_gen.create_audit_trigger(:P3_TABLE_NAME);
                 util_audit.enable_table(:P3_TABLE_NAME);
@@ -610,11 +756,16 @@ page 3 (
         source {
             plsqlCode:
                 ```plsql
-                -- Save the ignored columns shown on the page first, so the new
-                -- trigger skips what the user sees. The enabled flag is kept.
+                -- Save the ignored and excluded columns shown on the page first,
+                -- so the new trigger matches what the user sees. The enabled
+                -- flag is kept.
                 util_audit_gen.set_table_ignored_columns(
                     p_table_name => :P3_TABLE_NAME,
                     p_columns    => replace(:P3_IGNORED_COLUMNS, ':', ','),
+                    p_regenerate => false);
+                util_audit_gen.set_table_excluded_columns(
+                    p_table_name => :P3_TABLE_NAME,
+                    p_columns    => replace(:P3_EXCLUDED_COLUMNS, ':', ','),
                     p_regenerate => false);
                 util_audit_gen.create_audit_trigger(:P3_TABLE_NAME);
                 ```
@@ -702,6 +853,32 @@ page 3 (
         }
     )
 
+    process save-excluded (
+        name: Save Excluded Columns
+        type: executeCode
+        source {
+            plsqlCode:
+                ```plsql
+                util_audit_gen.set_table_excluded_columns(
+                    p_table_name    => :P3_TABLE_NAME,
+                    p_columns       => replace(:P3_EXCLUDED_COLUMNS, ':', ','),
+                    p_scrub_history => :P3_SCRUB_HISTORY = 'Y');
+                ```
+        }
+        execution {
+            sequence: 65
+        }
+        successMessage {
+            successMessage: Excluded columns saved for &P3_TABLE_NAME..
+        }
+        serverSideCondition {
+            whenButtonPressed: @save-excluded
+        }
+        security {
+            authorizationScheme: @audit-administrator
+        }
+    )
+
     process save-ignored (
         name: Save Ignored Columns
         type: executeCode
@@ -733,7 +910,7 @@ page 3 (
         }
         serverSideCondition {
             type: requestIsContainedInValue
-            value: START_AUDITING,RECREATE_TRIGGER,PAUSE_AUDITING,RESUME_AUDITING,STOP_AUDITING,SAVE_IGNORED
+            value: START_AUDITING,RECREATE_TRIGGER,PAUSE_AUDITING,RESUME_AUDITING,STOP_AUDITING,SAVE_IGNORED,SAVE_EXCLUDED
         }
     )
 

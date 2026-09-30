@@ -220,6 +220,9 @@ One line looks like this (shortened):
   made with.
 - **What purge leaves.** It deletes events and their changes, but not
   `UTIL_AUDIT_ERRORS`. `util_audit.purge_errors` handles that table.
+- **Excluded columns** are never recorded, so they are never in an
+  archive either. `util_audit_gen.scrub_columns` cleans the history still
+  in the tables, but not archive files made before it ran.
 - **util_audit v1 history** copied by `migrate_v1_history.sql` is
   archived like any other history. It has no row snapshots.
 - **Uninstall** drops `UTIL_AUDIT_ARCHIVE_FILES`, the settings and the

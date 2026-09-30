@@ -76,6 +76,10 @@ supportingObject (
                     -- Per-table columns the trigger skips (comma-separated), added in v2.2
                     ddl(q'[alter table UTIL_AUDIT_CONFIG add (IGNORED_COLUMNS VARCHAR2(4000))]');
 
+                    -- Per-table columns never recorded at all, not even in the row
+                    -- snapshots: passwords, tokens and other secrets (comma-separated)
+                    ddl(q'[alter table UTIL_AUDIT_CONFIG add (EXCLUDED_COLUMNS VARCHAR2(4000))]');
+
                     ddl(q'[
                 create table UTIL_AUDIT_TXN
                 (
@@ -299,6 +303,7 @@ supportingObject (
                     tr.trigger_name,
                     NVL(c.enabled_flag, 'N')             enabled_flag,
                     c.ignored_columns,
+                    c.excluded_columns,
                     CASE WHEN EXISTS (SELECT 1 FROM user_constraints k
                                       WHERE k.table_name = t.table_name
                                         AND k.constraint_type = 'P')
@@ -868,7 +873,7 @@ supportingObject (
 
                         -- Columns to write: those in the snapshot that can still be written
                         FOR c IN (
-                            SELECT tc.column_name, tc.data_type, tc.virtual_column,
+                            SELECT tc.column_name, tc.data_type, tc.virtual_column, tc.nullable, tc.default_length,
                                    NVL(ic.generation_type, '-') generation_type
                             FROM user_tab_cols tc
                             LEFT JOIN user_tab_identity_cols ic
@@ -890,6 +895,12 @@ supportingObject (
                                                 ' is not in the audit snapshot, so the row cannot be re-inserted.');
                                         END IF;
                                     END LOOP;
+                                    -- Typically an excluded column (a password, say)
+                                    IF c.nullable = 'N' AND NVL(c.default_length, 0) = 0 AND c.generation_type = '-' THEN
+                                        RAISE_APPLICATION_ERROR(-20009, e.table_name || '.' || c.column_name ||
+                                            ' is not recorded (it is excluded from auditing, or was added later) and is ' ||
+                                            'NOT NULL without a default, so the deleted row cannot be re-inserted.');
+                                    END IF;
                                 END IF;
                                 l_missing := l_missing || ', ' || c.column_name;
                                 CONTINUE;
@@ -1573,6 +1584,30 @@ supportingObject (
                         p_regenerate IN BOOLEAN DEFAULT TRUE
                     );
 
+                    -- Store the columns one table's trigger must never record, not in the
+                    -- column changes and not in the row snapshots: passwords, token hashes
+                    -- and other secrets (comma-separated, case-insensitive). Ignored columns
+                    -- are different: they stay in the snapshots so restore can bring them
+                    -- back. A primary key column cannot be excluded.
+                    -- p_regenerate:    re-create the trigger right away if the table has one
+                    -- p_scrub_history: also remove these columns from history already
+                    --                  recorded (see scrub_columns). Does not commit.
+                    PROCEDURE set_table_excluded_columns(
+                        p_table_name    IN VARCHAR2,
+                        p_columns       IN VARCHAR2,
+                        p_regenerate    IN BOOLEAN DEFAULT TRUE,
+                        p_scrub_history IN BOOLEAN DEFAULT FALSE
+                    );
+
+                    -- Removes columns from one table's recorded history: from the row
+                    -- snapshots of every event and the column changes. Use it when a
+                    -- secret was audited before it was excluded. Archive files already
+                    -- made (util_audit_archive) are not changed. Does not commit.
+                    PROCEDURE scrub_columns(
+                        p_table_name IN VARCHAR2,
+                        p_columns    IN VARCHAR2
+                    );
+
                     -- The CREATE TRIGGER statement create_audit_trigger would run
                     FUNCTION get_trigger_ddl(
                         p_table_name IN VARCHAR2
@@ -1890,6 +1925,7 @@ supportingObject (
                         v_pk_cols    t_names;
                         v_pk_dts     t_names;
                         v_ignored    util_audit_config.ignored_columns%TYPE;
+                        v_excluded   util_audit_config.excluded_columns%TYPE;
                         v_track      BOOLEAN;
 
                         v_sql        CLOB;
@@ -1946,12 +1982,13 @@ supportingObject (
                         END IF;
 
                         BEGIN
-                            SELECT ignored_columns INTO v_ignored
+                            SELECT ignored_columns, excluded_columns INTO v_ignored, v_excluded
                             FROM util_audit_config
                             WHERE table_name = v_table_name;
                         EXCEPTION
                             WHEN NO_DATA_FOUND THEN
-                                v_ignored := NULL;
+                                v_ignored  := NULL;
+                                v_excluded := NULL;
                         END;
 
                         v_sql := EMPTY_CLOB();
@@ -1959,6 +1996,9 @@ supportingObject (
                         ap('CREATE OR REPLACE TRIGGER ' || q(v_trg_name));
                         ap('AFTER INSERT OR UPDATE OR DELETE ON ' || q(v_table_name));
                         ap('FOR EACH ROW');
+                        IF v_excluded IS NOT NULL THEN
+                            ap('-- Never recorded (excluded): ' || REPLACE(v_excluded, ',', ', '));
+                        END IF;
                         ap('DECLARE');
                         ap('    l_txn_id    VARCHAR2(64) := RAWTOHEX(SYS_GUID());');
                         ap('    l_action    VARCHAR2(6);');
@@ -2038,6 +2078,11 @@ supportingObject (
                             ORDER BY column_id
                         ) LOOP
                             IF NOT supported_datatype(c.data_type) THEN
+                                CONTINUE;
+                            END IF;
+                            -- Excluded columns are never read: not in the changes, not in
+                            -- the snapshots
+                            IF v_excluded IS NOT NULL AND in_list(v_excluded, c.column_name) THEN
                                 CONTINUE;
                             END IF;
                             -- Ignored columns are left out of the changes but kept in the row
@@ -2185,6 +2230,106 @@ supportingObject (
 
                         report_child_tables(v_table_name);
                     END create_audit_trigger;
+
+                    --------------------------------------------------------------------------
+                    -- Public: Per-table excluded columns
+                    --------------------------------------------------------------------------
+                    -- The list, upper case, checked against the table: a misspelt name
+                    -- would leave the real column audited without anyone noticing
+                    FUNCTION checked_columns(p_table_name IN VARCHAR2, p_columns IN VARCHAR2) RETURN VARCHAR2 IS
+                        v_columns VARCHAR2(4000) := UPPER(REPLACE(TRIM(BOTH ',' FROM REPLACE(p_columns, ' ')), ',,', ','));
+                        v_col     VARCHAR2(4000);
+                        v_cnt     NUMBER;
+                        i         PLS_INTEGER := 1;
+                    BEGIN
+                        LOOP
+                            v_col := REGEXP_SUBSTR(v_columns, '[^,]+', 1, i);
+                            EXIT WHEN v_col IS NULL;
+                            SELECT COUNT(*) INTO v_cnt FROM user_tab_columns
+                             WHERE table_name = p_table_name AND column_name = v_col;
+                            IF v_cnt = 0 THEN
+                                RAISE_APPLICATION_ERROR(-20007, p_table_name || ' has no column ' || v_col || '.');
+                            END IF;
+                            i := i + 1;
+                        END LOOP;
+                        RETURN v_columns;
+                    END;
+
+                    PROCEDURE scrub_columns(
+                        p_table_name IN VARCHAR2,
+                        p_columns    IN VARCHAR2
+                    ) IS
+                        v_table_name VARCHAR2(128)  := norm_name(p_table_name);
+                        v_columns    VARCHAR2(4000) := checked_columns(v_table_name, p_columns);
+                        v_col        VARCHAR2(4000);
+                        v_patch      VARCHAR2(4000);
+                        v_events     NUMBER;
+                        i            PLS_INTEGER := 1;
+                    BEGIN
+                        LOOP
+                            v_col := REGEXP_SUBSTR(v_columns, '[^,]+', 1, i);
+                            EXIT WHEN v_col IS NULL;
+                            -- {"COL":null}: JSON_MERGEPATCH removes the key
+                            SELECT JSON_OBJECT(KEY v_col VALUE NULL NULL ON NULL) INTO v_patch FROM dual;
+                            UPDATE util_audit_txn
+                               SET old_row_json = JSON_MERGEPATCH(old_row_json, v_patch RETURNING CLOB),
+                                   new_row_json = JSON_MERGEPATCH(new_row_json, v_patch RETURNING CLOB)
+                             WHERE table_name = v_table_name
+                               AND (old_row_json IS NOT NULL OR new_row_json IS NOT NULL);
+                            v_events := SQL%ROWCOUNT;
+                            DELETE FROM util_audit_records
+                             WHERE table_name = v_table_name AND column_name = v_col;
+                            DBMS_OUTPUT.PUT_LINE('Removed ' || v_col || ' from ' || v_events || ' snapshot(s) and ' ||
+                                                 SQL%ROWCOUNT || ' column change(s) of ' || v_table_name || '.');
+                            i := i + 1;
+                        END LOOP;
+                    END scrub_columns;
+
+                    PROCEDURE set_table_excluded_columns(
+                        p_table_name    IN VARCHAR2,
+                        p_columns       IN VARCHAR2,
+                        p_regenerate    IN BOOLEAN DEFAULT TRUE,
+                        p_scrub_history IN BOOLEAN DEFAULT FALSE
+                    ) IS
+                        v_table_name VARCHAR2(128)  := norm_name(p_table_name);
+                        v_columns    VARCHAR2(4000) := checked_columns(v_table_name, p_columns);
+                        v_has_trg    NUMBER;
+                    BEGIN
+                        -- The key identifies the row in every event; it has to be recorded
+                        FOR k IN (
+                            SELECT cols.column_name
+                            FROM user_constraints cons
+                            JOIN user_cons_columns cols ON cols.constraint_name = cons.constraint_name
+                            WHERE cons.table_name = v_table_name AND cons.constraint_type = 'P'
+                        ) LOOP
+                            IF in_list(v_columns, k.column_name) THEN
+                                RAISE_APPLICATION_ERROR(-20008, k.column_name || ' is part of the primary key of ' ||
+                                    v_table_name || ' and cannot be excluded.');
+                            END IF;
+                        END LOOP;
+
+                        MERGE INTO util_audit_config c
+                        USING (SELECT v_table_name table_name FROM dual) src
+                        ON (c.table_name = src.table_name)
+                        WHEN MATCHED THEN
+                            UPDATE SET excluded_columns = v_columns
+                        WHEN NOT MATCHED THEN
+                            INSERT (table_name, enabled_flag, created_on, created_by, excluded_columns)
+                            VALUES (src.table_name, 'Y', SYSDATE, USER, v_columns);
+
+                        IF p_regenerate THEN
+                            SELECT COUNT(*) INTO v_has_trg
+                            FROM v_util_audit_triggers
+                            WHERE table_name = v_table_name;
+                            IF v_has_trg > 0 THEN
+                                create_audit_trigger(v_table_name);
+                            END IF;
+                        END IF;
+
+                        IF p_scrub_history AND v_columns IS NOT NULL THEN
+                            scrub_columns(v_table_name, v_columns);
+                        END IF;
+                    END set_table_excluded_columns;
 
                     --------------------------------------------------------------------------
                     -- Public: Per-table ignored columns
@@ -4169,7 +4314,8 @@ supportingObject (
 
                 ## Other columns
 
-                - **Ignored Columns**: columns this table's trigger skips.
+                - **Ignored Columns**: bookkeeping columns whose changes are not listed.
+                - **Excluded Columns**: secrets that are never recorded at all.
                 - **Child Tables**: tables that point at this one with a foreign key. **Unaudited Child Tables** counts the ones without a trigger. Restoring a deleted row cannot bring back rows from those.
                 - **Events** and **Last Event**: how much has been recorded, and when last.
 
@@ -4196,6 +4342,14 @@ supportingObject (
                 A change that only touches ignored columns records nothing. These are always ignored: CREATED, CREATED_ON, CREATED_BY, UPDATED, UPDATED_ON, UPDATED_BY, MODIFIED, MODIFIED_ON, MODIFIED_BY.
 
                 Ignored columns are still kept in the copy of the whole row that each event stores, so a restored row gets them back.
+
+                ## Excluded columns
+
+                For secrets, such as password hashes and reset tokens. An excluded column is never written to the audit trail: not as a change, and not in the copy of the whole row. Key columns cannot be excluded.
+
+                A restored row gets an empty value or the column default for excluded columns. If such a column is required and has no default, a deleted row cannot be restored, and Restore says so.
+
+                Turn on **Also remove them from history already recorded** to delete these columns from everything this table has recorded so far. This cannot be undone, and archive files made earlier keep them.
 
                 ## Child tables
 
@@ -4504,6 +4658,10 @@ supportingObject (
                     -- Per-table columns the trigger skips (comma-separated), added in v2.2
                     ddl(q'[alter table UTIL_AUDIT_CONFIG add (IGNORED_COLUMNS VARCHAR2(4000))]');
 
+                    -- Per-table columns never recorded at all, not even in the row
+                    -- snapshots: passwords, tokens and other secrets (comma-separated)
+                    ddl(q'[alter table UTIL_AUDIT_CONFIG add (EXCLUDED_COLUMNS VARCHAR2(4000))]');
+
                     ddl(q'[
                 create table UTIL_AUDIT_TXN
                 (
@@ -4727,6 +4885,7 @@ supportingObject (
                     tr.trigger_name,
                     NVL(c.enabled_flag, 'N')             enabled_flag,
                     c.ignored_columns,
+                    c.excluded_columns,
                     CASE WHEN EXISTS (SELECT 1 FROM user_constraints k
                                       WHERE k.table_name = t.table_name
                                         AND k.constraint_type = 'P')
@@ -5296,7 +5455,7 @@ supportingObject (
 
                         -- Columns to write: those in the snapshot that can still be written
                         FOR c IN (
-                            SELECT tc.column_name, tc.data_type, tc.virtual_column,
+                            SELECT tc.column_name, tc.data_type, tc.virtual_column, tc.nullable, tc.default_length,
                                    NVL(ic.generation_type, '-') generation_type
                             FROM user_tab_cols tc
                             LEFT JOIN user_tab_identity_cols ic
@@ -5318,6 +5477,12 @@ supportingObject (
                                                 ' is not in the audit snapshot, so the row cannot be re-inserted.');
                                         END IF;
                                     END LOOP;
+                                    -- Typically an excluded column (a password, say)
+                                    IF c.nullable = 'N' AND NVL(c.default_length, 0) = 0 AND c.generation_type = '-' THEN
+                                        RAISE_APPLICATION_ERROR(-20009, e.table_name || '.' || c.column_name ||
+                                            ' is not recorded (it is excluded from auditing, or was added later) and is ' ||
+                                            'NOT NULL without a default, so the deleted row cannot be re-inserted.');
+                                    END IF;
                                 END IF;
                                 l_missing := l_missing || ', ' || c.column_name;
                                 CONTINUE;
@@ -6001,6 +6166,30 @@ supportingObject (
                         p_regenerate IN BOOLEAN DEFAULT TRUE
                     );
 
+                    -- Store the columns one table's trigger must never record, not in the
+                    -- column changes and not in the row snapshots: passwords, token hashes
+                    -- and other secrets (comma-separated, case-insensitive). Ignored columns
+                    -- are different: they stay in the snapshots so restore can bring them
+                    -- back. A primary key column cannot be excluded.
+                    -- p_regenerate:    re-create the trigger right away if the table has one
+                    -- p_scrub_history: also remove these columns from history already
+                    --                  recorded (see scrub_columns). Does not commit.
+                    PROCEDURE set_table_excluded_columns(
+                        p_table_name    IN VARCHAR2,
+                        p_columns       IN VARCHAR2,
+                        p_regenerate    IN BOOLEAN DEFAULT TRUE,
+                        p_scrub_history IN BOOLEAN DEFAULT FALSE
+                    );
+
+                    -- Removes columns from one table's recorded history: from the row
+                    -- snapshots of every event and the column changes. Use it when a
+                    -- secret was audited before it was excluded. Archive files already
+                    -- made (util_audit_archive) are not changed. Does not commit.
+                    PROCEDURE scrub_columns(
+                        p_table_name IN VARCHAR2,
+                        p_columns    IN VARCHAR2
+                    );
+
                     -- The CREATE TRIGGER statement create_audit_trigger would run
                     FUNCTION get_trigger_ddl(
                         p_table_name IN VARCHAR2
@@ -6318,6 +6507,7 @@ supportingObject (
                         v_pk_cols    t_names;
                         v_pk_dts     t_names;
                         v_ignored    util_audit_config.ignored_columns%TYPE;
+                        v_excluded   util_audit_config.excluded_columns%TYPE;
                         v_track      BOOLEAN;
 
                         v_sql        CLOB;
@@ -6374,12 +6564,13 @@ supportingObject (
                         END IF;
 
                         BEGIN
-                            SELECT ignored_columns INTO v_ignored
+                            SELECT ignored_columns, excluded_columns INTO v_ignored, v_excluded
                             FROM util_audit_config
                             WHERE table_name = v_table_name;
                         EXCEPTION
                             WHEN NO_DATA_FOUND THEN
-                                v_ignored := NULL;
+                                v_ignored  := NULL;
+                                v_excluded := NULL;
                         END;
 
                         v_sql := EMPTY_CLOB();
@@ -6387,6 +6578,9 @@ supportingObject (
                         ap('CREATE OR REPLACE TRIGGER ' || q(v_trg_name));
                         ap('AFTER INSERT OR UPDATE OR DELETE ON ' || q(v_table_name));
                         ap('FOR EACH ROW');
+                        IF v_excluded IS NOT NULL THEN
+                            ap('-- Never recorded (excluded): ' || REPLACE(v_excluded, ',', ', '));
+                        END IF;
                         ap('DECLARE');
                         ap('    l_txn_id    VARCHAR2(64) := RAWTOHEX(SYS_GUID());');
                         ap('    l_action    VARCHAR2(6);');
@@ -6466,6 +6660,11 @@ supportingObject (
                             ORDER BY column_id
                         ) LOOP
                             IF NOT supported_datatype(c.data_type) THEN
+                                CONTINUE;
+                            END IF;
+                            -- Excluded columns are never read: not in the changes, not in
+                            -- the snapshots
+                            IF v_excluded IS NOT NULL AND in_list(v_excluded, c.column_name) THEN
                                 CONTINUE;
                             END IF;
                             -- Ignored columns are left out of the changes but kept in the row
@@ -6613,6 +6812,106 @@ supportingObject (
 
                         report_child_tables(v_table_name);
                     END create_audit_trigger;
+
+                    --------------------------------------------------------------------------
+                    -- Public: Per-table excluded columns
+                    --------------------------------------------------------------------------
+                    -- The list, upper case, checked against the table: a misspelt name
+                    -- would leave the real column audited without anyone noticing
+                    FUNCTION checked_columns(p_table_name IN VARCHAR2, p_columns IN VARCHAR2) RETURN VARCHAR2 IS
+                        v_columns VARCHAR2(4000) := UPPER(REPLACE(TRIM(BOTH ',' FROM REPLACE(p_columns, ' ')), ',,', ','));
+                        v_col     VARCHAR2(4000);
+                        v_cnt     NUMBER;
+                        i         PLS_INTEGER := 1;
+                    BEGIN
+                        LOOP
+                            v_col := REGEXP_SUBSTR(v_columns, '[^,]+', 1, i);
+                            EXIT WHEN v_col IS NULL;
+                            SELECT COUNT(*) INTO v_cnt FROM user_tab_columns
+                             WHERE table_name = p_table_name AND column_name = v_col;
+                            IF v_cnt = 0 THEN
+                                RAISE_APPLICATION_ERROR(-20007, p_table_name || ' has no column ' || v_col || '.');
+                            END IF;
+                            i := i + 1;
+                        END LOOP;
+                        RETURN v_columns;
+                    END;
+
+                    PROCEDURE scrub_columns(
+                        p_table_name IN VARCHAR2,
+                        p_columns    IN VARCHAR2
+                    ) IS
+                        v_table_name VARCHAR2(128)  := norm_name(p_table_name);
+                        v_columns    VARCHAR2(4000) := checked_columns(v_table_name, p_columns);
+                        v_col        VARCHAR2(4000);
+                        v_patch      VARCHAR2(4000);
+                        v_events     NUMBER;
+                        i            PLS_INTEGER := 1;
+                    BEGIN
+                        LOOP
+                            v_col := REGEXP_SUBSTR(v_columns, '[^,]+', 1, i);
+                            EXIT WHEN v_col IS NULL;
+                            -- {"COL":null}: JSON_MERGEPATCH removes the key
+                            SELECT JSON_OBJECT(KEY v_col VALUE NULL NULL ON NULL) INTO v_patch FROM dual;
+                            UPDATE util_audit_txn
+                               SET old_row_json = JSON_MERGEPATCH(old_row_json, v_patch RETURNING CLOB),
+                                   new_row_json = JSON_MERGEPATCH(new_row_json, v_patch RETURNING CLOB)
+                             WHERE table_name = v_table_name
+                               AND (old_row_json IS NOT NULL OR new_row_json IS NOT NULL);
+                            v_events := SQL%ROWCOUNT;
+                            DELETE FROM util_audit_records
+                             WHERE table_name = v_table_name AND column_name = v_col;
+                            DBMS_OUTPUT.PUT_LINE('Removed ' || v_col || ' from ' || v_events || ' snapshot(s) and ' ||
+                                                 SQL%ROWCOUNT || ' column change(s) of ' || v_table_name || '.');
+                            i := i + 1;
+                        END LOOP;
+                    END scrub_columns;
+
+                    PROCEDURE set_table_excluded_columns(
+                        p_table_name    IN VARCHAR2,
+                        p_columns       IN VARCHAR2,
+                        p_regenerate    IN BOOLEAN DEFAULT TRUE,
+                        p_scrub_history IN BOOLEAN DEFAULT FALSE
+                    ) IS
+                        v_table_name VARCHAR2(128)  := norm_name(p_table_name);
+                        v_columns    VARCHAR2(4000) := checked_columns(v_table_name, p_columns);
+                        v_has_trg    NUMBER;
+                    BEGIN
+                        -- The key identifies the row in every event; it has to be recorded
+                        FOR k IN (
+                            SELECT cols.column_name
+                            FROM user_constraints cons
+                            JOIN user_cons_columns cols ON cols.constraint_name = cons.constraint_name
+                            WHERE cons.table_name = v_table_name AND cons.constraint_type = 'P'
+                        ) LOOP
+                            IF in_list(v_columns, k.column_name) THEN
+                                RAISE_APPLICATION_ERROR(-20008, k.column_name || ' is part of the primary key of ' ||
+                                    v_table_name || ' and cannot be excluded.');
+                            END IF;
+                        END LOOP;
+
+                        MERGE INTO util_audit_config c
+                        USING (SELECT v_table_name table_name FROM dual) src
+                        ON (c.table_name = src.table_name)
+                        WHEN MATCHED THEN
+                            UPDATE SET excluded_columns = v_columns
+                        WHEN NOT MATCHED THEN
+                            INSERT (table_name, enabled_flag, created_on, created_by, excluded_columns)
+                            VALUES (src.table_name, 'Y', SYSDATE, USER, v_columns);
+
+                        IF p_regenerate THEN
+                            SELECT COUNT(*) INTO v_has_trg
+                            FROM v_util_audit_triggers
+                            WHERE table_name = v_table_name;
+                            IF v_has_trg > 0 THEN
+                                create_audit_trigger(v_table_name);
+                            END IF;
+                        END IF;
+
+                        IF p_scrub_history AND v_columns IS NOT NULL THEN
+                            scrub_columns(v_table_name, v_columns);
+                        END IF;
+                    END set_table_excluded_columns;
 
                     --------------------------------------------------------------------------
                     -- Public: Per-table ignored columns
@@ -8597,7 +8896,8 @@ supportingObject (
 
                 ## Other columns
 
-                - **Ignored Columns**: columns this table's trigger skips.
+                - **Ignored Columns**: bookkeeping columns whose changes are not listed.
+                - **Excluded Columns**: secrets that are never recorded at all.
                 - **Child Tables**: tables that point at this one with a foreign key. **Unaudited Child Tables** counts the ones without a trigger. Restoring a deleted row cannot bring back rows from those.
                 - **Events** and **Last Event**: how much has been recorded, and when last.
 
@@ -8624,6 +8924,14 @@ supportingObject (
                 A change that only touches ignored columns records nothing. These are always ignored: CREATED, CREATED_ON, CREATED_BY, UPDATED, UPDATED_ON, UPDATED_BY, MODIFIED, MODIFIED_ON, MODIFIED_BY.
 
                 Ignored columns are still kept in the copy of the whole row that each event stores, so a restored row gets them back.
+
+                ## Excluded columns
+
+                For secrets, such as password hashes and reset tokens. An excluded column is never written to the audit trail: not as a change, and not in the copy of the whole row. Key columns cannot be excluded.
+
+                A restored row gets an empty value or the column default for excluded columns. If such a column is required and has no default, a deleted row cannot be restored, and Restore says so.
+
+                Turn on **Also remove them from history already recorded** to delete these columns from everything this table has recorded so far. This cannot be undone, and archive files made earlier keep them.
 
                 ## Child tables
 

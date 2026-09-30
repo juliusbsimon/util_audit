@@ -33,18 +33,18 @@ prompt APPLICATION 129 - Util Audit
 -- Application Export:
 --   Application:     129
 --   Name:            Util Audit
---   Date and Time:   17:07 Monday September 28, 2026
+--   Date and Time:   01:48 Wednesday September 30, 2026
 --   Exported By:     UA_TEST
 --   Flashback:       0
 --   Export Type:     Application Export
 --     Pages:                     14
---       Items:                   80
+--       Items:                   82
 --       Computations:             2
 --       Validations:             14
---       Processes:               33
---       Regions:                 52
---       Buttons:                 29
---       Dynamic Actions:         18
+--       Processes:               34
+--       Regions:                 53
+--       Buttons:                 30
+--       Dynamic Actions:         19
 --     Shared Components:
 --       Logic:
 --         Items:                  3
@@ -113,7 +113,7 @@ wwv_imp_workspace.create_flow(
 ,p_rejoin_existing_sessions=>'N'
 ,p_csv_encoding=>'Y'
 ,p_file_prefix=>nvl(wwv_flow_application_install.get_static_app_file_prefix,'')
-,p_files_version=>2461312170743
+,p_files_version=>2461314014607
 ,p_print_server_type=>'NATIVE'
 ,p_file_storage=>'DB'
 ,p_is_pwa=>'Y'
@@ -297,7 +297,7 @@ wwv_flow_imp_shared.create_plugin(
 '<p>Shows the changes util_audit recorded for the row a page is showing: who changed it, when, and each column''s old and new value. Set <strong>Table</strong> and <strong>Key Items</strong>; everything else is optional.</p>',
 '<p>Needs the util_audit framework installed (the Util Audit app installs it). The region renders when the page loads.</p>'))
 ,p_version_identifier=>'1.0'
-,p_files_version=>2461312170743
+,p_files_version=>2461314014607
 );
 wwv_flow_imp_shared.create_plugin_attribute(
  p_id=>wwv_flow_imp.id(5629537890562798)
@@ -2185,7 +2185,7 @@ wwv_flow_imp_shared.create_theme(
 ,p_default_required_label=>1610598484065263269
 ,p_default_navbar_list_template=>2849019392706229583
 ,p_file_prefix=>nvl(wwv_flow_application_install.get_static_theme_file_prefix(42),'#APEX_FILES#themes/theme_42/26.1/')
-,p_files_version=>2461312170743
+,p_files_version=>2461314014607
 ,p_icon_library=>'FONTAPEX'
 ,p_javascript_file_urls=>wwv_flow_string.join(wwv_flow_t_varchar2(
 '#APEX_FILES#libraries/apex/#MIN_DIRECTORY#widget.stickyWidget#MIN#.js?v=#APEX_VERSION#',
@@ -2984,6 +2984,20 @@ wwv_flow_imp_page.create_report_columns(
 ,p_include_in_export=>'Y'
 );
 wwv_flow_imp_page.create_page_plug(
+ p_id=>wwv_flow_imp.id(7230403018910282)
+,p_plug_name=>'Excluded Columns'
+,p_static_id=>'excluded-columns'
+,p_region_template_options=>'#DEFAULT#'
+,p_plug_template=>4073835273271169698
+,p_plug_display_sequence=>25
+,p_plug_item_display_point=>'ABOVE'
+,p_location=>null
+,p_plug_required_role=>wwv_flow_imp.id(5505069898560897)
+,p_attributes=>wwv_flow_t_plugin_attributes(wwv_flow_t_varchar2(
+  'expand_shortcuts', 'N',
+  'output_as', 'HTML')).to_clob
+);
+wwv_flow_imp_page.create_page_plug(
  p_id=>wwv_flow_imp.id(5513395844560973)
 ,p_plug_name=>'Ignored Columns'
 ,p_static_id=>'ignored-columns'
@@ -3130,6 +3144,21 @@ wwv_flow_imp_page.create_page_button(
 ,p_security_scheme=>wwv_flow_imp.id(5505069898560897)
 );
 wwv_flow_imp_page.create_page_button(
+ p_id=>wwv_flow_imp.id(7231091631910286)
+,p_button_sequence=>30
+,p_button_plug_id=>wwv_flow_imp.id(7230403018910282)
+,p_button_name=>'SAVE_EXCLUDED'
+,p_static_id=>'save-excluded'
+,p_show_as_disabled=>false
+,p_button_action=>'DEFINED_BY_DA'
+,p_button_template_options=>'#DEFAULT#'
+,p_button_template_id=>4073839297780169708
+,p_button_image_alt=>'Save Excluded Columns'
+,p_warn_on_unsaved_changes=>null
+,p_grid_new_row=>'Y'
+,p_security_scheme=>wwv_flow_imp.id(5505069898560897)
+);
+wwv_flow_imp_page.create_page_button(
  p_id=>wwv_flow_imp.id(5515483877560999)
 ,p_button_sequence=>20
 ,p_button_plug_id=>wwv_flow_imp.id(5513395844560973)
@@ -3215,6 +3244,36 @@ wwv_flow_imp_page.create_page_item(
   'show_line_breaks', 'Y')).to_clob
 );
 wwv_flow_imp_page.create_page_item(
+ p_id=>wwv_flow_imp.id(7230694669910285)
+,p_name=>'P3_EXCLUDED_COLUMNS'
+,p_item_sequence=>10
+,p_item_plug_id=>wwv_flow_imp.id(7230403018910282)
+,p_prompt=>'Columns never recorded'
+,p_source_type=>'ALWAYS_NULL'
+,p_display_as=>'NATIVE_SHUTTLE'
+,p_lov=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'select c.column_name d,',
+'       c.column_name r',
+'  from user_tab_columns c',
+' where c.table_name = :P3_TABLE_NAME',
+'   and not exists (select 1',
+'                     from user_constraints k',
+'                     join user_cons_columns kc on kc.constraint_name = k.constraint_name',
+'                    where k.table_name = c.table_name',
+'                      and k.constraint_type = ''P''',
+'                      and kc.column_name = c.column_name)',
+' order by c.column_id'))
+,p_field_template=>1610598304472262251
+,p_item_template_options=>'#DEFAULT#'
+,p_lov_display_extra=>'YES'
+,p_help_text=>'For secrets such as password or token hashes. These columns are never written to the audit trail, not even in the copy of the whole row that each event keeps. A restored row gets an empty value or the column default for them. Saving re-creates the tr'
+||'igger when the table is audited.'
+,p_attributes=>wwv_flow_t_plugin_attributes(wwv_flow_t_varchar2(
+  'show_controls', 'ALL')).to_clob
+,p_multi_value_type=>'SEPARATED'
+,p_multi_value_separator=>':'
+);
+wwv_flow_imp_page.create_page_item(
  p_id=>wwv_flow_imp.id(5514246746560997)
 ,p_name=>'P3_HAS_PK'
 ,p_item_sequence=>20
@@ -3241,11 +3300,26 @@ wwv_flow_imp_page.create_page_item(
 ,p_field_template=>1610598304472262251
 ,p_item_template_options=>'#DEFAULT#'
 ,p_lov_display_extra=>'YES'
-,p_help_text=>'Changes to the columns in this list are not recorded by the audit trigger. Saving re-creates the trigger when the table is audited.'
+,p_help_text=>'Changes to only these columns record nothing, for bookkeeping columns such as a last-login time. They are still kept in the copy of the whole row each event stores, so a restored row gets them back. For secrets, use Excluded Columns instead. Saving r'
+||'e-creates the trigger when the table is audited.'
 ,p_attributes=>wwv_flow_t_plugin_attributes(wwv_flow_t_varchar2(
   'show_controls', 'ALL')).to_clob
 ,p_multi_value_type=>'SEPARATED'
 ,p_multi_value_separator=>':'
+);
+wwv_flow_imp_page.create_page_item(
+ p_id=>wwv_flow_imp.id(7230831410910285)
+,p_name=>'P3_SCRUB_HISTORY'
+,p_item_sequence=>20
+,p_item_plug_id=>wwv_flow_imp.id(7230403018910282)
+,p_prompt=>'Also remove them from history already recorded'
+,p_source_type=>'ALWAYS_NULL'
+,p_display_as=>'NATIVE_YES_NO'
+,p_field_template=>1610598304472262251
+,p_item_template_options=>'#DEFAULT#'
+,p_help_text=>'Deletes these columns from every event this table has recorded so far, in the row copies and the column changes. This cannot be undone. Archive files made earlier are not changed.'
+,p_attributes=>wwv_flow_t_plugin_attributes(wwv_flow_t_varchar2(
+  'use_defaults', 'Y')).to_clob
 );
 wwv_flow_imp_page.create_page_item(
  p_id=>wwv_flow_imp.id(5514199554560994)
@@ -3294,6 +3368,44 @@ wwv_flow_imp_page.create_page_da_action(
 ,p_static_id=>'cancel-dialog-action'
 ,p_action=>'NATIVE_DIALOG_CANCEL'
 );
+wwv_flow_imp_page.create_page_da_event(
+ p_id=>wwv_flow_imp.id(7231196506910286)
+,p_name=>'Confirm Save Excluded'
+,p_static_id=>'confirm-save-excluded'
+,p_event_sequence=>5
+,p_triggering_element_type=>'BUTTON'
+,p_triggering_button_id=>wwv_flow_imp.id(7231091631910286)
+,p_bind_type=>'bind'
+,p_execution_type=>'IMMEDIATE'
+,p_bind_event_type=>'click'
+);
+wwv_flow_imp_page.create_page_da_action(
+ p_id=>wwv_flow_imp.id(7231251694910286)
+,p_event_id=>wwv_flow_imp.id(7231196506910286)
+,p_event_result=>'TRUE'
+,p_action_sequence=>10
+,p_execute_on_page_init=>'N'
+,p_static_id=>'confirm-and-submit-excluded'
+,p_action=>'NATIVE_JAVASCRIPT_CODE'
+,p_attributes=>wwv_flow_t_plugin_attributes(wwv_flow_t_varchar2(
+  'js_code', wwv_flow_string.join(wwv_flow_t_varchar2(
+    'var cols = $v("P3_EXCLUDED_COLUMNS").split(":").filter(Boolean),',
+    '    esc  = apex.util.escapeHTML;',
+    'if ($v("P3_SCRUB_HISTORY") !== "Y" || cols.length === 0) {',
+    '    apex.submit({ request: "SAVE_EXCLUDED" });',
+    '} else {',
+    '    apex.message.confirm(',
+    '        "Permanently remove " + esc(cols.join(", ")) + " from every event " +',
+    '            esc($v("P3_TABLE_NAME")) + " has recorded so far? This cannot be undone.",',
+    '        function (ok) {',
+    '            if (ok) {',
+    '                apex.submit({ request: "SAVE_EXCLUDED" });',
+    '            }',
+    '        },',
+    '        { style: "danger", confirmLabel: "Remove From History" }',
+    '    );',
+    '}')))).to_clob
+);
 wwv_flow_imp_page.create_page_process(
  p_id=>wwv_flow_imp.id(5516459929561000)
 ,p_process_sequence=>100
@@ -3304,7 +3416,7 @@ wwv_flow_imp_page.create_page_process(
 ,p_attributes=>wwv_flow_t_plugin_attributes(wwv_flow_t_varchar2(
   'show_success_messages', 'Y')).to_clob
 ,p_error_display_location=>'INLINE_IN_NOTIFICATION'
-,p_process_when=>'START_AUDITING,RECREATE_TRIGGER,PAUSE_AUDITING,RESUME_AUDITING,STOP_AUDITING,SAVE_IGNORED'
+,p_process_when=>'START_AUDITING,RECREATE_TRIGGER,PAUSE_AUDITING,RESUME_AUDITING,STOP_AUDITING,SAVE_IGNORED,SAVE_EXCLUDED'
 ,p_process_when_type=>'REQUEST_IN_CONDITION'
 ,p_internal_uid=>5516459929561000
 );
@@ -3321,7 +3433,8 @@ wwv_flow_imp_page.create_page_process(
 '           trigger_name,',
 '           has_pk,',
 '           event_count,',
-'           replace(ignored_columns, '','', '':'') ignored_columns',
+'           replace(ignored_columns, '','', '':'') ignored_columns,',
+'           replace(excluded_columns, '','', '':'') excluded_columns',
 '      from v_util_audit_tables',
 '     where table_name = :P3_TABLE_NAME',
 ') loop',
@@ -3329,7 +3442,8 @@ wwv_flow_imp_page.create_page_process(
 '    :P3_TRIGGER_NAME    := t.trigger_name;',
 '    :P3_HAS_PK          := t.has_pk;',
 '    :P3_EVENT_COUNT     := t.event_count;',
-'    :P3_IGNORED_COLUMNS := t.ignored_columns;',
+'    :P3_IGNORED_COLUMNS  := t.ignored_columns;',
+'    :P3_EXCLUDED_COLUMNS := t.excluded_columns;',
 'end loop;'))
 ,p_process_clob_language=>'PLSQL'
 ,p_internal_uid=>5515718282560999
@@ -3357,11 +3471,16 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_name=>'Re-create Trigger'
 ,p_static_id=>'recreate-trigger'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'-- Save the ignored columns shown on the page first, so the new',
-'-- trigger skips what the user sees. The enabled flag is kept.',
+'-- Save the ignored and excluded columns shown on the page first,',
+'-- so the new trigger matches what the user sees. The enabled',
+'-- flag is kept.',
 'util_audit_gen.set_table_ignored_columns(',
 '    p_table_name => :P3_TABLE_NAME,',
 '    p_columns    => replace(:P3_IGNORED_COLUMNS, '':'', '',''),',
+'    p_regenerate => false);',
+'util_audit_gen.set_table_excluded_columns(',
+'    p_table_name => :P3_TABLE_NAME,',
+'    p_columns    => replace(:P3_EXCLUDED_COLUMNS, '':'', '',''),',
 '    p_regenerate => false);',
 'util_audit_gen.create_audit_trigger(:P3_TABLE_NAME);'))
 ,p_process_clob_language=>'PLSQL'
@@ -3387,6 +3506,25 @@ wwv_flow_imp_page.create_page_process(
 ,p_internal_uid=>5516189721561000
 );
 wwv_flow_imp_page.create_page_process(
+ p_id=>wwv_flow_imp.id(7231387371910287)
+,p_process_sequence=>65
+,p_process_point=>'AFTER_SUBMIT'
+,p_process_type=>'NATIVE_PLSQL'
+,p_process_name=>'Save Excluded Columns'
+,p_static_id=>'save-excluded'
+,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'util_audit_gen.set_table_excluded_columns(',
+'    p_table_name    => :P3_TABLE_NAME,',
+'    p_columns       => replace(:P3_EXCLUDED_COLUMNS, '':'', '',''),',
+'    p_scrub_history => :P3_SCRUB_HISTORY = ''Y'');'))
+,p_process_clob_language=>'PLSQL'
+,p_error_display_location=>'INLINE_IN_NOTIFICATION'
+,p_process_when_button_id=>wwv_flow_imp.id(7231091631910286)
+,p_process_success_message=>'Excluded columns saved for &P3_TABLE_NAME..'
+,p_security_scheme=>wwv_flow_imp.id(5505069898560897)
+,p_internal_uid=>7231387371910287
+);
+wwv_flow_imp_page.create_page_process(
  p_id=>wwv_flow_imp.id(5516387970561000)
 ,p_process_sequence=>60
 ,p_process_point=>'AFTER_SUBMIT'
@@ -3409,12 +3547,16 @@ wwv_flow_imp_page.create_page_process(
 ,p_process_name=>'Start Auditing'
 ,p_static_id=>'start-auditing'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'-- Build the trigger with the ignored columns shown on the page,',
-'-- then enable the table: create_audit_trigger keeps an existing',
-'-- flag, so a table paused earlier would otherwise stay paused.',
+'-- Build the trigger with the ignored and excluded columns shown on',
+'-- the page, then enable the table: create_audit_trigger keeps an',
+'-- existing flag, so a table paused earlier would otherwise stay paused.',
 'util_audit_gen.set_table_ignored_columns(',
 '    p_table_name => :P3_TABLE_NAME,',
 '    p_columns    => replace(:P3_IGNORED_COLUMNS, '':'', '',''),',
+'    p_regenerate => false);',
+'util_audit_gen.set_table_excluded_columns(',
+'    p_table_name => :P3_TABLE_NAME,',
+'    p_columns    => replace(:P3_EXCLUDED_COLUMNS, '':'', '',''),',
 '    p_regenerate => false);',
 'util_audit_gen.create_audit_trigger(:P3_TABLE_NAME);',
 'util_audit.enable_table(:P3_TABLE_NAME);'))
@@ -4070,7 +4212,7 @@ wwv_flow_imp_page.create_page_button(
 ,p_security_scheme=>wwv_flow_imp.id(5505069898560897)
 );
 wwv_flow_imp_page.create_page_branch(
- p_id=>wwv_flow_imp.id(6956025701511891)
+ p_id=>wwv_flow_imp.id(7237921659926816)
 ,p_branch_name=>'Go To Event'
 ,p_branch_action=>'f?p=&APP_ID.:5:&SESSION.::&DEBUG.::P5_TRANSACTION_ID:&P5_TRANSACTION_ID.&success_msg=#SUCCESS_MSG#'
 ,p_branch_point=>'AFTER_PROCESSING'
@@ -5051,7 +5193,7 @@ wwv_flow_imp_page.create_page_button(
 ,p_grid_new_row=>'Y'
 );
 wwv_flow_imp_page.create_page_branch(
- p_id=>wwv_flow_imp.id(6956430288511913)
+ p_id=>wwv_flow_imp.id(7238313855926819)
 ,p_branch_name=>'Go To Maintenance'
 ,p_branch_action=>'f?p=&APP_ID.:8:&SESSION.::&DEBUG.&success_msg=#SUCCESS_MSG#'
 ,p_branch_point=>'AFTER_PROCESSING'
@@ -6358,7 +6500,7 @@ wwv_flow_imp_page.create_page_button(
 ,p_grid_new_row=>'Y'
 );
 wwv_flow_imp_page.create_page_branch(
- p_id=>wwv_flow_imp.id(6957643420511937)
+ p_id=>wwv_flow_imp.id(7239570393926823)
 ,p_branch_name=>'Back to Generator'
 ,p_branch_action=>'f?p=&APP_ID.:11:&SESSION.::&DEBUG.&success_msg=#SUCCESS_MSG#'
 ,p_branch_point=>'AFTER_PROCESSING'
@@ -7378,7 +7520,7 @@ wwv_flow_imp_page.create_page_button(
 ,p_grid_new_row=>'Y'
 );
 wwv_flow_imp_page.create_page_branch(
- p_id=>wwv_flow_imp.id(6959082045511943)
+ p_id=>wwv_flow_imp.id(7240938340926826)
 ,p_branch_name=>'Go To Archive'
 ,p_branch_action=>'f?p=&APP_ID.:12:&SESSION.::&DEBUG.&success_msg=#SUCCESS_MSG#'
 ,p_branch_point=>'AFTER_PROCESSING'
@@ -8864,420 +9006,436 @@ wwv_flow_imp.g_varchar2_table(73) := 'eate Trigger** |'||wwv_flow.LF||
 '## Other colum';
 wwv_flow_imp.g_varchar2_table(74) := 'ns'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- **Ignored Columns**: columns this table''s trigger skips.'||wwv_flow.LF||
-'- **Child Tables**: tables that point';
-wwv_flow_imp.g_varchar2_table(75) := ' at this one with a foreign key. **Unaudited Child Tables** counts the ones without a trigger. Resto';
-wwv_flow_imp.g_varchar2_table(76) := 'ring a deleted row cannot bring back rows from those.'||wwv_flow.LF||
-'- **Events** and **Last Event**: how much has ';
-wwv_flow_imp.g_varchar2_table(77) := 'been recorded, and when last.'||wwv_flow.LF||
+'- **Ignored Columns**: bookkeeping columns whose changes are not listed.'||wwv_flow.LF||
+'- **Excluded Columns**:';
+wwv_flow_imp.g_varchar2_table(75) := ' secrets that are never recorded at all.'||wwv_flow.LF||
+'- **Child Tables**: tables that point at this one with a fo';
+wwv_flow_imp.g_varchar2_table(76) := 'reign key. **Unaudited Child Tables** counts the ones without a trigger. Restoring a deleted row can';
+wwv_flow_imp.g_varchar2_table(77) := 'not bring back rows from those.'||wwv_flow.LF||
+'- **Events** and **Last Event**: how much has been recorded, and whe';
+wwv_flow_imp.g_varchar2_table(78) := 'n last.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 'A table needs a primary key before it can be audited.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(';
-wwv_flow_imp.g_varchar2_table(78) := '''auditing-a-table'', ''Auditing a table'', 3, ''N'', 35, q''['||wwv_flow.LF||
-'Open **Tables** and click a table name. The ';
-wwv_flow_imp.g_varchar2_table(79) := 'panel on the right shows the table''s status and what you can do with it. Only administrators see the';
-wwv_flow_imp.g_varchar2_table(80) := ' buttons.'||wwv_flow.LF||
+'    seed(''auditing-a-table'', ''A';
+wwv_flow_imp.g_varchar2_table(79) := 'uditing a table'', 3, ''N'', 35, q''['||wwv_flow.LF||
+'Open **Tables** and click a table name. The panel on the right sho';
+wwv_flow_imp.g_varchar2_table(80) := 'ws the table''s status and what you can do with it. Only administrators see the buttons.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Buttons'||wwv_flow.LF||
-''||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(81) := ''||wwv_flow.LF||
 '| Button | What it does |'||wwv_flow.LF||
 '| --- | --- |'||wwv_flow.LF||
-'| **Start Auditing** | Creates the au';
-wwv_flow_imp.g_varchar2_table(81) := 'dit trigger. Recording starts at once |'||wwv_flow.LF||
+'| **Start Auditing** | Creates the audit trigger. Recording';
+wwv_flow_imp.g_varchar2_table(82) := ' starts at once |'||wwv_flow.LF||
 '| **Pause** | Stops recording but keeps the trigger |'||wwv_flow.LF||
-'| **Re';
-wwv_flow_imp.g_varchar2_table(82) := 'sume** | Starts recording again after a pause |'||wwv_flow.LF||
-'| **Re-create Trigger** | Rebuilds the trigger. Do t';
-wwv_flow_imp.g_varchar2_table(83) := 'his after adding or dropping columns |'||wwv_flow.LF||
-'| **Stop Auditing** | Removes the trigger. The history alread';
-wwv_flow_imp.g_varchar2_table(84) := 'y recorded is kept |'||wwv_flow.LF||
+'| **Resume** | Starts record';
+wwv_flow_imp.g_varchar2_table(83) := 'ing again after a pause |'||wwv_flow.LF||
+'| **Re-create Trigger** | Rebuilds the trigger. Do this after adding or dr';
+wwv_flow_imp.g_varchar2_table(84) := 'opping columns |'||wwv_flow.LF||
+'| **Stop Auditing** | Removes the trigger. The history already recorded is kept |'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Ignored columns'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(85) := '## Ignored columns'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Move the columns you do not want recorded to the right, th';
-wwv_flow_imp.g_varchar2_table(85) := 'en press **Save Ignored Columns**. The trigger is rebuilt straight away, and the list is kept every ';
-wwv_flow_imp.g_varchar2_table(86) := 'time the trigger is rebuilt.'||wwv_flow.LF||
+'Move the columns you do not want recorded to the right, then press **Save Ignore';
+wwv_flow_imp.g_varchar2_table(86) := 'd Columns**. The trigger is rebuilt straight away, and the list is kept every time the trigger is re';
+wwv_flow_imp.g_varchar2_table(87) := 'built.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'A change that only touches ignored columns records nothing. These are ';
-wwv_flow_imp.g_varchar2_table(87) := 'always ignored: CREATED, CREATED_ON, CREATED_BY, UPDATED, UPDATED_ON, UPDATED_BY, MODIFIED, MODIFIED';
-wwv_flow_imp.g_varchar2_table(88) := '_ON, MODIFIED_BY.'||wwv_flow.LF||
+'A change that only touches ignored columns records nothing. These are always ignored: CREATE';
+wwv_flow_imp.g_varchar2_table(88) := 'D, CREATED_ON, CREATED_BY, UPDATED, UPDATED_ON, UPDATED_BY, MODIFIED, MODIFIED_ON, MODIFIED_BY.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Ignored columns are still kept in the copy of the whole row that each event store';
-wwv_flow_imp.g_varchar2_table(89) := 's, so a restored row gets them back.'||wwv_flow.LF||
+'Ign';
+wwv_flow_imp.g_varchar2_table(89) := 'ored columns are still kept in the copy of the whole row that each event stores, so a restored row g';
+wwv_flow_imp.g_varchar2_table(90) := 'ets them back.'||wwv_flow.LF||
+''||wwv_flow.LF||
+'## Excluded columns'||wwv_flow.LF||
+''||wwv_flow.LF||
+'For secrets, such as password hashes and reset tokens. An exclu';
+wwv_flow_imp.g_varchar2_table(91) := 'ded column is never written to the audit trail: not as a change, and not in the copy of the whole ro';
+wwv_flow_imp.g_varchar2_table(92) := 'w. Key columns cannot be excluded.'||wwv_flow.LF||
+''||wwv_flow.LF||
+'A restored row gets an empty value or the column default for exc';
+wwv_flow_imp.g_varchar2_table(93) := 'luded columns. If such a column is required and has no default, a deleted row cannot be restored, an';
+wwv_flow_imp.g_varchar2_table(94) := 'd Restore says so.'||wwv_flow.LF||
+''||wwv_flow.LF||
+'Turn on **Also remove them from history already recorded** to delete these colum';
+wwv_flow_imp.g_varchar2_table(95) := 'ns from everything this table has recorded so far. This cannot be undone, and archive files made ear';
+wwv_flow_imp.g_varchar2_table(96) := 'lier keep them.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Child tables'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Lists every table that points at this one, ho';
-wwv_flow_imp.g_varchar2_table(90) := 'w it reacts when a row here is deleted (**On Delete**), and whether it is audited.'||wwv_flow.LF||
+'Lists every table that points at this one, how it reacts when a ro';
+wwv_flow_imp.g_varchar2_table(97) := 'w here is deleted (**On Delete**), and whether it is audited.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'When you restore';
-wwv_flow_imp.g_varchar2_table(91) := ' a deleted row, Util Audit also brings back its child rows, but only from audited child tables. Audi';
-wwv_flow_imp.g_varchar2_table(92) := 't the child tables too if you want restores to be complete.'||wwv_flow.LF||
+'When you restore a deleted row, Util ';
+wwv_flow_imp.g_varchar2_table(98) := 'Audit also brings back its child rows, but only from audited child tables. Audit the child tables to';
+wwv_flow_imp.g_varchar2_table(99) := 'o if you want restores to be complete.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Trigger code'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Shows the exact trigge';
-wwv_flow_imp.g_varchar2_table(93) := 'r the app creates for this table. Nothing runs when you open it.'||wwv_flow.LF||
+'Shows the exact trigger the app creates for';
+wwv_flow_imp.g_varchar2_table(100) := ' this table. Nothing runs when you open it.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''events'', ''Events'', ';
-wwv_flow_imp.g_varchar2_table(94) := '4, ''N'', 40, q''['||wwv_flow.LF||
-'Events lists every recorded change, newest first.'||wwv_flow.LF||
+'    seed(''events'', ''Events'', 4, ''N'', 40, q''['||wwv_flow.LF||
+'Event';
+wwv_flow_imp.g_varchar2_table(101) := 's lists every recorded change, newest first.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Finding a change'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- Type in **';
-wwv_flow_imp.g_varchar2_table(95) := 'Search** to match any word in the list.'||wwv_flow.LF||
-'- Tick a **Table**, **Type** (INSERT, UPDATE or DELETE) or *';
-wwv_flow_imp.g_varchar2_table(96) := '*User** to narrow the list. The numbers next to each value show how many events match.'||wwv_flow.LF||
-'- Enter dates';
-wwv_flow_imp.g_varchar2_table(97) := ' under **When** and press **Go** to limit the time range.'||wwv_flow.LF||
+'- Type in **Search** to match any';
+wwv_flow_imp.g_varchar2_table(102) := ' word in the list.'||wwv_flow.LF||
+'- Tick a **Table**, **Type** (INSERT, UPDATE or DELETE) or **User** to narrow the';
+wwv_flow_imp.g_varchar2_table(103) := ' list. The numbers next to each value show how many events match.'||wwv_flow.LF||
+'- Enter dates under **When** and p';
+wwv_flow_imp.g_varchar2_table(104) := 'ress **Go** to limit the time range.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Columns'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'**Key** is the row''s primary ';
-wwv_flow_imp.g_varchar2_table(98) := 'key. A key made of several columns is shown as `{"ORDER_ID":"100","LINE_NO":"1"}`. **Changed Columns';
-wwv_flow_imp.g_varchar2_table(99) := '** lists the columns that changed. An insert or delete lists every column.'||wwv_flow.LF||
+'**Key** is the row''s primary key. A key made of se';
+wwv_flow_imp.g_varchar2_table(105) := 'veral columns is shown as `{"ORDER_ID":"100","LINE_NO":"1"}`. **Changed Columns** lists the columns ';
+wwv_flow_imp.g_varchar2_table(106) := 'that changed. An insert or delete lists every column.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Opening a change'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Cli';
-wwv_flow_imp.g_varchar2_table(100) := 'ck the time to see the full event and, for administrators, to restore the row. Click **History** to ';
-wwv_flow_imp.g_varchar2_table(101) := 'see every change to that row.'||wwv_flow.LF||
+'Click the time to see th';
+wwv_flow_imp.g_varchar2_table(107) := 'e full event and, for administrators, to restore the row. Click **History** to see every change to t';
+wwv_flow_imp.g_varchar2_table(108) := 'hat row.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''event-and-restore'', ''An event, and restoring a row'', 5';
-wwv_flow_imp.g_varchar2_table(102) := ', ''N'', 50, q''['||wwv_flow.LF||
-'The Event panel shows one recorded change.'||wwv_flow.LF||
+'    seed(''event-and-restore'', ''An event, and restoring a row'', 5, ''N'', 50, q''['||wwv_flow.LF||
+'The Ev';
+wwv_flow_imp.g_varchar2_table(109) := 'ent panel shows one recorded change.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## What it shows'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- **Event**: when, whic';
-wwv_flow_imp.g_varchar2_table(103) := 'h table and row, what kind of change, and who made it. The user is the APEX user for changes made in';
-wwv_flow_imp.g_varchar2_table(104) := ' an APEX app, otherwise the database user.'||wwv_flow.LF||
-'- **Context**: where the change came from. For an APEX ap';
-wwv_flow_imp.g_varchar2_table(105) := 'p: the app, page and session numbers and the user''s IP address. For other tools: the program name (*';
-wwv_flow_imp.g_varchar2_table(106) := '*Module**), the computer (**Host**) and the operating-system user.'||wwv_flow.LF||
-'- **Column Changes**: each column';
-wwv_flow_imp.g_varchar2_table(107) := '''s value before and after.'||wwv_flow.LF||
+'- **Event**: when, which table and row, what';
+wwv_flow_imp.g_varchar2_table(110) := ' kind of change, and who made it. The user is the APEX user for changes made in an APEX app, otherwi';
+wwv_flow_imp.g_varchar2_table(111) := 'se the database user.'||wwv_flow.LF||
+'- **Context**: where the change came from. For an APEX app: the app, page and ';
+wwv_flow_imp.g_varchar2_table(112) := 'session numbers and the user''s IP address. For other tools: the program name (**Module**), the compu';
+wwv_flow_imp.g_varchar2_table(113) := 'ter (**Host**) and the operating-system user.'||wwv_flow.LF||
+'- **Column Changes**: each column''s value before and a';
+wwv_flow_imp.g_varchar2_table(114) := 'fter.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Restoring a row'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Restore puts the row back the way it was just before';
-wwv_flow_imp.g_varchar2_table(108) := ' this event.'||wwv_flow.LF||
+'Restore puts the row back the way it was just before this event.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- For a **delete**, the row is inserted again.'||wwv_flow.LF||
-'- For an **update**, the columns go bac';
-wwv_flow_imp.g_varchar2_table(109) := 'k to their old values.'||wwv_flow.LF||
+'- For a';
+wwv_flow_imp.g_varchar2_table(115) := ' **delete**, the row is inserted again.'||wwv_flow.LF||
+'- For an **update**, the columns go back to their old values';
+wwv_flow_imp.g_varchar2_table(116) := '.'||wwv_flow.LF||
 '- An **insert** cannot be restored.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'1. Leave **Include child rows** on to al';
-wwv_flow_imp.g_varchar2_table(110) := 'so bring back rows in audited child tables that were deleted, or had their link cleared, in the same';
-wwv_flow_imp.g_varchar2_table(111) := ' transaction.'||wwv_flow.LF||
-'2. Press **Preview Restore**. The restore runs, the **Result** box lists every row it ';
-wwv_flow_imp.g_varchar2_table(112) := 'would touch, and then everything is rolled back. Nothing changes.'||wwv_flow.LF||
-'3. If the result looks right, pres';
-wwv_flow_imp.g_varchar2_table(113) := 's **Restore**.'||wwv_flow.LF||
+'1. Leave **Include child rows** on to also bring back rows in';
+wwv_flow_imp.g_varchar2_table(117) := ' audited child tables that were deleted, or had their link cleared, in the same transaction.'||wwv_flow.LF||
+'2. Pres';
+wwv_flow_imp.g_varchar2_table(118) := 's **Preview Restore**. The restore runs, the **Result** box lists every row it would touch, and then';
+wwv_flow_imp.g_varchar2_table(119) := ' everything is rolled back. Nothing changes.'||wwv_flow.LF||
+'3. If the result looks right, press **Restore**.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'If the row changed again after this event, Restore stops and says so. Turn on **Over';
-wwv_flow_imp.g_varchar2_table(114) := 'write later changes** to restore anyway. Those later changes are then lost.'||wwv_flow.LF||
+'If th';
+wwv_flow_imp.g_varchar2_table(120) := 'e row changed again after this event, Restore stops and says so. Turn on **Overwrite later changes**';
+wwv_flow_imp.g_varchar2_table(121) := ' to restore anyway. Those later changes are then lost.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'If any step fails, noth';
-wwv_flow_imp.g_varchar2_table(115) := 'ing is changed. The reason appears in **Result**.'||wwv_flow.LF||
+'If any step fails, nothing is changed. The r';
+wwv_flow_imp.g_varchar2_table(122) := 'eason appears in **Result**.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'The restore is recorded like any other change. It';
-wwv_flow_imp.g_varchar2_table(116) := 's events show `util_audit.restore_row` as the **Action** in their context.'||wwv_flow.LF||
+'The restore is recorded like any other change. Its events show `util_a';
+wwv_flow_imp.g_varchar2_table(123) := 'udit.restore_row` as the **Action** in their context.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## What a restore cannot';
-wwv_flow_imp.g_varchar2_table(117) := ' bring back'||wwv_flow.LF||
+'## What a restore cannot bring back'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- Columns of unsupported types, such as BLOB. A re-inserted row gets an empty value or ';
-wwv_flow_imp.g_varchar2_table(118) := 'the column default for those.'||wwv_flow.LF||
-'- Events copied from util_audit v1. They have no copy of the whole row';
-wwv_flow_imp.g_varchar2_table(119) := '.'||wwv_flow.LF||
-'- Rows in child tables that are not audited. The Result says which tables these are.'||wwv_flow.LF||
-'- A row whose';
-wwv_flow_imp.g_varchar2_table(120) := ' primary key is GENERATED ALWAYS AS IDENTITY, after a delete.'||wwv_flow.LF||
+'- Column';
+wwv_flow_imp.g_varchar2_table(124) := 's of unsupported types, such as BLOB. A re-inserted row gets an empty value or the column default fo';
+wwv_flow_imp.g_varchar2_table(125) := 'r those.'||wwv_flow.LF||
+'- Events copied from util_audit v1. They have no copy of the whole row.'||wwv_flow.LF||
+'- Rows in child tab';
+wwv_flow_imp.g_varchar2_table(126) := 'les that are not audited. The Result says which tables these are.'||wwv_flow.LF||
+'- A row whose primary key is GENER';
+wwv_flow_imp.g_varchar2_table(127) := 'ATED ALWAYS AS IDENTITY, after a delete.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''row-history'', ''Row His';
-wwv_flow_imp.g_varchar2_table(121) := 'tory'', 6, ''N'', 60, q''['||wwv_flow.LF||
+'    seed(''row-history'', ''Row History'', 6, ''N'', 60, q''';
+wwv_flow_imp.g_varchar2_table(128) := '['||wwv_flow.LF||
 'Row History shows every recorded change to one row.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'1. Choose the **Table**.';
-wwv_flow_imp.g_varchar2_table(122) := ''||wwv_flow.LF||
-'2. Choose the row''s **Key**. The list shows every key that has events.'||wwv_flow.LF||
+'1. Choose the **Table**.'||wwv_flow.LF||
+'2. Choose the row''s ';
+wwv_flow_imp.g_varchar2_table(129) := '**Key**. The list shows every key that has events.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'The **Timeline** lists the ';
-wwv_flow_imp.g_varchar2_table(123) := 'changes, newest first. Click one to open the event. **All Column Changes** lists each column''s old a';
-wwv_flow_imp.g_varchar2_table(124) := 'nd new value, change by change. Long values are cut at 200 characters here; open the event to see th';
-wwv_flow_imp.g_varchar2_table(125) := 'em in full.'||wwv_flow.LF||
+'The **Timeline** lists the changes, newest first';
+wwv_flow_imp.g_varchar2_table(130) := '. Click one to open the event. **All Column Changes** lists each column''s old and new value, change ';
+wwv_flow_imp.g_varchar2_table(131) := 'by change. Long values are cut at 200 characters here; open the event to see them in full.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Opening a change from **Events** with **History** fills in the table and key for you.'||wwv_flow.LF||
+'Opening ';
+wwv_flow_imp.g_varchar2_table(132) := 'a change from **Events** with **History** fills in the table and key for you.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(126) := 'If a change altered the primary key, the history before and after it sits under two different keys.'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(127) := ']'');'||wwv_flow.LF||
+'If a change altered t';
+wwv_flow_imp.g_varchar2_table(133) := 'he primary key, the history before and after it sits under two different keys.'||wwv_flow.LF||
+']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''errors'', ''Errors'', 7, ''N'', 70, q''['||wwv_flow.LF||
-'When a trigger cannot record a change, the change';
-wwv_flow_imp.g_varchar2_table(128) := ' itself still goes through. The failure is recorded here instead, so nothing is lost without a trace';
-wwv_flow_imp.g_varchar2_table(129) := '.'||wwv_flow.LF||
+'    seed(''error';
+wwv_flow_imp.g_varchar2_table(134) := 's'', ''Errors'', 7, ''N'', 70, q''['||wwv_flow.LF||
+'When a trigger cannot record a change, the change itself still goes th';
+wwv_flow_imp.g_varchar2_table(135) := 'rough. The failure is recorded here instead, so nothing is lost without a trace.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Each row shows when it happened, the table, the kind of change, the row''s key, the user, and the ';
-wwv_flow_imp.g_varchar2_table(130) := 'error with the exact line it came from (**Backtrace**).'||wwv_flow.LF||
+'Each row shows whe';
+wwv_flow_imp.g_varchar2_table(136) := 'n it happened, the table, the kind of change, the row''s key, the user, and the error with the exact ';
+wwv_flow_imp.g_varchar2_table(137) := 'line it came from (**Backtrace**).'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## What to do'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- A single error: check the ';
-wwv_flow_imp.g_varchar2_table(131) := 'message. It usually names the cause, for example a value too large for a column.'||wwv_flow.LF||
-'- Many errors on on';
-wwv_flow_imp.g_varchar2_table(132) := 'e table after a change to that table: open the table under **Tables** and press **Re-create Trigger*';
-wwv_flow_imp.g_varchar2_table(133) := '*.'||wwv_flow.LF||
+'- A single error: check the message. It usually n';
+wwv_flow_imp.g_varchar2_table(138) := 'ames the cause, for example a value too large for a column.'||wwv_flow.LF||
+'- Many errors on one table after a chang';
+wwv_flow_imp.g_varchar2_table(139) := 'e to that table: open the table under **Tables** and press **Re-create Trigger**.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Old errors can be deleted under **Maintenance**.'||wwv_flow.LF||
+'Old errors can be';
+wwv_flow_imp.g_varchar2_table(140) := ' deleted under **Maintenance**.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''maintenance'', ''Maintenance'', 8,';
-wwv_flow_imp.g_varchar2_table(134) := ' ''Y'', 80, q''['||wwv_flow.LF||
-'Maintenance is for administrators.'||wwv_flow.LF||
+'    seed(''maintenance'', ''Maintenance'', 8, ''Y'', 80, q''['||wwv_flow.LF||
+'Mainten';
+wwv_flow_imp.g_varchar2_table(141) := 'ance is for administrators.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Purge Audit History'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Deletes events, and their ';
-wwv_flow_imp.g_varchar2_table(135) := 'column changes, recorded before the date you choose. Choose a table to purge only that table. Delete';
-wwv_flow_imp.g_varchar2_table(136) := 'd history cannot be restored, and rows cannot be restored from it.'||wwv_flow.LF||
+'Deletes events, and their column changes, recor';
+wwv_flow_imp.g_varchar2_table(142) := 'ded before the date you choose. Choose a table to purge only that table. Deleted history cannot be r';
+wwv_flow_imp.g_varchar2_table(143) := 'estored, and rows cannot be restored from it.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'To remove old history but keep a';
-wwv_flow_imp.g_varchar2_table(137) := ' copy you can load back, use **Archive** instead.'||wwv_flow.LF||
+'To remove old history but keep a copy you can load ba';
+wwv_flow_imp.g_varchar2_table(144) := 'ck, use **Archive** instead.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Purge Errors'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Deletes logged errors recorded b';
-wwv_flow_imp.g_varchar2_table(138) := 'efore the date you choose.'||wwv_flow.LF||
+'Deletes logged errors recorded before the date you ch';
+wwv_flow_imp.g_varchar2_table(145) := 'oose.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Re-create All Triggers'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Rebuilds every audit trigger from the current';
-wwv_flow_imp.g_varchar2_table(139) := ' code. Do this after upgrading Util Audit, or after adding or dropping columns on several audited ta';
-wwv_flow_imp.g_varchar2_table(140) := 'bles. The **Result** box lists each table and any that failed.'||wwv_flow.LF||
+'Rebuilds every audit trigger from the current code. Do this after ';
+wwv_flow_imp.g_varchar2_table(146) := 'upgrading Util Audit, or after adding or dropping columns on several audited tables. The **Result** ';
+wwv_flow_imp.g_varchar2_table(147) := 'box lists each table and any that failed.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''how-auditing-works'', ';
-wwv_flow_imp.g_varchar2_table(141) := '''How auditing works'', NULL, ''N'', 90, q''['||wwv_flow.LF||
-'Each audited table has a trigger that runs after every inse';
-wwv_flow_imp.g_varchar2_table(142) := 'rt, update and delete, once per row.'||wwv_flow.LF||
+'    seed(''how-auditing-works'', ''How auditing works'',';
+wwv_flow_imp.g_varchar2_table(148) := ' NULL, ''N'', 90, q''['||wwv_flow.LF||
+'Each audited table has a trigger that runs after every insert, update and delete';
+wwv_flow_imp.g_varchar2_table(149) := ', once per row.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## What is recorded'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- One **event** per changed row: when, wh';
-wwv_flow_imp.g_varchar2_table(143) := 'o, the kind of change, the row''s key, and the whole row before and after.'||wwv_flow.LF||
-'- One **column change** pe';
-wwv_flow_imp.g_varchar2_table(144) := 'r changed column, with the old and new value. For an insert or a delete, every column that has a val';
-wwv_flow_imp.g_varchar2_table(145) := 'ue.'||wwv_flow.LF||
+'- One **event** per changed row: when, who, the kind of change';
+wwv_flow_imp.g_varchar2_table(150) := ', the row''s key, and the whole row before and after.'||wwv_flow.LF||
+'- One **column change** per changed column, wit';
+wwv_flow_imp.g_varchar2_table(151) := 'h the old and new value. For an insert or a delete, every column that has a value.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'An update that changes nothing, or only ignored columns, records nothing.'||wwv_flow.LF||
+'An update that c';
+wwv_flow_imp.g_varchar2_table(152) := 'hanges nothing, or only ignored columns, records nothing.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Supported column ';
-wwv_flow_imp.g_varchar2_table(146) := 'types'||wwv_flow.LF||
+'## Supported column types'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'NUMBER, FLOAT, BINARY_FLOAT, BINARY_DOUBLE, VARCHAR2, CHAR, NVARCHAR2, NCHAR, DATE, TIMESTAMP';
-wwv_flow_imp.g_varchar2_table(147) := ' (with or without time zone), INTERVAL, CLOB and RAW (stored as hex). Other types, such as BLOB, are';
-wwv_flow_imp.g_varchar2_table(148) := ' skipped.'||wwv_flow.LF||
+'NUMBER, FLOAT,';
+wwv_flow_imp.g_varchar2_table(153) := ' BINARY_FLOAT, BINARY_DOUBLE, VARCHAR2, CHAR, NVARCHAR2, NCHAR, DATE, TIMESTAMP (with or without tim';
+wwv_flow_imp.g_varchar2_table(154) := 'e zone), INTERVAL, CLOB and RAW (stored as hex). Other types, such as BLOB, are skipped.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Numbers and dates are always written the same way, whatever the user''s language settings:';
-wwv_flow_imp.g_varchar2_table(149) := ' `1234.5` and `2026-02-03T00:00:00`.'||wwv_flow.LF||
+'Numbers an';
+wwv_flow_imp.g_varchar2_table(155) := 'd dates are always written the same way, whatever the user''s language settings: `1234.5` and `2026-0';
+wwv_flow_imp.g_varchar2_table(156) := '2-03T00:00:00`.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Keys'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'A table needs a primary key. A key of one column is s';
-wwv_flow_imp.g_varchar2_table(150) := 'tored as its value, for example `42`. A key of several columns is stored as `{"ORDER_ID":"100","LINE';
-wwv_flow_imp.g_varchar2_table(151) := '_NO":"1"}`.'||wwv_flow.LF||
+'A table needs a primary key. A key of one column is stored as its value, f';
+wwv_flow_imp.g_varchar2_table(157) := 'or example `42`. A key of several columns is stored as `{"ORDER_ID":"100","LINE_NO":"1"}`.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Transactions'||wwv_flow.LF||
+'## Trans';
+wwv_flow_imp.g_varchar2_table(158) := 'actions'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Audit records are part of the same transaction as the change. If the c';
-wwv_flow_imp.g_varchar2_table(152) := 'hange is rolled back, so is its record.'||wwv_flow.LF||
+'Audit records are part of the same transaction as the change. If the change is rolled back,';
+wwv_flow_imp.g_varchar2_table(159) := ' so is its record.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Speed'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Every audited change does extra work. Audit the t';
-wwv_flow_imp.g_varchar2_table(153) := 'ables that matter, and avoid staging tables, bulk loads and high-volume logging tables.'||wwv_flow.LF||
+'Every audited change does extra work. Audit the tables that matter, an';
+wwv_flow_imp.g_varchar2_table(160) := 'd avoid staging tables, bulk loads and high-volume logging tables.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    se';
-wwv_flow_imp.g_varchar2_table(154) := 'ed(''installing-and-upgrading'', ''Installing and upgrading'', NULL, ''Y'', 100, q''['||wwv_flow.LF||
+'    seed(''installing-and-up';
+wwv_flow_imp.g_varchar2_table(161) := 'grading'', ''Installing and upgrading'', NULL, ''Y'', 100, q''['||wwv_flow.LF||
 '## Installing'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'1. In ';
-wwv_flow_imp.g_varchar2_table(155) := 'App Builder, import the Util Audit app into the workspace.'||wwv_flow.LF||
-'2. Answer **Yes** to **Install Supporting';
-wwv_flow_imp.g_varchar2_table(156) := ' Objects**. This creates the Util Audit tables, views and packages, and these help articles, in the ';
-wwv_flow_imp.g_varchar2_table(157) := 'workspace''s schema.'||wwv_flow.LF||
+'1. In App Builder, import t';
+wwv_flow_imp.g_varchar2_table(162) := 'he Util Audit app into the workspace.'||wwv_flow.LF||
+'2. Answer **Yes** to **Install Supporting Objects**. This crea';
+wwv_flow_imp.g_varchar2_table(163) := 'tes the Util Audit tables, views and packages, and these help articles, in the workspace''s schema.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Upgrading'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(164) := '## Upgrading'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Import the new version over the old one and install its Supportin';
-wwv_flow_imp.g_varchar2_table(158) := 'g Objects again. Your audit history, settings and edited help articles are kept. Then open **Mainten';
-wwv_flow_imp.g_varchar2_table(159) := 'ance** and press **Re-create All Triggers** so every table uses the new trigger code.'||wwv_flow.LF||
+'Import the new version over the old one and install its Supporting Objects again. Your';
+wwv_flow_imp.g_varchar2_table(165) := ' audit history, settings and edited help articles are kept. Then open **Maintenance** and press **Re';
+wwv_flow_imp.g_varchar2_table(166) := '-create All Triggers** so every table uses the new trigger code.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Schemas th';
-wwv_flow_imp.g_varchar2_table(160) := 'at have util_audit v1'||wwv_flow.LF||
+'## Schemas that have util_audit v1';
+wwv_flow_imp.g_varchar2_table(167) := ''||wwv_flow.LF||
 ''||wwv_flow.LF||
-'If the schema already runs the older util_audit v1 (a UTIL_AUDIT_RECORDS tabl';
-wwv_flow_imp.g_varchar2_table(161) := 'e with a PK_VALUE column), installing stops with an error and changes nothing. Migrate the schema fi';
-wwv_flow_imp.g_varchar2_table(162) := 'rst with `migrate_v1.sql` from the util_audit repository, as described in its `docs/migrating-from-v';
-wwv_flow_imp.g_varchar2_table(163) := '1.md`, then install the app. The v1 history is kept, and the app shows it once it is copied.'||wwv_flow.LF||
+'If the schema already runs the older util_audit v1 (a UTIL_AUDIT_RECORDS table with a PK_VALUE col';
+wwv_flow_imp.g_varchar2_table(168) := 'umn), installing stops with an error and changes nothing. Migrate the schema first with `migrate_v1.';
+wwv_flow_imp.g_varchar2_table(169) := 'sql` from the util_audit repository, as described in its `docs/migrating-from-v1.md`, then install t';
+wwv_flow_imp.g_varchar2_table(170) := 'he app. The v1 history is kept, and the app shows it once it is copied.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Rem';
-wwv_flow_imp.g_varchar2_table(164) := 'oving'||wwv_flow.LF||
+'## Removing'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Delete the app in App Builder and choose to deinstall its Supporting Objects. This removes th';
-wwv_flow_imp.g_varchar2_table(165) := 'e triggers, packages, views, tables and the archive job, **including all audit history**. Export any';
-wwv_flow_imp.g_varchar2_table(166) := 'thing you need first. Archive files already in S3 stay there.'||wwv_flow.LF||
+'Delete the app';
+wwv_flow_imp.g_varchar2_table(171) := ' in App Builder and choose to deinstall its Supporting Objects. This removes the triggers, packages,';
+wwv_flow_imp.g_varchar2_table(172) := ' views, tables and the archive job, **including all audit history**. Export anything you need first.';
+wwv_flow_imp.g_varchar2_table(173) := ' Archive files already in S3 stay there.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''query-generator'', ''Que';
-wwv_flow_imp.g_varchar2_table(167) := 'ry Generator'', 11, ''N'', 105, q''['||wwv_flow.LF||
-'The Query Generator builds an **Audit History** region for a page i';
-wwv_flow_imp.g_varchar2_table(168) := 'n another app: the changes recorded for the row that page shows.'||wwv_flow.LF||
+'    seed(''query-generator'', ''Query Generator'', 11, ''N';
+wwv_flow_imp.g_varchar2_table(174) := ''', 105, q''['||wwv_flow.LF||
+'The Query Generator builds an **Audit History** region for a page in another app: the ch';
+wwv_flow_imp.g_varchar2_table(175) := 'anges recorded for the row that page shows.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Building a region'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'1. Choose th';
-wwv_flow_imp.g_varchar2_table(169) := 'e **Table** your page shows or edits.'||wwv_flow.LF||
-'2. Enter the **Page number in your app**. The key items are na';
-wwv_flow_imp.g_varchar2_table(170) := 'med after it, for example `P10_EMP_ID`. If your items have other names, enter them in **Key page ite';
-wwv_flow_imp.g_varchar2_table(171) := 'ms** instead, one per key column, in key column order.'||wwv_flow.LF||
+'1. Choose the **Table** your page';
+wwv_flow_imp.g_varchar2_table(176) := ' shows or edits.'||wwv_flow.LF||
+'2. Enter the **Page number in your app**. The key items are named after it, for exa';
+wwv_flow_imp.g_varchar2_table(177) := 'mple `P10_EMP_ID`. If your items have other names, enter them in **Key page items** instead, one per';
+wwv_flow_imp.g_varchar2_table(178) := ' key column, in key column order.'||wwv_flow.LF||
 '3. Choose what to **Show**:'||wwv_flow.LF||
-'    - **One row p';
-wwv_flow_imp.g_varchar2_table(172) := 'er changed column**: each column''s old and new value.'||wwv_flow.LF||
-'    - **One row per change**: one line per ins';
-wwv_flow_imp.g_varchar2_table(173) := 'ert, update or delete, listing the columns that changed.'||wwv_flow.LF||
-'4. Optional: pick **Only these columns**, a';
-wwv_flow_imp.g_varchar2_table(174) := 'nd choose **Include child tables** to also show changes to rows that point at this one, for example ';
-wwv_flow_imp.g_varchar2_table(175) := 'an employee''s tasks.'||wwv_flow.LF||
-'5. Press **Generate**.'||wwv_flow.LF||
+'    - **One row per changed column**: ';
+wwv_flow_imp.g_varchar2_table(179) := 'each column''s old and new value.'||wwv_flow.LF||
+'    - **One row per change**: one line per insert, update or delete';
+wwv_flow_imp.g_varchar2_table(180) := ', listing the columns that changed.'||wwv_flow.LF||
+'4. Optional: pick **Only these columns**, and choose **Include c';
+wwv_flow_imp.g_varchar2_table(181) := 'hild tables** to also show changes to rows that point at this one, for example an employee''s tasks.'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(182) := '5. Press **Generate**.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Three ways to add it to your app'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- **Audit History ';
-wwv_flow_imp.g_varchar2_table(176) := 'plugin**, the easiest. Add the plugin to your app once, then add a region of type Audit History and ';
-wwv_flow_imp.g_varchar2_table(177) := 'set Table and Key Items. APEXlang apps can paste the generated block.'||wwv_flow.LF||
-'- **SQL for App Builder**: cre';
-wwv_flow_imp.g_varchar2_table(178) := 'ate a Classic Report (or any report) region and paste the SQL. It reads `util_audit_query.history`, ';
-wwv_flow_imp.g_varchar2_table(179) := 'so it keeps working as util_audit improves. Turn on **Plain SQL** for a query that calls no package.';
-wwv_flow_imp.g_varchar2_table(180) := ''||wwv_flow.LF||
-'- **APEXlang Region**: a complete Classic Report region to paste into a page''s `.apx` file.'||wwv_flow.LF||
+'- **Audit History plugin**, the easiest';
+wwv_flow_imp.g_varchar2_table(183) := '. Add the plugin to your app once, then add a region of type Audit History and set Table and Key Ite';
+wwv_flow_imp.g_varchar2_table(184) := 'ms. APEXlang apps can paste the generated block.'||wwv_flow.LF||
+'- **SQL for App Builder**: create a Classic Report ';
+wwv_flow_imp.g_varchar2_table(185) := '(or any report) region and paste the SQL. It reads `util_audit_query.history`, so it keeps working a';
+wwv_flow_imp.g_varchar2_table(186) := 's util_audit improves. Turn on **Plain SQL** for a query that calls no package.'||wwv_flow.LF||
+'- **APEXlang Region*';
+wwv_flow_imp.g_varchar2_table(187) := '*: a complete Classic Report region to paste into a page''s `.apx` file.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'**Prev';
-wwv_flow_imp.g_varchar2_table(181) := 'iew** shows what the region will display for a row that already has changes.'||wwv_flow.LF||
+'**Preview** shows what the ';
+wwv_flow_imp.g_varchar2_table(188) := 'region will display for a row that already has changes.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## From SQL'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'The same ';
-wwv_flow_imp.g_varchar2_table(182) := 'history is available anywhere:'||wwv_flow.LF||
+'The same history is available ';
+wwv_flow_imp.g_varchar2_table(189) := 'anywhere:'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '`select * from table(util_audit_query.history(''EMP'', :P10_EMP_ID))`'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(183) := ''||wwv_flow.LF||
-'Give one key value per key column (`p_key1`, `p_key2`, ...). Optional: `p_style => ''EVENTS''`, `p_co';
-wwv_flow_imp.g_varchar2_table(184) := 'lumns`, `p_child_tables`, `p_max_rows`.'||wwv_flow.LF||
+''||wwv_flow.LF||
+'Give one key value p';
+wwv_flow_imp.g_varchar2_table(190) := 'er key column (`p_key1`, `p_key2`, ...). Optional: `p_style => ''EVENTS''`, `p_columns`, `p_child_tabl';
+wwv_flow_imp.g_varchar2_table(191) := 'es`, `p_max_rows`.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## If your app uses another schema'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Enter the util_audit sc';
-wwv_flow_imp.g_varchar2_table(185) := 'hema in **util_audit schema**, and grant your app''s schema EXECUTE on UTIL_AUDIT_QUERY. For plain SQ';
-wwv_flow_imp.g_varchar2_table(186) := 'L, grant SELECT on V_UTIL_AUDIT_ROW_HISTORY, V_UTIL_AUDIT_EVENTS and UTIL_AUDIT_RECORDS instead.'||wwv_flow.LF||
+'Enter the util_audit schema in **util_audit ';
+wwv_flow_imp.g_varchar2_table(192) := 'schema**, and grant your app''s schema EXECUTE on UTIL_AUDIT_QUERY. For plain SQL, grant SELECT on V_';
+wwv_flow_imp.g_varchar2_table(193) := 'UTIL_AUDIT_ROW_HISTORY, V_UTIL_AUDIT_EVENTS and UTIL_AUDIT_RECORDS instead.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'##';
-wwv_flow_imp.g_varchar2_table(187) := ' Keys'||wwv_flow.LF||
+'## Keys'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Keys are matched as text, so a key item must hold the value exactly as stored, for example `1';
-wwv_flow_imp.g_varchar2_table(188) := '00`, not `100.0`.'||wwv_flow.LF||
-']'');'||wwv_flow.LF||
+'Keys are match';
+wwv_flow_imp.g_varchar2_table(194) := 'ed as text, so a key item must hold the value exactly as stored, for example `100`, not `100.0`.'||wwv_flow.LF||
+']'')';
+wwv_flow_imp.g_varchar2_table(195) := ';'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    seed(''archive'', ''Archive'', 12, ''Y'', 85, q''['||wwv_flow.LF||
-'Moves old audit history out ';
-wwv_flow_imp.g_varchar2_table(189) := 'of the audit tables into files, preferably in Amazon S3, and brings it back when needed.'||wwv_flow.LF||
+'Moves old audit history out of the audit tables i';
+wwv_flow_imp.g_varchar2_table(196) := 'nto files, preferably in Amazon S3, and brings it back when needed.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## How it ';
-wwv_flow_imp.g_varchar2_table(190) := 'works'||wwv_flow.LF||
+'## How it works'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Each file holds one table''s events for one calendar month, as gzipped JSON lines. Every archi';
-wwv_flow_imp.g_varchar2_table(191) := 've goes through these steps:'||wwv_flow.LF||
+'Each file hold';
+wwv_flow_imp.g_varchar2_table(197) := 's one table''s events for one calendar month, as gzipped JSON lines. Every archive goes through these';
+wwv_flow_imp.g_varchar2_table(198) := ' steps:'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '1. **Archive**: the file is built.'||wwv_flow.LF||
-'2. **Store**: the file is sent to i';
-wwv_flow_imp.g_varchar2_table(192) := 'ts storage, then read back and compared, so a damaged upload is never counted as stored.'||wwv_flow.LF||
-'3. **Purge*';
-wwv_flow_imp.g_varchar2_table(193) := '* (only if you turn it on): the month''s events are deleted from the audit tables, after checking tha';
-wwv_flow_imp.g_varchar2_table(194) := 't they still match the file.'||wwv_flow.LF||
-'4. **Restore** (when needed): the month''s events are loaded back. Loadi';
-wwv_flow_imp.g_varchar2_table(195) := 'ng twice does no harm.'||wwv_flow.LF||
+'2. **Store**: the file is sent to its storage, then read';
+wwv_flow_imp.g_varchar2_table(199) := ' back and compared, so a damaged upload is never counted as stored.'||wwv_flow.LF||
+'3. **Purge** (only if you turn i';
+wwv_flow_imp.g_varchar2_table(200) := 't on): the month''s events are deleted from the audit tables, after checking that they still match th';
+wwv_flow_imp.g_varchar2_table(201) := 'e file.'||wwv_flow.LF||
+'4. **Restore** (when needed): the month''s events are loaded back. Loading twice does no harm';
+wwv_flow_imp.g_varchar2_table(202) := '.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Storage and retention'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '| Storage | Where the files go |'||wwv_flow.LF||
 '|---|---|'||wwv_flow.LF||
-'| Datab';
-wwv_flow_imp.g_varchar2_table(196) := 'ase | Kept in the archive table itself |'||wwv_flow.LF||
-'| Amazon S3 via AWS4_S3_PKG | Your bucket, through the S3 p';
-wwv_flow_imp.g_varchar2_table(197) := 'ackage this schema already uses for documents |'||wwv_flow.LF||
-'| Object storage via DBMS_CLOUD | Needs a DBMS_CLOUD';
-wwv_flow_imp.g_varchar2_table(198) := ' credential and a base URI |'||wwv_flow.LF||
-'| Custom procedure | Your own procedure and function, for any other sys';
-wwv_flow_imp.g_varchar2_table(199) := 'tem |'||wwv_flow.LF||
+'| Database | Kept in the arc';
+wwv_flow_imp.g_varchar2_table(203) := 'hive table itself |'||wwv_flow.LF||
+'| Amazon S3 via AWS4_S3_PKG | Your bucket, through the S3 package this schema al';
+wwv_flow_imp.g_varchar2_table(204) := 'ready uses for documents |'||wwv_flow.LF||
+'| Object storage via DBMS_CLOUD | Needs a DBMS_CLOUD credential and a bas';
+wwv_flow_imp.g_varchar2_table(205) := 'e URI |'||wwv_flow.LF||
+'| Custom procedure | Your own procedure and function, for any other system |'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'**Months to keep** says how many recent months stay in the audit tables; older complete month';
-wwv_flow_imp.g_varchar2_table(200) := 's are archived. **Delete archived months** is off at first, so the first runs only make copies. Turn';
-wwv_flow_imp.g_varchar2_table(201) := ' it on once you have restored one archive and checked it.'||wwv_flow.LF||
+'**Months to ke';
+wwv_flow_imp.g_varchar2_table(206) := 'ep** says how many recent months stay in the audit tables; older complete months are archived. **Del';
+wwv_flow_imp.g_varchar2_table(207) := 'ete archived months** is off at first, so the first runs only make copies. Turn it on once you have ';
+wwv_flow_imp.g_varchar2_table(208) := 'restored one archive and checked it.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Schedule'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'**Schedule** creates a datab';
-wwv_flow_imp.g_varchar2_table(202) := 'ase job that archives every night (it needs the CREATE JOB privilege). **Run Now** does the same wor';
-wwv_flow_imp.g_varchar2_table(203) := 'k straight away. The last run''s result shows here; a failed step says why in the file list.'||wwv_flow.LF||
+'**Schedule** creates a database job that archives';
+wwv_flow_imp.g_varchar2_table(209) := ' every night (it needs the CREATE JOB privilege). **Run Now** does the same work straight away. The ';
+wwv_flow_imp.g_varchar2_table(210) := 'last run''s result shows here; a failed step says why in the file list.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Arch';
-wwv_flow_imp.g_varchar2_table(204) := 'ive files'||wwv_flow.LF||
+'## Archive files'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'One row per file, with its status: Created, Stored, Purged, Restored or Failed. You can s';
-wwv_flow_imp.g_varchar2_table(205) := 'tore a file again after a failure, purge it, restore it, or download it.'||wwv_flow.LF||
+'One row pe';
+wwv_flow_imp.g_varchar2_table(211) := 'r file, with its status: Created, Stored, Purged, Restored or Failed. You can store a file again aft';
+wwv_flow_imp.g_varchar2_table(212) := 'er a failure, purge it, restore it, or download it.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'A restored month is archiv';
-wwv_flow_imp.g_varchar2_table(206) := 'ed again by the next scheduled run. To keep it in the tables for a while, stop the schedule or raise';
-wwv_flow_imp.g_varchar2_table(207) := ' **Months to keep**.'||wwv_flow.LF||
-']'');'||wwv_flow.LF||
+'A restored month is archived again by the next ';
+wwv_flow_imp.g_varchar2_table(213) := 'scheduled run. To keep it in the tables for a while, stop the schedule or raise **Months to keep**.'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(214) := ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    seed(''documentation'', ''Documentation'', 9, ''N'', 110, q''['||wwv_flow.LF||
-'Documentation';
-wwv_flow_imp.g_varchar2_table(208) := ' lists every help topic. Click a topic to read it, or type a word in **Search** to find topics that ';
-wwv_flow_imp.g_varchar2_table(209) := 'mention it.'||wwv_flow.LF||
+'Documentation lists every help top';
+wwv_flow_imp.g_varchar2_table(215) := 'ic. Click a topic to read it, or type a word in **Search** to find topics that mention it.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'**Help** in the top bar opens the article for the screen you are on.'||wwv_flow.LF||
+'**Help**';
+wwv_flow_imp.g_varchar2_table(216) := ' in the top bar opens the article for the screen you are on.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Editing articl';
-wwv_flow_imp.g_varchar2_table(210) := 'es'||wwv_flow.LF||
+'## Editing articles'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Administrators see **New Article** and **Edit**.'||wwv_flow.LF||
+'Administrators se';
+wwv_flow_imp.g_varchar2_table(217) := 'e **New Article** and **Edit**.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- **Linked screen**: the screen whose Help ope';
-wwv_flow_imp.g_varchar2_table(211) := 'ns this article. Leave it empty for a general topic.'||wwv_flow.LF||
-'- **Administrators only**: hides the article fr';
-wwv_flow_imp.g_varchar2_table(212) := 'om users who are not administrators.'||wwv_flow.LF||
-'- **Order**: where the article sits in the topic list. Lower nu';
-wwv_flow_imp.g_varchar2_table(213) := 'mbers come first.'||wwv_flow.LF||
-'- **Active**: turn off to hide an article without deleting it.'||wwv_flow.LF||
-'- **Body**: the art';
-wwv_flow_imp.g_varchar2_table(214) := 'icle, in Markdown. `## ` starts a heading, `**bold**`, `- ` starts a list item, and `| a | b |` rows';
-wwv_flow_imp.g_varchar2_table(215) := ' make a table.'||wwv_flow.LF||
+'- **Linked screen**: the screen whose Help opens this article. Leav';
+wwv_flow_imp.g_varchar2_table(218) := 'e it empty for a general topic.'||wwv_flow.LF||
+'- **Administrators only**: hides the article from users who are not ';
+wwv_flow_imp.g_varchar2_table(219) := 'administrators.'||wwv_flow.LF||
+'- **Order**: where the article sits in the topic list. Lower numbers come first.'||wwv_flow.LF||
+'- *';
+wwv_flow_imp.g_varchar2_table(220) := '*Active**: turn off to hide an article without deleting it.'||wwv_flow.LF||
+'- **Body**: the article, in Markdown. `#';
+wwv_flow_imp.g_varchar2_table(221) := '# ` starts a heading, `**bold**`, `- ` starts a list item, and `| a | b |` rows make a table.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Upgrading Util Audit adds new articles and brings unedited ones up to date. An artic';
-wwv_flow_imp.g_varchar2_table(216) := 'le you edited here is left as you wrote it.'||wwv_flow.LF||
+'Upgra';
+wwv_flow_imp.g_varchar2_table(222) := 'ding Util Audit adds new articles and brings unedited ones up to date. An article you edited here is';
+wwv_flow_imp.g_varchar2_table(223) := ' left as you wrote it.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    COMMIT;'||wwv_flow.LF||
@@ -9358,191 +9516,197 @@ wwv_flow_imp.g_varchar2_table(15) := 'r-table columns the trigger skips (comma-s
 '    ddl(q''[alter table UTIL_AUDIT';
 wwv_flow_imp.g_varchar2_table(16) := '_CONFIG add (IGNORED_COLUMNS VARCHAR2(4000))]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
+'    -- Per-table columns never recorded at all, no';
+wwv_flow_imp.g_varchar2_table(17) := 't even in the row'||wwv_flow.LF||
+'    -- snapshots: passwords, tokens and other secrets (comma-separated)'||wwv_flow.LF||
+'    ddl(q''';
+wwv_flow_imp.g_varchar2_table(18) := '[alter table UTIL_AUDIT_CONFIG add (EXCLUDED_COLUMNS VARCHAR2(4000))]'');'||wwv_flow.LF||
+''||wwv_flow.LF||
 '    ddl(q''['||wwv_flow.LF||
-'create table UTIL_AUDIT_TXN'||wwv_flow.LF||
+'create table U';
+wwv_flow_imp.g_varchar2_table(19) := 'TIL_AUDIT_TXN'||wwv_flow.LF||
 '('||wwv_flow.LF||
-'    AUDI';
-wwv_flow_imp.g_varchar2_table(17) := 'T_TXN_ID      NUMBER generated by default on null as identity'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_TXN_PK'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(18) := '           primary key,'||wwv_flow.LF||
+'    AUDIT_TXN_ID      NUMBER generated by default on null as identity'||wwv_flow.LF||
+'        constr';
+wwv_flow_imp.g_varchar2_table(20) := 'aint UTIL_AUDIT_TXN_PK'||wwv_flow.LF||
+'            primary key,'||wwv_flow.LF||
 '    TRANSACTION_ID    VARCHAR2(64)  not null'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_T';
-wwv_flow_imp.g_varchar2_table(19) := 'XN_UK'||wwv_flow.LF||
+'       ';
+wwv_flow_imp.g_varchar2_table(21) := ' constraint UTIL_AUDIT_TXN_UK'||wwv_flow.LF||
 '            unique,'||wwv_flow.LF||
 '    DB_TRANSACTION_ID VARCHAR2(100),'||wwv_flow.LF||
-'    TABLE_NAME        VARCHAR2(255) n';
-wwv_flow_imp.g_varchar2_table(20) := 'ot null,'||wwv_flow.LF||
+'    TABLE_NAM';
+wwv_flow_imp.g_varchar2_table(22) := 'E        VARCHAR2(255) not null,'||wwv_flow.LF||
 '    PK_VALUE_VC       VARCHAR2(4000),'||wwv_flow.LF||
-'    TRANSACTION_TYPE  VARCHAR2(6)   not null'||wwv_flow.LF||
-'        ';
-wwv_flow_imp.g_varchar2_table(21) := 'constraint UTIL_AUDIT_TXN_TRX_CHK'||wwv_flow.LF||
-'            check (transaction_type IN (''INSERT'', ''UPDATE'', ''DELET';
-wwv_flow_imp.g_varchar2_table(22) := 'E'')),'||wwv_flow.LF||
+'    TRANSACTION_TYPE  VARCHAR';
+wwv_flow_imp.g_varchar2_table(23) := '2(6)   not null'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_TXN_TRX_CHK'||wwv_flow.LF||
+'            check (transaction_type IN (''I';
+wwv_flow_imp.g_varchar2_table(24) := 'NSERT'', ''UPDATE'', ''DELETE'')),'||wwv_flow.LF||
 '    USERNAME          VARCHAR2(255),'||wwv_flow.LF||
 '    AUDIT_CONTEXT     CLOB'||wwv_flow.LF||
-'        check (audit_context I';
-wwv_flow_imp.g_varchar2_table(23) := 'S JSON),'||wwv_flow.LF||
+'      ';
+wwv_flow_imp.g_varchar2_table(25) := '  check (audit_context IS JSON),'||wwv_flow.LF||
 '    OLD_ROW_JSON      CLOB'||wwv_flow.LF||
 '        check (old_row_json IS JSON),'||wwv_flow.LF||
-'    NEW_ROW_JSON      CLOB';
-wwv_flow_imp.g_varchar2_table(24) := ''||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(26) := '  NEW_ROW_JSON      CLOB'||wwv_flow.LF||
 '        check (new_row_json IS JSON),'||wwv_flow.LF||
-'    AUDIT_TS          TIMESTAMP(6) default SYSTIMESTAMP not n';
-wwv_flow_imp.g_varchar2_table(25) := 'ull'||wwv_flow.LF||
+'    AUDIT_TS          TIMESTAMP(6) de';
+wwv_flow_imp.g_varchar2_table(27) := 'fault SYSTIMESTAMP not null'||wwv_flow.LF||
 ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ddl(q''['||wwv_flow.LF||
 'create table UTIL_AUDIT_RECORDS'||wwv_flow.LF||
 '('||wwv_flow.LF||
-'    UTIL_AUDIT_RECORD_ID NUMBER generated b';
-wwv_flow_imp.g_varchar2_table(26) := 'y default on null as identity'||wwv_flow.LF||
+'    UTIL_AUDIT_RECO';
+wwv_flow_imp.g_varchar2_table(28) := 'RD_ID NUMBER generated by default on null as identity'||wwv_flow.LF||
 '        constraint UTIL_AUDIT_RECORDS_PK'||wwv_flow.LF||
-'            primary key,'||wwv_flow.LF||
-'    ';
-wwv_flow_imp.g_varchar2_table(27) := 'TRANSACTION_ID       VARCHAR2(64)'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_RECORDS_TXN_FK'||wwv_flow.LF||
-'            reference';
-wwv_flow_imp.g_varchar2_table(28) := 's UTIL_AUDIT_TXN (TRANSACTION_ID),'||wwv_flow.LF||
-'    TABLE_NAME           VARCHAR2(255) not null,'||wwv_flow.LF||
-'    PK_VALUE_VC ';
-wwv_flow_imp.g_varchar2_table(29) := '         VARCHAR2(4000),'||wwv_flow.LF||
+'     ';
+wwv_flow_imp.g_varchar2_table(29) := '       primary key,'||wwv_flow.LF||
+'    TRANSACTION_ID       VARCHAR2(64)'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_RECORDS_TXN_';
+wwv_flow_imp.g_varchar2_table(30) := 'FK'||wwv_flow.LF||
+'            references UTIL_AUDIT_TXN (TRANSACTION_ID),'||wwv_flow.LF||
+'    TABLE_NAME           VARCHAR2(255) no';
+wwv_flow_imp.g_varchar2_table(31) := 't null,'||wwv_flow.LF||
+'    PK_VALUE_VC          VARCHAR2(4000),'||wwv_flow.LF||
 '    COLUMN_NAME          VARCHAR2(255),'||wwv_flow.LF||
-'    DATA_TYPE            VARCHAR2(1';
-wwv_flow_imp.g_varchar2_table(30) := '28),'||wwv_flow.LF||
+'    DATA_TY';
+wwv_flow_imp.g_varchar2_table(32) := 'PE            VARCHAR2(128),'||wwv_flow.LF||
 '    TRANSACTION_TYPE     VARCHAR2(6)'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_RECORDS_TRX_CHK'||wwv_flow.LF||
-'            ';
-wwv_flow_imp.g_varchar2_table(31) := 'check (transaction_type IN (''INSERT'', ''UPDATE'', ''DELETE'')),'||wwv_flow.LF||
-'    USERNAME             VARCHAR2(255),'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(32) := '    OLD_VALUE            VARCHAR2(4000),'||wwv_flow.LF||
-'    NEW_VALUE            VARCHAR2(4000),'||wwv_flow.LF||
-'    OLD_CLOB      ';
-wwv_flow_imp.g_varchar2_table(33) := '       CLOB,'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_RECO';
+wwv_flow_imp.g_varchar2_table(33) := 'RDS_TRX_CHK'||wwv_flow.LF||
+'            check (transaction_type IN (''INSERT'', ''UPDATE'', ''DELETE'')),'||wwv_flow.LF||
+'    USERNAME    ';
+wwv_flow_imp.g_varchar2_table(34) := '         VARCHAR2(255),'||wwv_flow.LF||
+'    OLD_VALUE            VARCHAR2(4000),'||wwv_flow.LF||
+'    NEW_VALUE            VARCHAR2(4';
+wwv_flow_imp.g_varchar2_table(35) := '000),'||wwv_flow.LF||
+'    OLD_CLOB             CLOB,'||wwv_flow.LF||
 '    NEW_CLOB             CLOB,'||wwv_flow.LF||
-'    CHANGE_HASH          VARCHAR2(64),'||wwv_flow.LF||
-'    AUDIT_TS     ';
-wwv_flow_imp.g_varchar2_table(34) := '        TIMESTAMP(6) default SYSTIMESTAMP not null'||wwv_flow.LF||
+'    CHANGE_HASH          VARCHAR';
+wwv_flow_imp.g_varchar2_table(36) := '2(64),'||wwv_flow.LF||
+'    AUDIT_TS             TIMESTAMP(6) default SYSTIMESTAMP not null'||wwv_flow.LF||
 ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -- Audit failures are logged here inst';
-wwv_flow_imp.g_varchar2_table(35) := 'ead of breaking business DML'||wwv_flow.LF||
+'    -- Audit failu';
+wwv_flow_imp.g_varchar2_table(37) := 'res are logged here instead of breaking business DML'||wwv_flow.LF||
 '    ddl(q''['||wwv_flow.LF||
 'create table UTIL_AUDIT_ERRORS'||wwv_flow.LF||
 '('||wwv_flow.LF||
-'    UTIL_AUDIT_ERROR_ID NU';
-wwv_flow_imp.g_varchar2_table(36) := 'MBER generated by default on null as identity'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_ERRORS_PK'||wwv_flow.LF||
-'            pr';
-wwv_flow_imp.g_varchar2_table(37) := 'imary key,'||wwv_flow.LF||
-'    ERROR_TS            TIMESTAMP(6) default SYSTIMESTAMP not null,'||wwv_flow.LF||
-'    TABLE_NAME       ';
-wwv_flow_imp.g_varchar2_table(38) := '   VARCHAR2(255),'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(38) := '  UTIL_AUDIT_ERROR_ID NUMBER generated by default on null as identity'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_';
+wwv_flow_imp.g_varchar2_table(39) := 'ERRORS_PK'||wwv_flow.LF||
+'            primary key,'||wwv_flow.LF||
+'    ERROR_TS            TIMESTAMP(6) default SYSTIMESTAMP not nul';
+wwv_flow_imp.g_varchar2_table(40) := 'l,'||wwv_flow.LF||
+'    TABLE_NAME          VARCHAR2(255),'||wwv_flow.LF||
 '    TRANSACTION_TYPE    VARCHAR2(6),'||wwv_flow.LF||
-'    PK_VALUE_VC         VARCHAR2(4000),'||wwv_flow.LF||
-'    U';
-wwv_flow_imp.g_varchar2_table(39) := 'SERNAME            VARCHAR2(255),'||wwv_flow.LF||
+'    PK_VALUE_VC      ';
+wwv_flow_imp.g_varchar2_table(41) := '   VARCHAR2(4000),'||wwv_flow.LF||
+'    USERNAME            VARCHAR2(255),'||wwv_flow.LF||
 '    ERROR_CODE          NUMBER,'||wwv_flow.LF||
-'    ERROR_MESSAGE       VARCHAR2(4';
-wwv_flow_imp.g_varchar2_table(40) := '000),'||wwv_flow.LF||
+'    ERROR_';
+wwv_flow_imp.g_varchar2_table(42) := 'MESSAGE       VARCHAR2(4000),'||wwv_flow.LF||
 '    ERROR_BACKTRACE     VARCHAR2(4000)'||wwv_flow.LF||
 ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    ddl(q''[create index UTIL_AUDIT_RECORDS_HIST_';
-wwv_flow_imp.g_varchar2_table(41) := 'IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_RECORDS (TABLE_NAME asc, PK_VALUE_VC asc, AUDIT_TS desc)]'');'||wwv_flow.LF||
+'    ddl(q''[create index ';
+wwv_flow_imp.g_varchar2_table(43) := 'UTIL_AUDIT_RECORDS_HIST_IX'||wwv_flow.LF||
+'    on UTIL_AUDIT_RECORDS (TABLE_NAME asc, PK_VALUE_VC asc, AUDIT_TS desc';
+wwv_flow_imp.g_varchar2_table(44) := ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    ddl(q''[create';
-wwv_flow_imp.g_varchar2_table(42) := ' index UTIL_AUDIT_RECORDS_TBL_TS_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_RECORDS (TABLE_NAME asc, AUDIT_TS desc)]'');'||wwv_flow.LF||
+'    ddl(q''[create index UTIL_AUDIT_RECORDS_TBL_TS_IX'||wwv_flow.LF||
+'    on UTIL_AUDIT_RECORDS (TABLE_NAME as';
+wwv_flow_imp.g_varchar2_table(45) := 'c, AUDIT_TS desc)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(43) := '   -- Settings, e.g. for archiving (name/value pairs)'||wwv_flow.LF||
+'    -- Settings, e.g. for archiving (name/value pairs)'||wwv_flow.LF||
 '    ddl(q''['||wwv_flow.LF||
-'create table UTIL_AUDIT_SETTINGS'||wwv_flow.LF||
-'(';
-wwv_flow_imp.g_varchar2_table(44) := ''||wwv_flow.LF||
+'create tab';
+wwv_flow_imp.g_varchar2_table(46) := 'le UTIL_AUDIT_SETTINGS'||wwv_flow.LF||
+'('||wwv_flow.LF||
 '    NAME       VARCHAR2(100) not null'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_SETTINGS_PK'||wwv_flow.LF||
-'            primary';
-wwv_flow_imp.g_varchar2_table(45) := ' key,'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_SETTING';
+wwv_flow_imp.g_varchar2_table(47) := 'S_PK'||wwv_flow.LF||
+'            primary key,'||wwv_flow.LF||
 '    VALUE      VARCHAR2(4000),'||wwv_flow.LF||
 '    UPDATED_ON DATE default SYSDATE,'||wwv_flow.LF||
-'    UPDATED_BY VARCHAR2(25';
-wwv_flow_imp.g_varchar2_table(46) := '5)'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(48) := '  UPDATED_BY VARCHAR2(255)'||wwv_flow.LF||
 ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    -- One row per archive file: one table, one month of events'||wwv_flow.LF||
-'    ddl(q''['||wwv_flow.LF||
-'create table U';
-wwv_flow_imp.g_varchar2_table(47) := 'TIL_AUDIT_ARCHIVE_FILES'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(49) := '  ddl(q''['||wwv_flow.LF||
+'create table UTIL_AUDIT_ARCHIVE_FILES'||wwv_flow.LF||
 '('||wwv_flow.LF||
-'    ARCHIVE_ID   NUMBER generated by default on null as identity'||wwv_flow.LF||
-'        c';
-wwv_flow_imp.g_varchar2_table(48) := 'onstraint UTIL_AUDIT_ARCHIVE_FILES_PK'||wwv_flow.LF||
+'    ARCHIVE_ID   NUMBER generated by default on nu';
+wwv_flow_imp.g_varchar2_table(50) := 'll as identity'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_ARCHIVE_FILES_PK'||wwv_flow.LF||
 '            primary key,'||wwv_flow.LF||
-'    TABLE_NAME   VARCHAR2(255) not nu';
-wwv_flow_imp.g_varchar2_table(49) := 'll,'||wwv_flow.LF||
+'    TABLE_NAM';
+wwv_flow_imp.g_varchar2_table(51) := 'E   VARCHAR2(255) not null,'||wwv_flow.LF||
 '    PERIOD_START TIMESTAMP(6)  not null,'||wwv_flow.LF||
-'    PERIOD_END   TIMESTAMP(6)  not null,'||wwv_flow.LF||
-'    EVENT_COUN';
-wwv_flow_imp.g_varchar2_table(50) := 'T  NUMBER,'||wwv_flow.LF||
+'    PERIOD_END   TIMESTAMP(6)  ';
+wwv_flow_imp.g_varchar2_table(52) := 'not null,'||wwv_flow.LF||
+'    EVENT_COUNT  NUMBER,'||wwv_flow.LF||
 '    RECORD_COUNT NUMBER,'||wwv_flow.LF||
 '    FILE_NAME    VARCHAR2(1000),'||wwv_flow.LF||
-'    FILE_BYTES   NUMBER,'||wwv_flow.LF||
-'    FI';
-wwv_flow_imp.g_varchar2_table(51) := 'LE_SHA256  VARCHAR2(80),'||wwv_flow.LF||
+'    FIL';
+wwv_flow_imp.g_varchar2_table(53) := 'E_BYTES   NUMBER,'||wwv_flow.LF||
+'    FILE_SHA256  VARCHAR2(80),'||wwv_flow.LF||
 '    STORAGE      VARCHAR2(20),'||wwv_flow.LF||
-'    LOCATION     VARCHAR2(1000),'||wwv_flow.LF||
-'    STATUS ';
-wwv_flow_imp.g_varchar2_table(52) := '      VARCHAR2(20) not null'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_ARCHIVE_FILES_ST_CHK'||wwv_flow.LF||
-'            check (st';
-wwv_flow_imp.g_varchar2_table(53) := 'atus IN (''CREATED'', ''STORED'', ''PURGED'', ''RESTORED'', ''FAILED'')),'||wwv_flow.LF||
-'    CONTENT      BLOB,'||wwv_flow.LF||
-'    MESSAGE  ';
-wwv_flow_imp.g_varchar2_table(54) := '    VARCHAR2(4000),'||wwv_flow.LF||
-'    CREATED_ON   TIMESTAMP(6) default SYSTIMESTAMP not null,'||wwv_flow.LF||
-'    CREATED_BY   VA';
-wwv_flow_imp.g_varchar2_table(55) := 'RCHAR2(255),'||wwv_flow.LF||
+'    LOCATION     VAR';
+wwv_flow_imp.g_varchar2_table(54) := 'CHAR2(1000),'||wwv_flow.LF||
+'    STATUS       VARCHAR2(20) not null'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_ARCHIVE_FILES_ST_C';
+wwv_flow_imp.g_varchar2_table(55) := 'HK'||wwv_flow.LF||
+'            check (status IN (''CREATED'', ''STORED'', ''PURGED'', ''RESTORED'', ''FAILED'')),'||wwv_flow.LF||
+'    CONTENT ';
+wwv_flow_imp.g_varchar2_table(56) := '     BLOB,'||wwv_flow.LF||
+'    MESSAGE      VARCHAR2(4000),'||wwv_flow.LF||
+'    CREATED_ON   TIMESTAMP(6) default SYSTIMESTAMP not n';
+wwv_flow_imp.g_varchar2_table(57) := 'ull,'||wwv_flow.LF||
+'    CREATED_BY   VARCHAR2(255),'||wwv_flow.LF||
 '    STORED_ON    TIMESTAMP(6),'||wwv_flow.LF||
 '    PURGED_ON    TIMESTAMP(6),'||wwv_flow.LF||
-'    RESTORED_ON  TIMESTAM';
-wwv_flow_imp.g_varchar2_table(56) := 'P(6)'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(58) := '   RESTORED_ON  TIMESTAMP(6)'||wwv_flow.LF||
 ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ddl(q''[create index UTIL_AUDIT_ARCHIVE_FILES_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_ARCHIVE_FILES (TAB';
-wwv_flow_imp.g_varchar2_table(57) := 'LE_NAME, PERIOD_START)]'');'||wwv_flow.LF||
+'    on UTIL_';
+wwv_flow_imp.g_varchar2_table(59) := 'AUDIT_ARCHIVE_FILES (TABLE_NAME, PERIOD_START)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -- Restore looks up the other events of the same database transactio';
-wwv_flow_imp.g_varchar2_table(58) := 'n'||wwv_flow.LF||
+'    -- Restore looks up the other events of the ';
+wwv_flow_imp.g_varchar2_table(60) := 'same database transaction'||wwv_flow.LF||
 '    ddl(q''[create index UTIL_AUDIT_TXN_DBTXN_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_TXN (DB_TRANSACTION_ID asc, TABL';
-wwv_flow_imp.g_varchar2_table(59) := 'E_NAME asc)]'');'||wwv_flow.LF||
+'    on UTIL_AUDIT_TXN (DB_';
+wwv_flow_imp.g_varchar2_table(61) := 'TRANSACTION_ID asc, TABLE_NAME asc)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ddl(q''[create index UTIL_AUDIT_RECORDS_HASH_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_RECORDS (CHANG';
-wwv_flow_imp.g_varchar2_table(60) := 'E_HASH)]'');'||wwv_flow.LF||
+'    on U';
+wwv_flow_imp.g_varchar2_table(62) := 'TIL_AUDIT_RECORDS (CHANGE_HASH)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -- FK column: used by the views'' joins and by purges of UTIL_AUDIT_TXN'||wwv_flow.LF||
-'    ddl(q''[c';
-wwv_flow_imp.g_varchar2_table(61) := 'reate index UTIL_AUDIT_RECORDS_TXN_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_RECORDS (TRANSACTION_ID)]'');'||wwv_flow.LF||
+'    -- FK column: used by the views'' joins and by purges of UTI';
+wwv_flow_imp.g_varchar2_table(63) := 'L_AUDIT_TXN'||wwv_flow.LF||
+'    ddl(q''[create index UTIL_AUDIT_RECORDS_TXN_IX'||wwv_flow.LF||
+'    on UTIL_AUDIT_RECORDS (TRANSACTION';
+wwv_flow_imp.g_varchar2_table(64) := '_ID)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    ddl(q''[cre';
-wwv_flow_imp.g_varchar2_table(62) := 'ate index UTIL_AUDIT_TXN_HIST_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_TXN (TABLE_NAME asc, PK_VALUE_VC asc, AUDIT_TS de';
-wwv_flow_imp.g_varchar2_table(63) := 'sc)]'');'||wwv_flow.LF||
+'    ddl(q''[create index UTIL_AUDIT_TXN_HIST_IX'||wwv_flow.LF||
+'    on UTIL_AUDIT_TXN (TABLE_NAME asc, PK_V';
+wwv_flow_imp.g_varchar2_table(65) := 'ALUE_VC asc, AUDIT_TS desc)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ddl(q''[create index UTIL_AUDIT_TXN_TBL_TS_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_TXN (TABLE_NAME asc, AUD';
-wwv_flow_imp.g_varchar2_table(64) := 'IT_TS desc)]'');'||wwv_flow.LF||
+'    on UTIL_AUDIT_';
+wwv_flow_imp.g_varchar2_table(66) := 'TXN (TABLE_NAME asc, AUDIT_TS desc)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ddl(q''[create index UTIL_AUDIT_ERRORS_TS_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_ERRORS (ERROR_TS ';
-wwv_flow_imp.g_varchar2_table(65) := 'desc)]'');'||wwv_flow.LF||
+'    on UTIL';
+wwv_flow_imp.g_varchar2_table(67) := '_AUDIT_ERRORS (ERROR_TS desc)]'');'||wwv_flow.LF||
 'END;'||wwv_flow.LF||
 '/';
 wwv_flow_imp_shared.create_install_script(
@@ -12093,513 +12257,672 @@ wwv_flow_imp.g_varchar2_table(119) := 'ames;'||wwv_flow.LF||
 '        v_pk_dts     t_names;'||wwv_flow.LF||
 '        v_ignored    util_audit_config.ignored_columns%TYPE;'||wwv_flow.LF||
 '   ';
-wwv_flow_imp.g_varchar2_table(120) := '     v_track      BOOLEAN;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(120) := '     v_excluded   util_audit_config.excluded_columns%TYPE;'||wwv_flow.LF||
+'        v_track      BOOLEAN;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        v_sql        CLOB;'||wwv_flow.LF||
+'        v_';
+wwv_flow_imp.g_varchar2_table(121) := 'sql        CLOB;'||wwv_flow.LF||
 '        v_has_cols   BOOLEAN := FALSE;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'     ';
-wwv_flow_imp.g_varchar2_table(121) := '   -- local utility to append'||wwv_flow.LF||
-'        PROCEDURE ap(p IN VARCHAR2) IS'||wwv_flow.LF||
+'        -- local utility to append'||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(122) := 'PROCEDURE ap(p IN VARCHAR2) IS'||wwv_flow.LF||
 '        BEGIN'||wwv_flow.LF||
-'            v_sql';
-wwv_flow_imp.g_varchar2_table(122) := ' := v_sql || p || CHR(10);'||wwv_flow.LF||
-'        END;'||wwv_flow.LF||
+'            v_sql := v_sql || p || CHR(10);'||wwv_flow.LF||
+'        END';
+wwv_flow_imp.g_varchar2_table(123) := ';'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        -- :NEW value on INSERT, :OLD value otherwise'||wwv_flow.LF||
-'     ';
-wwv_flow_imp.g_varchar2_table(123) := '   FUNCTION pk_part(p_col IN VARCHAR2, p_dt IN VARCHAR2) RETURN VARCHAR2 IS'||wwv_flow.LF||
+'        FUNCTION pk_part(p_col IN VARCHAR2,';
+wwv_flow_imp.g_varchar2_table(124) := ' p_dt IN VARCHAR2) RETURN VARCHAR2 IS'||wwv_flow.LF||
 '        BEGIN'||wwv_flow.LF||
-'          ';
-wwv_flow_imp.g_varchar2_table(124) := '  RETURN ''CASE WHEN INSERTING THEN '' || to_char_expr('':NEW.'' || q(p_col), p_dt) ||'||wwv_flow.LF||
-'                 ';
-wwv_flow_imp.g_varchar2_table(125) := '  '' ELSE '' || to_char_expr('':OLD.'' || q(p_col), p_dt) || '' END'';'||wwv_flow.LF||
+'            RETURN ''CASE WHEN INSERTING THEN '' |';
+wwv_flow_imp.g_varchar2_table(125) := '| to_char_expr('':NEW.'' || q(p_col), p_dt) ||'||wwv_flow.LF||
+'                   '' ELSE '' || to_char_expr('':OLD.'' || ';
+wwv_flow_imp.g_varchar2_table(126) := 'q(p_col), p_dt) || '' END'';'||wwv_flow.LF||
 '        END;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    BEGIN'||wwv_flow.LF||
-'        -- ';
-wwv_flow_imp.g_varchar2_table(126) := 'Validate table exists'||wwv_flow.LF||
+'        -- Validate table exists'||wwv_flow.LF||
 '        DECLARE'||wwv_flow.LF||
-'            v_cnt NUMBER;'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(127) := '            v_cnt NUMBER;'||wwv_flow.LF||
 '        BEGIN'||wwv_flow.LF||
-'            SELECT COU';
-wwv_flow_imp.g_varchar2_table(127) := 'NT(*)'||wwv_flow.LF||
+'            SELECT COUNT(*)'||wwv_flow.LF||
 '            INTO v_cnt'||wwv_flow.LF||
-'            FROM user_tables'||wwv_flow.LF||
-'            WHERE table_name = v_table_nam';
-wwv_flow_imp.g_varchar2_table(128) := 'e;'||wwv_flow.LF||
+'         ';
+wwv_flow_imp.g_varchar2_table(128) := '   FROM user_tables'||wwv_flow.LF||
+'            WHERE table_name = v_table_name;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '            IF v_cnt = 0 THEN'||wwv_flow.LF||
-'                RAISE_APPLICATION_ERROR(-20001, ''Table not found i';
-wwv_flow_imp.g_varchar2_table(129) := 'n schema: '' || v_table_name);'||wwv_flow.LF||
+'    ';
+wwv_flow_imp.g_varchar2_table(129) := '            RAISE_APPLICATION_ERROR(-20001, ''Table not found in schema: '' || v_table_name);'||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(130) := '    END IF;'||wwv_flow.LF||
+'            -- Auditing the audit tables would recurse'||wwv_flow.LF||
+'            IF v_table_name LIKE ';
+wwv_flow_imp.g_varchar2_table(131) := '''UTIL\_AUDIT\_%'' ESCAPE ''\'' THEN'||wwv_flow.LF||
+'                RAISE_APPLICATION_ERROR(-20005, ''util_audit''''s own ';
+wwv_flow_imp.g_varchar2_table(132) := 'tables cannot be audited: '' || v_table_name);'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
-'            -- Auditing the audit tables would rec';
-wwv_flow_imp.g_varchar2_table(130) := 'urse'||wwv_flow.LF||
-'            IF v_table_name LIKE ''UTIL\_AUDIT\_%'' ESCAPE ''\'' THEN'||wwv_flow.LF||
-'                RAISE_APPLICA';
-wwv_flow_imp.g_varchar2_table(131) := 'TION_ERROR(-20005, ''util_audit''''s own tables cannot be audited: '' || v_table_name);'||wwv_flow.LF||
-'            END ';
-wwv_flow_imp.g_varchar2_table(132) := 'IF;'||wwv_flow.LF||
 '        END;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        -- Primary key columns and datatypes, in key order'||wwv_flow.LF||
-'        SELECT cols.col';
-wwv_flow_imp.g_varchar2_table(133) := 'umn_name, tc.data_type'||wwv_flow.LF||
-'        BULK COLLECT INTO v_pk_cols, v_pk_dts'||wwv_flow.LF||
-'        FROM user_constraints c';
-wwv_flow_imp.g_varchar2_table(134) := 'ons'||wwv_flow.LF||
-'        JOIN user_cons_columns cols'||wwv_flow.LF||
+'        -- Primary k';
+wwv_flow_imp.g_varchar2_table(133) := 'ey columns and datatypes, in key order'||wwv_flow.LF||
+'        SELECT cols.column_name, tc.data_type'||wwv_flow.LF||
+'        BULK CO';
+wwv_flow_imp.g_varchar2_table(134) := 'LLECT INTO v_pk_cols, v_pk_dts'||wwv_flow.LF||
+'        FROM user_constraints cons'||wwv_flow.LF||
+'        JOIN user_cons_columns col';
+wwv_flow_imp.g_varchar2_table(135) := 's'||wwv_flow.LF||
 '          ON cons.constraint_name = cols.constraint_name'||wwv_flow.LF||
-'   ';
-wwv_flow_imp.g_varchar2_table(135) := '      AND cons.owner          = cols.owner'||wwv_flow.LF||
+'         AND cons.owner          = cols.o';
+wwv_flow_imp.g_varchar2_table(136) := 'wner'||wwv_flow.LF||
 '        JOIN user_tab_columns tc'||wwv_flow.LF||
-'          ON tc.table_na';
-wwv_flow_imp.g_varchar2_table(136) := 'me  = cons.table_name'||wwv_flow.LF||
-'         AND tc.column_name = cols.column_name'||wwv_flow.LF||
-'        WHERE cons.table_name =';
-wwv_flow_imp.g_varchar2_table(137) := ' v_table_name'||wwv_flow.LF||
-'          AND cons.constraint_type = ''P'''||wwv_flow.LF||
+'          ON tc.table_name  = cons.table_name'||wwv_flow.LF||
+'         AND tc.';
+wwv_flow_imp.g_varchar2_table(137) := 'column_name = cols.column_name'||wwv_flow.LF||
+'        WHERE cons.table_name = v_table_name'||wwv_flow.LF||
+'          AND cons.const';
+wwv_flow_imp.g_varchar2_table(138) := 'raint_type = ''P'''||wwv_flow.LF||
 '        ORDER BY cols.position;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        IF v';
-wwv_flow_imp.g_varchar2_table(138) := '_pk_cols.COUNT = 0 THEN'||wwv_flow.LF||
-'            RAISE_APPLICATION_ERROR(-20002, ''No primary key found for table:';
-wwv_flow_imp.g_varchar2_table(139) := ' '' || v_table_name);'||wwv_flow.LF||
+'        IF v_pk_cols.COUNT = 0 THEN'||wwv_flow.LF||
+'            RA';
+wwv_flow_imp.g_varchar2_table(139) := 'ISE_APPLICATION_ERROR(-20002, ''No primary key found for table: '' || v_table_name);'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        BEGIN'||wwv_flow.LF||
-'            SELECT ignored_columns INTO v_ignore';
-wwv_flow_imp.g_varchar2_table(140) := 'd'||wwv_flow.LF||
-'            FROM util_audit_config'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(140) := '        BEGIN'||wwv_flow.LF||
+'            SELECT ignored_columns, excluded_columns INTO v_ignored, v_excluded'||wwv_flow.LF||
+'      ';
+wwv_flow_imp.g_varchar2_table(141) := '      FROM util_audit_config'||wwv_flow.LF||
 '            WHERE table_name = v_table_name;'||wwv_flow.LF||
 '        EXCEPTION'||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(142) := '    WHEN NO_DATA_FOUND THEN'||wwv_flow.LF||
+'                v_ignored  := NULL;'||wwv_flow.LF||
+'                v_excluded := NULL;'||wwv_flow.LF||
 '';
-wwv_flow_imp.g_varchar2_table(141) := '            WHEN NO_DATA_FOUND THEN'||wwv_flow.LF||
-'                v_ignored := NULL;'||wwv_flow.LF||
-'        END;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(143) := '        END;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        v_sql :';
-wwv_flow_imp.g_varchar2_table(142) := '= EMPTY_CLOB();'||wwv_flow.LF||
+'        v_sql := EMPTY_CLOB();'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        ap(''CREATE OR REPLACE TRIGGER '' || q(v_trg_name));'||wwv_flow.LF||
-'        ap(''AFTER INSERT';
-wwv_flow_imp.g_varchar2_table(143) := ' OR UPDATE OR DELETE ON '' || q(v_table_name));'||wwv_flow.LF||
-'        ap(''FOR EACH ROW'');'||wwv_flow.LF||
-'        ap(''DECLARE'');'||wwv_flow.LF||
-'  ';
-wwv_flow_imp.g_varchar2_table(144) := '      ap(''    l_txn_id    VARCHAR2(64) := RAWTOHEX(SYS_GUID());'');'||wwv_flow.LF||
-'        ap(''    l_action    VARCH';
-wwv_flow_imp.g_varchar2_table(145) := 'AR2(6);'');'||wwv_flow.LF||
-'        ap(''    l_pk        VARCHAR2(4000);'');'||wwv_flow.LF||
-'        ap(''    l_has_changes BOOLEAN := F';
-wwv_flow_imp.g_varchar2_table(146) := 'ALSE;'');'||wwv_flow.LF||
-'        ap(''    v_audit_json JSON_OBJECT_T;'');'||wwv_flow.LF||
-'        ap(''    v_cols_arr   JSON_ARRAY_T;'')';
-wwv_flow_imp.g_varchar2_table(147) := ';'||wwv_flow.LF||
-'        ap(''    v_col_obj    JSON_OBJECT_T;'');'||wwv_flow.LF||
-'        ap(''    v_old_row    JSON_OBJECT_T;'');'||wwv_flow.LF||
-'    ';
-wwv_flow_imp.g_varchar2_table(148) := '    ap(''    v_new_row    JSON_OBJECT_T;'');'||wwv_flow.LF||
-'        IF v_pk_cols.COUNT > 1 THEN'||wwv_flow.LF||
-'            ap(''    v';
-wwv_flow_imp.g_varchar2_table(149) := '_pk_obj     JSON_OBJECT_T;'');'||wwv_flow.LF||
+'        ap(''CREATE OR REPLACE TRIGGER '' || q(v_trg_nam';
+wwv_flow_imp.g_varchar2_table(144) := 'e));'||wwv_flow.LF||
+'        ap(''AFTER INSERT OR UPDATE OR DELETE ON '' || q(v_table_name));'||wwv_flow.LF||
+'        ap(''FOR EACH ROW';
+wwv_flow_imp.g_varchar2_table(145) := ''');'||wwv_flow.LF||
+'        IF v_excluded IS NOT NULL THEN'||wwv_flow.LF||
+'            ap(''-- Never recorded (excluded): '' || REPLAC';
+wwv_flow_imp.g_varchar2_table(146) := 'E(v_excluded, '','', '', ''));'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
-'        ap(''    l_err_code  NUMBER;'');'||wwv_flow.LF||
-'        ap(''   ';
-wwv_flow_imp.g_varchar2_table(150) := ' l_err_msg   VARCHAR2(4000);'');'||wwv_flow.LF||
-'        ap(''    l_err_trace VARCHAR2(4000);'');'||wwv_flow.LF||
-'        ap('''');'||wwv_flow.LF||
-'     ';
-wwv_flow_imp.g_varchar2_table(151) := '   ap(''    -- Last resort when util_audit itself cannot log: write the error'');'||wwv_flow.LF||
-'        ap(''    -- s';
-wwv_flow_imp.g_varchar2_table(152) := 'traight to UTIL_AUDIT_ERRORS in its own transaction'');'||wwv_flow.LF||
-'        ap(''    PROCEDURE log_direct IS'');'||wwv_flow.LF||
+'        ap(''DECLARE'');'||wwv_flow.LF||
+'        ap(''    l_txn_id    VARCHA';
+wwv_flow_imp.g_varchar2_table(147) := 'R2(64) := RAWTOHEX(SYS_GUID());'');'||wwv_flow.LF||
+'        ap(''    l_action    VARCHAR2(6);'');'||wwv_flow.LF||
+'        ap(''    l_pk ';
+wwv_flow_imp.g_varchar2_table(148) := '       VARCHAR2(4000);'');'||wwv_flow.LF||
+'        ap(''    l_has_changes BOOLEAN := FALSE;'');'||wwv_flow.LF||
+'        ap(''    v_audit';
+wwv_flow_imp.g_varchar2_table(149) := '_json JSON_OBJECT_T;'');'||wwv_flow.LF||
+'        ap(''    v_cols_arr   JSON_ARRAY_T;'');'||wwv_flow.LF||
+'        ap(''    v_col_obj    J';
+wwv_flow_imp.g_varchar2_table(150) := 'SON_OBJECT_T;'');'||wwv_flow.LF||
+'        ap(''    v_old_row    JSON_OBJECT_T;'');'||wwv_flow.LF||
+'        ap(''    v_new_row    JSON_OB';
+wwv_flow_imp.g_varchar2_table(151) := 'JECT_T;'');'||wwv_flow.LF||
+'        IF v_pk_cols.COUNT > 1 THEN'||wwv_flow.LF||
+'            ap(''    v_pk_obj     JSON_OBJECT_T;'');'||wwv_flow.LF||
 '  ';
-wwv_flow_imp.g_varchar2_table(153) := '      ap(''        PRAGMA AUTONOMOUS_TRANSACTION;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(152) := '      END IF;'||wwv_flow.LF||
+'        ap(''    l_err_code  NUMBER;'');'||wwv_flow.LF||
+'        ap(''    l_err_msg   VARCHAR2(4000);'');'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(153) := '        ap(''    l_err_trace VARCHAR2(4000);'');'||wwv_flow.LF||
+'        ap('''');'||wwv_flow.LF||
+'        ap(''    -- Last resort when u';
+wwv_flow_imp.g_varchar2_table(154) := 'til_audit itself cannot log: write the error'');'||wwv_flow.LF||
+'        ap(''    -- straight to UTIL_AUDIT_ERRORS in ';
+wwv_flow_imp.g_varchar2_table(155) := 'its own transaction'');'||wwv_flow.LF||
+'        ap(''    PROCEDURE log_direct IS'');'||wwv_flow.LF||
+'        ap(''        PRAGMA AUTONOM';
+wwv_flow_imp.g_varchar2_table(156) := 'OUS_TRANSACTION;'');'||wwv_flow.LF||
 '        ap(''    BEGIN'');'||wwv_flow.LF||
-'        ap(''        INS';
-wwv_flow_imp.g_varchar2_table(154) := 'ERT INTO util_audit_errors'');'||wwv_flow.LF||
-'        ap(''            (table_name, transaction_type, pk_value_vc, us';
-wwv_flow_imp.g_varchar2_table(155) := 'ername, error_code, error_message, error_backtrace)'');'||wwv_flow.LF||
-'        ap(''        VALUES ('' || v_table_lit ';
-wwv_flow_imp.g_varchar2_table(156) := '|| '', l_action, SUBSTRB(l_pk, 1, 4000),'');'||wwv_flow.LF||
-'        ap(''            SUBSTR(NVL(sys_context(''''APEX$SES';
-wwv_flow_imp.g_varchar2_table(157) := 'SION'''', ''''APP_USER''''), USER), 1, 255),'');'||wwv_flow.LF||
-'        ap(''            l_err_code, l_err_msg, l_err_trace';
-wwv_flow_imp.g_varchar2_table(158) := ');'');'||wwv_flow.LF||
-'        ap(''        COMMIT;'');'||wwv_flow.LF||
+'        ap(''        INSERT INTO util_audit_errors'');'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(157) := '      ap(''            (table_name, transaction_type, pk_value_vc, username, error_code, error_messag';
+wwv_flow_imp.g_varchar2_table(158) := 'e, error_backtrace)'');'||wwv_flow.LF||
+'        ap(''        VALUES ('' || v_table_lit || '', l_action, SUBSTRB(l_pk, 1,';
+wwv_flow_imp.g_varchar2_table(159) := ' 4000),'');'||wwv_flow.LF||
+'        ap(''            SUBSTR(NVL(sys_context(''''APEX$SESSION'''', ''''APP_USER''''), USER), 1,';
+wwv_flow_imp.g_varchar2_table(160) := ' 255),'');'||wwv_flow.LF||
+'        ap(''            l_err_code, l_err_msg, l_err_trace);'');'||wwv_flow.LF||
+'        ap(''        COMMIT';
+wwv_flow_imp.g_varchar2_table(161) := ';'');'||wwv_flow.LF||
 '        ap(''    EXCEPTION'');'||wwv_flow.LF||
-'        ap(''        WHEN OTHERS TH';
-wwv_flow_imp.g_varchar2_table(159) := 'EN'');'||wwv_flow.LF||
-'        ap(''            ROLLBACK;'');'||wwv_flow.LF||
+'        ap(''        WHEN OTHERS THEN'');'||wwv_flow.LF||
+'        ap(''            RO';
+wwv_flow_imp.g_varchar2_table(162) := 'LLBACK;'');'||wwv_flow.LF||
 '        ap(''    END;'');'||wwv_flow.LF||
 '        ap(''BEGIN'');'||wwv_flow.LF||
-'        ap(''';
-wwv_flow_imp.g_varchar2_table(160) := '    -- Normalize transaction type (do NOT rely on ORA_SYSEVENT)'');'||wwv_flow.LF||
-'        ap(''    l_action := CASE''';
-wwv_flow_imp.g_varchar2_table(161) := ');'||wwv_flow.LF||
-'        ap(''        WHEN INSERTING THEN ''''INSERT'''''');'||wwv_flow.LF||
-'        ap(''        WHEN UPDATING  THEN ''''U';
-wwv_flow_imp.g_varchar2_table(162) := 'PDATE'''''');'||wwv_flow.LF||
-'        ap(''        WHEN DELETING  THEN ''''DELETE'''''');'||wwv_flow.LF||
+'        ap(''    -- Normalize transaction typ';
+wwv_flow_imp.g_varchar2_table(163) := 'e (do NOT rely on ORA_SYSEVENT)'');'||wwv_flow.LF||
+'        ap(''    l_action := CASE'');'||wwv_flow.LF||
+'        ap(''        WHEN INSE';
+wwv_flow_imp.g_varchar2_table(164) := 'RTING THEN ''''INSERT'''''');'||wwv_flow.LF||
+'        ap(''        WHEN UPDATING  THEN ''''UPDATE'''''');'||wwv_flow.LF||
+'        ap(''        W';
+wwv_flow_imp.g_varchar2_table(165) := 'HEN DELETING  THEN ''''DELETE'''''');'||wwv_flow.LF||
 '        ap(''    END;'');'||wwv_flow.LF||
-'        ap(';
-wwv_flow_imp.g_varchar2_table(163) := ''''');'||wwv_flow.LF||
-'        ap(''    -- Skip when auditing is disabled in util_audit_config'');'||wwv_flow.LF||
-'        ap(''    IF NO';
-wwv_flow_imp.g_varchar2_table(164) := 'T util_audit.table_enabled('' || v_table_lit || '') THEN'');'||wwv_flow.LF||
+'        ap('''');'||wwv_flow.LF||
+'        ap(''    -- Skip whe';
+wwv_flow_imp.g_varchar2_table(166) := 'n auditing is disabled in util_audit_config'');'||wwv_flow.LF||
+'        ap(''    IF NOT util_audit.table_enabled('' || ';
+wwv_flow_imp.g_varchar2_table(167) := 'v_table_lit || '') THEN'');'||wwv_flow.LF||
 '        ap(''        RETURN;'');'||wwv_flow.LF||
-'        ap(';
-wwv_flow_imp.g_varchar2_table(165) := '''    END IF;'');'||wwv_flow.LF||
+'        ap(''    END IF;'');'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
-''||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(168) := ''||wwv_flow.LF||
 '        -- pk_value serialization'||wwv_flow.LF||
-'        ap(''    -- Primary key va';
-wwv_flow_imp.g_varchar2_table(166) := 'lue'');'||wwv_flow.LF||
-'        IF v_pk_cols.COUNT = 1 THEN'||wwv_flow.LF||
-'            ap(''    l_pk := '' || pk_part(v_pk_cols(1), v_';
-wwv_flow_imp.g_varchar2_table(167) := 'pk_dts(1)) || '';'');'||wwv_flow.LF||
-'        ELSE'||wwv_flow.LF||
+'        ap(''    -- Primary key value'');'||wwv_flow.LF||
+'        IF v_pk_cols.COUN';
+wwv_flow_imp.g_varchar2_table(169) := 'T = 1 THEN'||wwv_flow.LF||
+'            ap(''    l_pk := '' || pk_part(v_pk_cols(1), v_pk_dts(1)) || '';'');'||wwv_flow.LF||
+'        ELSE';
+wwv_flow_imp.g_varchar2_table(170) := ''||wwv_flow.LF||
 '            ap(''    v_pk_obj := JSON_OBJECT_T();'');'||wwv_flow.LF||
-'            FOR';
-wwv_flow_imp.g_varchar2_table(168) := ' i IN 1 .. v_pk_cols.COUNT LOOP'||wwv_flow.LF||
-'                ap(''    v_pk_obj.put('' || lit(v_pk_cols(i)) || '', '' ';
-wwv_flow_imp.g_varchar2_table(169) := '|| pk_part(v_pk_cols(i), v_pk_dts(i)) || '');'');'||wwv_flow.LF||
+'            FOR i IN 1 .. v_pk_cols.COUNT LOOP'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(171) := '                ap(''    v_pk_obj.put('' || lit(v_pk_cols(i)) || '', '' || pk_part(v_pk_cols(i), v_pk_dt';
+wwv_flow_imp.g_varchar2_table(172) := 's(i)) || '');'');'||wwv_flow.LF||
 '            END LOOP;'||wwv_flow.LF||
-'            ap(''    l_pk := v_';
-wwv_flow_imp.g_varchar2_table(170) := 'pk_obj.to_string;'');'||wwv_flow.LF||
-'        END IF;'||wwv_flow.LF||
+'            ap(''    l_pk := v_pk_obj.to_string;'');'||wwv_flow.LF||
+'        END';
+wwv_flow_imp.g_varchar2_table(173) := ' IF;'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        ap(''    v_audit_json := JSON_OBJECT_T(';
-wwv_flow_imp.g_varchar2_table(171) := ');'');'||wwv_flow.LF||
-'        ap(''    v_cols_arr   := JSON_ARRAY_T();'');'||wwv_flow.LF||
-'        ap(''    v_old_row    := JSON_OBJECT';
-wwv_flow_imp.g_varchar2_table(172) := '_T();'');'||wwv_flow.LF||
-'        ap(''    v_new_row    := JSON_OBJECT_T();'');'||wwv_flow.LF||
-'        ap(''    v_audit_json.put(''''pk_v';
-wwv_flow_imp.g_varchar2_table(173) := 'alue'''', l_pk);'');'||wwv_flow.LF||
-'        ap(''    v_audit_json.put(''''transaction_id'''', l_txn_id);'');'||wwv_flow.LF||
-'        ap(''   ';
-wwv_flow_imp.g_varchar2_table(174) := ' v_audit_json.put(''''table_name'''', '' || v_table_lit || '');'');'||wwv_flow.LF||
-'        ap(''    v_audit_json.put(''''tran';
-wwv_flow_imp.g_varchar2_table(175) := 'saction_type'''', l_action);'');'||wwv_flow.LF||
-'        ap(''    v_audit_json.put(''''user_name'''', NVL(sys_context(''''APEX';
-wwv_flow_imp.g_varchar2_table(176) := '$SESSION'''',''''APP_USER''''), USER));'');'||wwv_flow.LF||
+'        ap(''    v_audit_json := JSON_OBJECT_T();'');'||wwv_flow.LF||
+'        ap(''    v_cols_arr';
+wwv_flow_imp.g_varchar2_table(174) := '   := JSON_ARRAY_T();'');'||wwv_flow.LF||
+'        ap(''    v_old_row    := JSON_OBJECT_T();'');'||wwv_flow.LF||
+'        ap(''    v_new_r';
+wwv_flow_imp.g_varchar2_table(175) := 'ow    := JSON_OBJECT_T();'');'||wwv_flow.LF||
+'        ap(''    v_audit_json.put(''''pk_value'''', l_pk);'');'||wwv_flow.LF||
+'        ap(''  ';
+wwv_flow_imp.g_varchar2_table(176) := '  v_audit_json.put(''''transaction_id'''', l_txn_id);'');'||wwv_flow.LF||
+'        ap(''    v_audit_json.put(''''table_name''''';
+wwv_flow_imp.g_varchar2_table(177) := ', '' || v_table_lit || '');'');'||wwv_flow.LF||
+'        ap(''    v_audit_json.put(''''transaction_type'''', l_action);'');'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(178) := '      ap(''    v_audit_json.put(''''user_name'''', NVL(sys_context(''''APEX$SESSION'''',''''APP_USER''''), USER))';
+wwv_flow_imp.g_varchar2_table(179) := ';'');'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        -- Per column: row snapshots and colum';
-wwv_flow_imp.g_varchar2_table(177) := 'n-level changes'||wwv_flow.LF||
-'        -- (supported columns only, excluding ignored)'||wwv_flow.LF||
+'        -- Per column: row snapshots and column-level changes'||wwv_flow.LF||
+'        -- (supp';
+wwv_flow_imp.g_varchar2_table(180) := 'orted columns only, excluding ignored)'||wwv_flow.LF||
 '        FOR c IN ('||wwv_flow.LF||
-'          ';
-wwv_flow_imp.g_varchar2_table(178) := '  SELECT column_name, data_type'||wwv_flow.LF||
-'            FROM user_tab_columns'||wwv_flow.LF||
-'            WHERE table_name = v_t';
-wwv_flow_imp.g_varchar2_table(179) := 'able_name'||wwv_flow.LF||
-'            ORDER BY column_id'||wwv_flow.LF||
+'            SELECT column_name, data_type'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(181) := '            FROM user_tab_columns'||wwv_flow.LF||
+'            WHERE table_name = v_table_name'||wwv_flow.LF||
+'            ORDER BY c';
+wwv_flow_imp.g_varchar2_table(182) := 'olumn_id'||wwv_flow.LF||
 '        ) LOOP'||wwv_flow.LF||
-'            IF NOT supported_datatype(c.data';
-wwv_flow_imp.g_varchar2_table(180) := '_type) THEN'||wwv_flow.LF||
+'            IF NOT supported_datatype(c.data_type) THEN'||wwv_flow.LF||
+'                CONT';
+wwv_flow_imp.g_varchar2_table(183) := 'INUE;'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
+'            -- Excluded columns are never read: not in the changes, not in';
+wwv_flow_imp.g_varchar2_table(184) := ''||wwv_flow.LF||
+'            -- the snapshots'||wwv_flow.LF||
+'            IF v_excluded IS NOT NULL AND in_list(v_excluded, c.column';
+wwv_flow_imp.g_varchar2_table(185) := '_name) THEN'||wwv_flow.LF||
 '                CONTINUE;'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
 '            -- Ignored columns are left ou';
-wwv_flow_imp.g_varchar2_table(181) := 't of the changes but kept in the row'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(186) := 't of the changes but kept in the row'||wwv_flow.LF||
 '            -- snapshots: restore needs the whole row (e.g. a N';
-wwv_flow_imp.g_varchar2_table(182) := 'OT NULL CREATED)'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(187) := 'OT NULL CREATED)'||wwv_flow.LF||
 '            v_track := NOT is_ignored_column(c.column_name, v_ignored);'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '          ';
-wwv_flow_imp.g_varchar2_table(183) := '  ap(''    -- '' || c.column_name);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(188) := '  ap(''    -- '' || c.column_name);'||wwv_flow.LF||
 '            IF UPPER(c.data_type) = ''CLOB'' THEN'||wwv_flow.LF||
 '                --';
-wwv_flow_imp.g_varchar2_table(184) := ' An unchanged CLOB is left out of UPDATE snapshots; restore'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(189) := ' An unchanged CLOB is left out of UPDATE snapshots; restore'||wwv_flow.LF||
 '                -- then leaves it as it ';
-wwv_flow_imp.g_varchar2_table(185) := 'is'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(190) := 'is'||wwv_flow.LF||
 '                ap(''    IF DELETING OR (UPDATING AND '' || changed_predicate(c.column_name, c.data';
-wwv_flow_imp.g_varchar2_table(186) := '_type) || '') THEN'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(191) := '_type) || '') THEN'');'||wwv_flow.LF||
 '                ap(''        v_old_row.put('' || lit(c.column_name) || '', :OLD.'' ';
-wwv_flow_imp.g_varchar2_table(187) := '|| q(c.column_name) || '');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(192) := '|| q(c.column_name) || '');'');'||wwv_flow.LF||
 '                ap(''    END IF;'');'||wwv_flow.LF||
 '                ap(''    IF INSERTIN';
-wwv_flow_imp.g_varchar2_table(188) := 'G OR (UPDATING AND '' || changed_predicate(c.column_name, c.data_type) || '') THEN'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(193) := 'G OR (UPDATING AND '' || changed_predicate(c.column_name, c.data_type) || '') THEN'');'||wwv_flow.LF||
 '                ';
-wwv_flow_imp.g_varchar2_table(189) := 'ap(''        v_new_row.put('' || lit(c.column_name) || '', :NEW.'' || q(c.column_name) || '');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(194) := 'ap(''        v_new_row.put('' || lit(c.column_name) || '', :NEW.'' || q(c.column_name) || '');'');'||wwv_flow.LF||
 '       ';
-wwv_flow_imp.g_varchar2_table(190) := '         ap(''    END IF;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(195) := '         ap(''    END IF;'');'||wwv_flow.LF||
 '            ELSE'||wwv_flow.LF||
 '                ap(''    IF NOT INSERTING THEN'');'||wwv_flow.LF||
 '      ';
-wwv_flow_imp.g_varchar2_table(191) := '          ap(''        v_old_row.put('' || lit(c.column_name) || '', '' ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(196) := '          ap(''        v_old_row.put('' || lit(c.column_name) || '', '' ||'||wwv_flow.LF||
 '                   to_char_ex';
-wwv_flow_imp.g_varchar2_table(192) := 'pr('':OLD.'' || q(c.column_name), c.data_type) || '');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(197) := 'pr('':OLD.'' || q(c.column_name), c.data_type) || '');'');'||wwv_flow.LF||
 '                ap(''    END IF;'');'||wwv_flow.LF||
 '          ';
-wwv_flow_imp.g_varchar2_table(193) := '      ap(''    IF NOT DELETING THEN'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(198) := '      ap(''    IF NOT DELETING THEN'');'||wwv_flow.LF||
 '                ap(''        v_new_row.put('' || lit(c.column_na';
-wwv_flow_imp.g_varchar2_table(194) := 'me) || '', '' ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(199) := 'me) || '', '' ||'||wwv_flow.LF||
 '                   to_char_expr('':NEW.'' || q(c.column_name), c.data_type) || '');'');'||wwv_flow.LF||
 ' ';
-wwv_flow_imp.g_varchar2_table(195) := '               ap(''    END IF;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(200) := '               ap(''    END IF;'');'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '            IF NOT v_track THEN'||wwv_flow.LF||
 '             ';
-wwv_flow_imp.g_varchar2_table(196) := '   ap('''');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(201) := '   ap('''');'||wwv_flow.LF||
 '                CONTINUE;'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
 '            v_has_cols := TRUE;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '          ';
-wwv_flow_imp.g_varchar2_table(197) := '  -- A NULL inserted or deleted is not a change, so it gets no row'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(202) := '  -- A NULL inserted or deleted is not a change, so it gets no row'||wwv_flow.LF||
 '            -- (the snapshot stil';
-wwv_flow_imp.g_varchar2_table(198) := 'l has the column)'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(203) := 'l has the column)'||wwv_flow.LF||
 '            ap(''    IF (INSERTING AND :NEW.'' || q(c.column_name) || '' IS NOT NULL)';
-wwv_flow_imp.g_varchar2_table(199) := ''' ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(204) := ''' ||'||wwv_flow.LF||
 '               '' OR (DELETING AND :OLD.'' || q(c.column_name) || '' IS NOT NULL)'' ||'||wwv_flow.LF||
 '            ';
-wwv_flow_imp.g_varchar2_table(200) := '   '' OR (UPDATING AND '' || changed_predicate(c.column_name, c.data_type) || '') THEN'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(205) := '   '' OR (UPDATING AND '' || changed_predicate(c.column_name, c.data_type) || '') THEN'');'||wwv_flow.LF||
 '            a';
-wwv_flow_imp.g_varchar2_table(201) := 'p(''        l_has_changes := TRUE;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(206) := 'p(''        l_has_changes := TRUE;'');'||wwv_flow.LF||
 '            ap(''        v_col_obj := JSON_OBJECT_T();'');'||wwv_flow.LF||
 '      ';
-wwv_flow_imp.g_varchar2_table(202) := '      ap(''        v_col_obj.put(''''column_name'''', '' || lit(c.column_name) || '');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(207) := '      ap(''        v_col_obj.put(''''column_name'''', '' || lit(c.column_name) || '');'');'||wwv_flow.LF||
 '            ap('' ';
-wwv_flow_imp.g_varchar2_table(203) := '       v_col_obj.put(''''data_type'''', '' || lit(UPPER(c.data_type)) || '');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(208) := '       v_col_obj.put(''''data_type'''', '' || lit(UPPER(c.data_type)) || '');'');'||wwv_flow.LF||
 '            ap(''        v';
-wwv_flow_imp.g_varchar2_table(204) := '_col_obj.put(''''old_value'''', CASE WHEN INSERTING THEN NULL ELSE '' ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(209) := '_col_obj.put(''''old_value'''', CASE WHEN INSERTING THEN NULL ELSE '' ||'||wwv_flow.LF||
 '               to_char_expr('':OL';
-wwv_flow_imp.g_varchar2_table(205) := 'D.'' || q(c.column_name), c.data_type) || '' END);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(210) := 'D.'' || q(c.column_name), c.data_type) || '' END);'');'||wwv_flow.LF||
 '            ap(''        v_col_obj.put(''''new_valu';
-wwv_flow_imp.g_varchar2_table(206) := 'e'''', CASE WHEN DELETING THEN NULL ELSE '' ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(211) := 'e'''', CASE WHEN DELETING THEN NULL ELSE '' ||'||wwv_flow.LF||
 '               to_char_expr('':NEW.'' || q(c.column_name),';
-wwv_flow_imp.g_varchar2_table(207) := ' c.data_type) || '' END);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(212) := ' c.data_type) || '' END);'');'||wwv_flow.LF||
 '            ap(''        v_cols_arr.append(v_col_obj);'');'||wwv_flow.LF||
 '            ap(';
-wwv_flow_imp.g_varchar2_table(208) := '''    END IF;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(213) := '''    END IF;'');'||wwv_flow.LF||
 '            ap('''');'||wwv_flow.LF||
 '        END LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        -- An INSERT or DELETE is always reco';
-wwv_flow_imp.g_varchar2_table(209) := 'rded, even with no non-NULL column'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(214) := 'rded, even with no non-NULL column'||wwv_flow.LF||
 '        ap(''    IF UPDATING AND NOT l_has_changes THEN'');'||wwv_flow.LF||
 '       ';
-wwv_flow_imp.g_varchar2_table(210) := ' ap(''        RETURN;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(215) := ' ap(''        RETURN;'');'||wwv_flow.LF||
 '        ap(''    END IF;'');'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
 '        ap(''    v_audit_json.put(';
-wwv_flow_imp.g_varchar2_table(211) := '''''old_row'''', v_old_row);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(216) := '''''old_row'''', v_old_row);'');'||wwv_flow.LF||
 '        ap(''    v_audit_json.put(''''new_row'''', v_new_row);'');'||wwv_flow.LF||
 '        ap(';
-wwv_flow_imp.g_varchar2_table(212) := '''    v_audit_json.put(''''columns'''', v_cols_arr);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(217) := '''    v_audit_json.put(''''columns'''', v_cols_arr);'');'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
 '        ap(''    -- Write audit'');';
-wwv_flow_imp.g_varchar2_table(213) := ''||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(218) := ''||wwv_flow.LF||
 '        ap(''    util_audit.capture_audit(v_audit_json);'');'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
 '        ap(''EXCEPTION'');';
-wwv_flow_imp.g_varchar2_table(214) := ''||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(219) := ''||wwv_flow.LF||
 '        ap(''    WHEN OTHERS THEN'');'||wwv_flow.LF||
 '        ap(''        -- Do not break business DML; record the fa';
-wwv_flow_imp.g_varchar2_table(215) := 'ilure instead'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(220) := 'ilure instead'');'||wwv_flow.LF||
 '        ap(''        l_err_code  := SQLCODE;'');'||wwv_flow.LF||
 '        ap(''        l_err_msg   := S';
-wwv_flow_imp.g_varchar2_table(216) := 'UBSTRB(SQLERRM, 1, 4000);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(221) := 'UBSTRB(SQLERRM, 1, 4000);'');'||wwv_flow.LF||
 '        ap(''        l_err_trace := SUBSTRB(DBMS_UTILITY.FORMAT_ERROR_BA';
-wwv_flow_imp.g_varchar2_table(217) := 'CKTRACE, 1, 4000);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(222) := 'CKTRACE, 1, 4000);'');'||wwv_flow.LF||
 '        ap(''        BEGIN'');'||wwv_flow.LF||
 '        ap(''            util_audit.log_error('' ||';
-wwv_flow_imp.g_varchar2_table(218) := ' v_table_lit || '', l_action, l_pk,'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(223) := ' v_table_lit || '', l_action, l_pk,'');'||wwv_flow.LF||
 '        ap(''                l_err_code, l_err_msg, l_err_trace';
-wwv_flow_imp.g_varchar2_table(219) := ');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(224) := ');'');'||wwv_flow.LF||
 '        ap(''        EXCEPTION'');'||wwv_flow.LF||
 '        ap(''            WHEN OTHERS THEN'');'||wwv_flow.LF||
 '        ap(''     ';
-wwv_flow_imp.g_varchar2_table(220) := '           log_direct;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(225) := '           log_direct;'');'||wwv_flow.LF||
 '        ap(''        END;'');'||wwv_flow.LF||
 '        ap(''END;'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        IF NOT v_has_cols';
-wwv_flow_imp.g_varchar2_table(221) := ' THEN'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(226) := ' THEN'||wwv_flow.LF||
 '            RAISE_APPLICATION_ERROR(-20003, ''No auditable columns found for table: '' || v_tabl';
-wwv_flow_imp.g_varchar2_table(222) := 'e_name);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(227) := 'e_name);'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        RETURN v_sql;'||wwv_flow.LF||
 '    END get_trigger_ddl;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ----------------------';
-wwv_flow_imp.g_varchar2_table(223) := '----------------------------------------------------'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(228) := '----------------------------------------------------'||wwv_flow.LF||
 '    -- Public: Create trigger'||wwv_flow.LF||
 '    -------------';
-wwv_flow_imp.g_varchar2_table(224) := '-------------------------------------------------------------'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(229) := '-------------------------------------------------------------'||wwv_flow.LF||
 '    PROCEDURE create_audit_trigger('||wwv_flow.LF||
 '  ';
-wwv_flow_imp.g_varchar2_table(225) := '      p_table_name IN VARCHAR2,'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(230) := '      p_table_name IN VARCHAR2,'||wwv_flow.LF||
 '        p_action     IN VARCHAR2 DEFAULT ''EXECUTE'''||wwv_flow.LF||
 '    ) IS'||wwv_flow.LF||
 '        ';
-wwv_flow_imp.g_varchar2_table(226) := 'v_table_name VARCHAR2(128) := norm_name(p_table_name);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(231) := 'v_table_name VARCHAR2(128) := norm_name(p_table_name);'||wwv_flow.LF||
 '        v_trg_name   VARCHAR2(128) := trig_na';
-wwv_flow_imp.g_varchar2_table(227) := 'me(p_table_name);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(232) := 'me(p_table_name);'||wwv_flow.LF||
 '        v_sql        CLOB          := get_trigger_ddl(p_table_name);'||wwv_flow.LF||
 '        v_err';
-wwv_flow_imp.g_varchar2_table(228) := 'or      VARCHAR2(4000);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(233) := 'or      VARCHAR2(4000);'||wwv_flow.LF||
 '    BEGIN'||wwv_flow.LF||
 '        IF norm_name(p_action) = ''GENERATE'' THEN'||wwv_flow.LF||
 '            exec_';
-wwv_flow_imp.g_varchar2_table(229) := 'sql(v_sql, p_action);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(234) := 'sql(v_sql, p_action);'||wwv_flow.LF||
 '            report_child_tables(v_table_name);'||wwv_flow.LF||
 '            RETURN;'||wwv_flow.LF||
 '        END';
-wwv_flow_imp.g_varchar2_table(230) := ' IF;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(235) := ' IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        -- Register first: the trigger DDL commits, which also saves this row.'||wwv_flow.LF||
 '        -- An e';
-wwv_flow_imp.g_varchar2_table(231) := 'xisting flag is kept, so regenerating a trigger (e.g. after'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(236) := 'xisting flag is kept, so regenerating a trigger (e.g. after'||wwv_flow.LF||
 '        -- ALTER TABLE) does not re-enab';
-wwv_flow_imp.g_varchar2_table(232) := 'le a disabled table.'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(237) := 'le a disabled table.'||wwv_flow.LF||
 '        MERGE INTO util_audit_config c'||wwv_flow.LF||
 '        USING (SELECT v_table_name table';
-wwv_flow_imp.g_varchar2_table(233) := '_name FROM dual) src'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(238) := '_name FROM dual) src'||wwv_flow.LF||
 '        ON (c.table_name = src.table_name)'||wwv_flow.LF||
 '        WHEN NOT MATCHED THEN'||wwv_flow.LF||
 '      ';
-wwv_flow_imp.g_varchar2_table(234) := '      INSERT (table_name, enabled_flag, created_on, created_by)'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(239) := '      INSERT (table_name, enabled_flag, created_on, created_by)'||wwv_flow.LF||
 '            VALUES (src.table_name, ';
-wwv_flow_imp.g_varchar2_table(235) := '''Y'', SYSDATE, USER);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(240) := '''Y'', SYSDATE, USER);'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        -- Create it disabled and enable it only when it compiled: an invalid'||wwv_flow.LF||
 '';
-wwv_flow_imp.g_varchar2_table(236) := '        -- enabled trigger would block every change to the table'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(241) := '        -- enabled trigger would block every change to the table'||wwv_flow.LF||
 '        v_sql := REPLACE(v_sql, ''FO';
-wwv_flow_imp.g_varchar2_table(237) := 'R EACH ROW'' || CHR(10), ''FOR EACH ROW'' || CHR(10) || ''DISABLE'' || CHR(10));'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(242) := 'R EACH ROW'' || CHR(10), ''FOR EACH ROW'' || CHR(10) || ''DISABLE'' || CHR(10));'||wwv_flow.LF||
 '        BEGIN'||wwv_flow.LF||
 '          ';
-wwv_flow_imp.g_varchar2_table(238) := '  exec_sql(v_sql, p_action);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(243) := '  exec_sql(v_sql, p_action);'||wwv_flow.LF||
 '        EXCEPTION'||wwv_flow.LF||
 '            WHEN OTHERS THEN'||wwv_flow.LF||
 '                IF SQLCO';
-wwv_flow_imp.g_varchar2_table(239) := 'DE <> -24344 THEN  -- created with compilation errors'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(244) := 'DE <> -24344 THEN  -- created with compilation errors'||wwv_flow.LF||
 '                    RAISE;'||wwv_flow.LF||
 '                END';
-wwv_flow_imp.g_varchar2_table(240) := ' IF;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(245) := ' IF;'||wwv_flow.LF||
 '        END;'||wwv_flow.LF||
 '        SELECT MIN(text) INTO v_error'||wwv_flow.LF||
 '        FROM user_errors'||wwv_flow.LF||
 '        WHERE name ';
-wwv_flow_imp.g_varchar2_table(241) := '= v_trg_name AND type = ''TRIGGER'' AND attribute = ''ERROR'';'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(246) := '= v_trg_name AND type = ''TRIGGER'' AND attribute = ''ERROR'';'||wwv_flow.LF||
 '        IF v_error IS NOT NULL THEN'||wwv_flow.LF||
 '     ';
-wwv_flow_imp.g_varchar2_table(242) := '       RAISE_APPLICATION_ERROR(-20006, ''The audit trigger for '' || v_table_name ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(247) := '       RAISE_APPLICATION_ERROR(-20006, ''The audit trigger for '' || v_table_name ||'||wwv_flow.LF||
 '                ''';
-wwv_flow_imp.g_varchar2_table(243) := ' did not compile, so it was left disabled: '' || v_error);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(248) := ' did not compile, so it was left disabled: '' || v_error);'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 '        exec_sql(''ALTER TR';
-wwv_flow_imp.g_varchar2_table(244) := 'IGGER '' || q(v_trg_name) || '' ENABLE'', p_action);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(249) := 'IGGER '' || q(v_trg_name) || '' ENABLE'', p_action);'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        -- Then remove any other trigger on the t';
-wwv_flow_imp.g_varchar2_table(245) := 'able that calls util_audit'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(250) := 'able that calls util_audit'||wwv_flow.LF||
 '        -- (an older name, or a util_audit v1 AIUD_<table>_AUD trigger), ';
-wwv_flow_imp.g_varchar2_table(246) := 'so'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(251) := 'so'||wwv_flow.LF||
 '        -- rows are not audited twice. Creating first leaves no gap.'||wwv_flow.LF||
 '        FOR t IN ('||wwv_flow.LF||
 '         ';
-wwv_flow_imp.g_varchar2_table(247) := '   SELECT trigger_name'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(252) := '   SELECT trigger_name'||wwv_flow.LF||
 '            FROM v_util_audit_triggers'||wwv_flow.LF||
 '            WHERE table_name = v_table';
-wwv_flow_imp.g_varchar2_table(248) := '_name'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(253) := '_name'||wwv_flow.LF||
 '              AND trigger_name <> v_trg_name'||wwv_flow.LF||
 '        ) LOOP'||wwv_flow.LF||
 '            exec_sql(''DROP TRIGGER';
-wwv_flow_imp.g_varchar2_table(249) := ' '' || q(t.trigger_name), p_action);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(254) := ' '' || q(t.trigger_name), p_action);'||wwv_flow.LF||
 '        END LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        report_child_tables(v_table_name);'||wwv_flow.LF||
 '  ';
-wwv_flow_imp.g_varchar2_table(250) := '  END create_audit_trigger;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(255) := '  END create_audit_trigger;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    -------------------------------------------------------------------';
-wwv_flow_imp.g_varchar2_table(251) := '-------'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(256) := '-------'||wwv_flow.LF||
+'    -- Public: Per-table excluded columns'||wwv_flow.LF||
+'    ----------------------------------------------';
+wwv_flow_imp.g_varchar2_table(257) := '----------------------------'||wwv_flow.LF||
+'    -- The list, upper case, checked against the table: a misspelt name';
+wwv_flow_imp.g_varchar2_table(258) := ''||wwv_flow.LF||
+'    -- would leave the real column audited without anyone noticing'||wwv_flow.LF||
+'    FUNCTION checked_columns(p_t';
+wwv_flow_imp.g_varchar2_table(259) := 'able_name IN VARCHAR2, p_columns IN VARCHAR2) RETURN VARCHAR2 IS'||wwv_flow.LF||
+'        v_columns VARCHAR2(4000) :=';
+wwv_flow_imp.g_varchar2_table(260) := ' UPPER(REPLACE(TRIM(BOTH '','' FROM REPLACE(p_columns, '' '')), '',,'', '',''));'||wwv_flow.LF||
+'        v_col     VARCHAR2(';
+wwv_flow_imp.g_varchar2_table(261) := '4000);'||wwv_flow.LF||
+'        v_cnt     NUMBER;'||wwv_flow.LF||
+'        i         PLS_INTEGER := 1;'||wwv_flow.LF||
+'    BEGIN'||wwv_flow.LF||
+'        LOOP'||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(262) := '    v_col := REGEXP_SUBSTR(v_columns, ''[^,]+'', 1, i);'||wwv_flow.LF||
+'            EXIT WHEN v_col IS NULL;'||wwv_flow.LF||
+'         ';
+wwv_flow_imp.g_varchar2_table(263) := '   SELECT COUNT(*) INTO v_cnt FROM user_tab_columns'||wwv_flow.LF||
+'             WHERE table_name = p_table_name AND';
+wwv_flow_imp.g_varchar2_table(264) := ' column_name = v_col;'||wwv_flow.LF||
+'            IF v_cnt = 0 THEN'||wwv_flow.LF||
+'                RAISE_APPLICATION_ERROR(-20007, ';
+wwv_flow_imp.g_varchar2_table(265) := 'p_table_name || '' has no column '' || v_col || ''.'');'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
+'            i := i + 1;'||wwv_flow.LF||
+'    ';
+wwv_flow_imp.g_varchar2_table(266) := '    END LOOP;'||wwv_flow.LF||
+'        RETURN v_columns;'||wwv_flow.LF||
+'    END;'||wwv_flow.LF||
+''||wwv_flow.LF||
+'    PROCEDURE scrub_columns('||wwv_flow.LF||
+'        p_table_name ';
+wwv_flow_imp.g_varchar2_table(267) := 'IN VARCHAR2,'||wwv_flow.LF||
+'        p_columns    IN VARCHAR2'||wwv_flow.LF||
+'    ) IS'||wwv_flow.LF||
+'        v_table_name VARCHAR2(128)  := norm_n';
+wwv_flow_imp.g_varchar2_table(268) := 'ame(p_table_name);'||wwv_flow.LF||
+'        v_columns    VARCHAR2(4000) := checked_columns(v_table_name, p_columns);'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(269) := '        v_col        VARCHAR2(4000);'||wwv_flow.LF||
+'        v_patch      VARCHAR2(4000);'||wwv_flow.LF||
+'        v_events     NUMBE';
+wwv_flow_imp.g_varchar2_table(270) := 'R;'||wwv_flow.LF||
+'        i            PLS_INTEGER := 1;'||wwv_flow.LF||
+'    BEGIN'||wwv_flow.LF||
+'        LOOP'||wwv_flow.LF||
+'            v_col := REGEXP_SUBSTR(';
+wwv_flow_imp.g_varchar2_table(271) := 'v_columns, ''[^,]+'', 1, i);'||wwv_flow.LF||
+'            EXIT WHEN v_col IS NULL;'||wwv_flow.LF||
+'            -- {"COL":null}: JSON_ME';
+wwv_flow_imp.g_varchar2_table(272) := 'RGEPATCH removes the key'||wwv_flow.LF||
+'            SELECT JSON_OBJECT(KEY v_col VALUE NULL NULL ON NULL) INTO v_pa';
+wwv_flow_imp.g_varchar2_table(273) := 'tch FROM dual;'||wwv_flow.LF||
+'            UPDATE util_audit_txn'||wwv_flow.LF||
+'               SET old_row_json = JSON_MERGEPATCH(o';
+wwv_flow_imp.g_varchar2_table(274) := 'ld_row_json, v_patch RETURNING CLOB),'||wwv_flow.LF||
+'                   new_row_json = JSON_MERGEPATCH(new_row_json';
+wwv_flow_imp.g_varchar2_table(275) := ', v_patch RETURNING CLOB)'||wwv_flow.LF||
+'             WHERE table_name = v_table_name'||wwv_flow.LF||
+'               AND (old_row_j';
+wwv_flow_imp.g_varchar2_table(276) := 'son IS NOT NULL OR new_row_json IS NOT NULL);'||wwv_flow.LF||
+'            v_events := SQL%ROWCOUNT;'||wwv_flow.LF||
+'            DELE';
+wwv_flow_imp.g_varchar2_table(277) := 'TE FROM util_audit_records'||wwv_flow.LF||
+'             WHERE table_name = v_table_name AND column_name = v_col;'||wwv_flow.LF||
+'   ';
+wwv_flow_imp.g_varchar2_table(278) := '         DBMS_OUTPUT.PUT_LINE(''Removed '' || v_col || '' from '' || v_events || '' snapshot(s) and '' ||'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(279) := '                                 SQL%ROWCOUNT || '' column change(s) of '' || v_table_name || ''.'');'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(280) := '          i := i + 1;'||wwv_flow.LF||
+'        END LOOP;'||wwv_flow.LF||
+'    END scrub_columns;'||wwv_flow.LF||
+''||wwv_flow.LF||
+'    PROCEDURE set_table_excluded_col';
+wwv_flow_imp.g_varchar2_table(281) := 'umns('||wwv_flow.LF||
+'        p_table_name    IN VARCHAR2,'||wwv_flow.LF||
+'        p_columns       IN VARCHAR2,'||wwv_flow.LF||
+'        p_regenerate';
+wwv_flow_imp.g_varchar2_table(282) := '    IN BOOLEAN DEFAULT TRUE,'||wwv_flow.LF||
+'        p_scrub_history IN BOOLEAN DEFAULT FALSE'||wwv_flow.LF||
+'    ) IS'||wwv_flow.LF||
+'        v_tab';
+wwv_flow_imp.g_varchar2_table(283) := 'le_name VARCHAR2(128)  := norm_name(p_table_name);'||wwv_flow.LF||
+'        v_columns    VARCHAR2(4000) := checked_co';
+wwv_flow_imp.g_varchar2_table(284) := 'lumns(v_table_name, p_columns);'||wwv_flow.LF||
+'        v_has_trg    NUMBER;'||wwv_flow.LF||
+'    BEGIN'||wwv_flow.LF||
+'        -- The key identifies';
+wwv_flow_imp.g_varchar2_table(285) := ' the row in every event; it has to be recorded'||wwv_flow.LF||
+'        FOR k IN ('||wwv_flow.LF||
+'            SELECT cols.column_nam';
+wwv_flow_imp.g_varchar2_table(286) := 'e'||wwv_flow.LF||
+'            FROM user_constraints cons'||wwv_flow.LF||
+'            JOIN user_cons_columns cols ON cols.constraint_';
+wwv_flow_imp.g_varchar2_table(287) := 'name = cons.constraint_name'||wwv_flow.LF||
+'            WHERE cons.table_name = v_table_name AND cons.constraint_typ';
+wwv_flow_imp.g_varchar2_table(288) := 'e = ''P'''||wwv_flow.LF||
+'        ) LOOP'||wwv_flow.LF||
+'            IF in_list(v_columns, k.column_name) THEN'||wwv_flow.LF||
+'                RAISE_A';
+wwv_flow_imp.g_varchar2_table(289) := 'PPLICATION_ERROR(-20008, k.column_name || '' is part of the primary key of '' ||'||wwv_flow.LF||
+'                    v';
+wwv_flow_imp.g_varchar2_table(290) := '_table_name || '' and cannot be excluded.'');'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
+'        END LOOP;'||wwv_flow.LF||
+''||wwv_flow.LF||
+'        MERGE INT';
+wwv_flow_imp.g_varchar2_table(291) := 'O util_audit_config c'||wwv_flow.LF||
+'        USING (SELECT v_table_name table_name FROM dual) src'||wwv_flow.LF||
+'        ON (c.tab';
+wwv_flow_imp.g_varchar2_table(292) := 'le_name = src.table_name)'||wwv_flow.LF||
+'        WHEN MATCHED THEN'||wwv_flow.LF||
+'            UPDATE SET excluded_columns = v_colu';
+wwv_flow_imp.g_varchar2_table(293) := 'mns'||wwv_flow.LF||
+'        WHEN NOT MATCHED THEN'||wwv_flow.LF||
+'            INSERT (table_name, enabled_flag, created_on, created_';
+wwv_flow_imp.g_varchar2_table(294) := 'by, excluded_columns)'||wwv_flow.LF||
+'            VALUES (src.table_name, ''Y'', SYSDATE, USER, v_columns);'||wwv_flow.LF||
+''||wwv_flow.LF||
+'        I';
+wwv_flow_imp.g_varchar2_table(295) := 'F p_regenerate THEN'||wwv_flow.LF||
+'            SELECT COUNT(*) INTO v_has_trg'||wwv_flow.LF||
+'            FROM v_util_audit_trigger';
+wwv_flow_imp.g_varchar2_table(296) := 's'||wwv_flow.LF||
+'            WHERE table_name = v_table_name;'||wwv_flow.LF||
+'            IF v_has_trg > 0 THEN'||wwv_flow.LF||
+'                cre';
+wwv_flow_imp.g_varchar2_table(297) := 'ate_audit_trigger(v_table_name);'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
+'        END IF;'||wwv_flow.LF||
+''||wwv_flow.LF||
+'        IF p_scrub_history AND';
+wwv_flow_imp.g_varchar2_table(298) := ' v_columns IS NOT NULL THEN'||wwv_flow.LF||
+'            scrub_columns(v_table_name, v_columns);'||wwv_flow.LF||
+'        END IF;'||wwv_flow.LF||
+'    ';
+wwv_flow_imp.g_varchar2_table(299) := 'END set_table_excluded_columns;'||wwv_flow.LF||
+''||wwv_flow.LF||
+'    ---------------------------------------------------------------';
+wwv_flow_imp.g_varchar2_table(300) := '-----------'||wwv_flow.LF||
 '    -- Public: Per-table ignored columns'||wwv_flow.LF||
-'    -----------------------------------------------';
-wwv_flow_imp.g_varchar2_table(252) := '---------------------------'||wwv_flow.LF||
+'    -------------------------------------------';
+wwv_flow_imp.g_varchar2_table(301) := '-------------------------------'||wwv_flow.LF||
 '    PROCEDURE set_table_ignored_columns('||wwv_flow.LF||
-'        p_table_name IN VARCHAR';
-wwv_flow_imp.g_varchar2_table(253) := '2,'||wwv_flow.LF||
+'        p_table_name IN VAR';
+wwv_flow_imp.g_varchar2_table(302) := 'CHAR2,'||wwv_flow.LF||
 '        p_columns    IN VARCHAR2,'||wwv_flow.LF||
 '        p_regenerate IN BOOLEAN DEFAULT TRUE'||wwv_flow.LF||
 '    ) IS'||wwv_flow.LF||
-'        v';
-wwv_flow_imp.g_varchar2_table(254) := '_table_name VARCHAR2(128)  := norm_name(p_table_name);'||wwv_flow.LF||
-'        v_columns    VARCHAR2(4000) := UPPER(';
-wwv_flow_imp.g_varchar2_table(255) := 'REPLACE(TRIM(BOTH '','' FROM REPLACE(p_columns, '' '')), '',,'', '',''));'||wwv_flow.LF||
+'     ';
+wwv_flow_imp.g_varchar2_table(303) := '   v_table_name VARCHAR2(128)  := norm_name(p_table_name);'||wwv_flow.LF||
+'        v_columns    VARCHAR2(4000) := UP';
+wwv_flow_imp.g_varchar2_table(304) := 'PER(REPLACE(TRIM(BOTH '','' FROM REPLACE(p_columns, '' '')), '',,'', '',''));'||wwv_flow.LF||
 '        v_has_trg    NUMBER;'||wwv_flow.LF||
-'    B';
-wwv_flow_imp.g_varchar2_table(256) := 'EGIN'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(305) := '   BEGIN'||wwv_flow.LF||
 '        MERGE INTO util_audit_config c'||wwv_flow.LF||
-'        USING (SELECT v_table_name table_name FROM dual)';
-wwv_flow_imp.g_varchar2_table(257) := ' src'||wwv_flow.LF||
+'        USING (SELECT v_table_name table_name FROM d';
+wwv_flow_imp.g_varchar2_table(306) := 'ual) src'||wwv_flow.LF||
 '        ON (c.table_name = src.table_name)'||wwv_flow.LF||
 '        WHEN MATCHED THEN'||wwv_flow.LF||
-'            UPDATE SET ign';
-wwv_flow_imp.g_varchar2_table(258) := 'ored_columns = v_columns'||wwv_flow.LF||
+'            UPDATE SET';
+wwv_flow_imp.g_varchar2_table(307) := ' ignored_columns = v_columns'||wwv_flow.LF||
 '        WHEN NOT MATCHED THEN'||wwv_flow.LF||
-'            INSERT (table_name, enabled_flag,';
-wwv_flow_imp.g_varchar2_table(259) := ' created_on, created_by, ignored_columns)'||wwv_flow.LF||
-'            VALUES (src.table_name, ''Y'', SYSDATE, USER, v_';
-wwv_flow_imp.g_varchar2_table(260) := 'columns);'||wwv_flow.LF||
+'            INSERT (table_name, enabled_f';
+wwv_flow_imp.g_varchar2_table(308) := 'lag, created_on, created_by, ignored_columns)'||wwv_flow.LF||
+'            VALUES (src.table_name, ''Y'', SYSDATE, USER';
+wwv_flow_imp.g_varchar2_table(309) := ', v_columns);'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        IF p_regenerate THEN'||wwv_flow.LF||
 '            SELECT COUNT(*) INTO v_has_trg'||wwv_flow.LF||
-'            FROM ';
-wwv_flow_imp.g_varchar2_table(261) := 'v_util_audit_triggers'||wwv_flow.LF||
+'            F';
+wwv_flow_imp.g_varchar2_table(310) := 'ROM v_util_audit_triggers'||wwv_flow.LF||
 '            WHERE table_name = v_table_name;'||wwv_flow.LF||
-'            IF v_has_trg > 0 THEN';
-wwv_flow_imp.g_varchar2_table(262) := ''||wwv_flow.LF||
+'            IF v_has_trg > 0 ';
+wwv_flow_imp.g_varchar2_table(311) := 'THEN'||wwv_flow.LF||
 '                create_audit_trigger(v_table_name);'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
-'    END set';
-wwv_flow_imp.g_varchar2_table(263) := '_table_ignored_columns;'||wwv_flow.LF||
+'    END';
+wwv_flow_imp.g_varchar2_table(312) := ' set_table_ignored_columns;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -----------------------------------------------------------------------';
-wwv_flow_imp.g_varchar2_table(264) := '---'||wwv_flow.LF||
+'    -------------------------------------------------------------------';
+wwv_flow_imp.g_varchar2_table(313) := '-------'||wwv_flow.LF||
 '    -- Public: Re-create all triggers'||wwv_flow.LF||
-'    ------------------------------------------------------';
-wwv_flow_imp.g_varchar2_table(265) := '--------------------'||wwv_flow.LF||
+'    --------------------------------------------------';
+wwv_flow_imp.g_varchar2_table(314) := '------------------------'||wwv_flow.LF||
 '    PROCEDURE recreate_all_triggers IS'||wwv_flow.LF||
 '        v_failed PLS_INTEGER := 0;'||wwv_flow.LF||
-'    B';
-wwv_flow_imp.g_varchar2_table(266) := 'EGIN'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(315) := '   BEGIN'||wwv_flow.LF||
 '        FOR t IN ('||wwv_flow.LF||
 '            SELECT DISTINCT table_name'||wwv_flow.LF||
-'            FROM v_util_audit_trigger';
-wwv_flow_imp.g_varchar2_table(267) := 's'||wwv_flow.LF||
+'            FROM v_util_audit_tri';
+wwv_flow_imp.g_varchar2_table(316) := 'ggers'||wwv_flow.LF||
 '            WHERE table_name IN (SELECT table_name FROM util_audit_config)'||wwv_flow.LF||
-'            ORDER BY ta';
-wwv_flow_imp.g_varchar2_table(268) := 'ble_name'||wwv_flow.LF||
+'            ORDER B';
+wwv_flow_imp.g_varchar2_table(317) := 'Y table_name'||wwv_flow.LF||
 '        ) LOOP'||wwv_flow.LF||
 '            BEGIN'||wwv_flow.LF||
 '                create_audit_trigger(t.table_name);'||wwv_flow.LF||
-'      ';
-wwv_flow_imp.g_varchar2_table(269) := '          DBMS_OUTPUT.PUT_LINE(''Re-created trigger for '' || t.table_name);'||wwv_flow.LF||
-'            EXCEPTION'||wwv_flow.LF||
-'   ';
-wwv_flow_imp.g_varchar2_table(270) := '             WHEN OTHERS THEN'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(318) := '              DBMS_OUTPUT.PUT_LINE(''Re-created trigger for '' || t.table_name);'||wwv_flow.LF||
+'            EXCEPTION';
+wwv_flow_imp.g_varchar2_table(319) := ''||wwv_flow.LF||
+'                WHEN OTHERS THEN'||wwv_flow.LF||
 '                    v_failed := v_failed + 1;'||wwv_flow.LF||
-'                    DBMS';
-wwv_flow_imp.g_varchar2_table(271) := '_OUTPUT.PUT_LINE(''FAILED for '' || t.table_name || '': '' || SQLERRM);'||wwv_flow.LF||
+'                    ';
+wwv_flow_imp.g_varchar2_table(320) := 'DBMS_OUTPUT.PUT_LINE(''FAILED for '' || t.table_name || '': '' || SQLERRM);'||wwv_flow.LF||
 '            END;'||wwv_flow.LF||
-'        END LOO';
-wwv_flow_imp.g_varchar2_table(272) := 'P;'||wwv_flow.LF||
+'        END';
+wwv_flow_imp.g_varchar2_table(321) := ' LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        IF v_failed > 0 THEN'||wwv_flow.LF||
-'            RAISE_APPLICATION_ERROR(-20004, v_failed || '' trigger(s';
-wwv_flow_imp.g_varchar2_table(273) := ') could not be re-created. See the output for details.'');'||wwv_flow.LF||
+'            RAISE_APPLICATION_ERROR(-20004, v_failed || '' trigg';
+wwv_flow_imp.g_varchar2_table(322) := 'er(s) could not be re-created. See the output for details.'');'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
-'    END recreate_all_trigg';
-wwv_flow_imp.g_varchar2_table(274) := 'ers;'||wwv_flow.LF||
+'    END recreate_all_t';
+wwv_flow_imp.g_varchar2_table(323) := 'riggers;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 'END util_audit_gen;'||wwv_flow.LF||
 '/';
@@ -12729,18 +13052,54 @@ wwv_flow_imp.g_varchar2_table(34) := '2,'||wwv_flow.LF||
 '        p_regenerate IN BOOLEAN DEFAULT TRUE'||wwv_flow.LF||
 '    );'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -- The';
-wwv_flow_imp.g_varchar2_table(35) := ' CREATE TRIGGER statement create_audit_trigger would run'||wwv_flow.LF||
+'    -- Sto';
+wwv_flow_imp.g_varchar2_table(35) := 're the columns one table''s trigger must never record, not in the'||wwv_flow.LF||
+'    -- column changes and not in th';
+wwv_flow_imp.g_varchar2_table(36) := 'e row snapshots: passwords, token hashes'||wwv_flow.LF||
+'    -- and other secrets (comma-separated, case-insensitive';
+wwv_flow_imp.g_varchar2_table(37) := '). Ignored columns'||wwv_flow.LF||
+'    -- are different: they stay in the snapshots so restore can bring them'||wwv_flow.LF||
+'    --';
+wwv_flow_imp.g_varchar2_table(38) := ' back. A primary key column cannot be excluded.'||wwv_flow.LF||
+'    -- p_regenerate:    re-create the trigger right ';
+wwv_flow_imp.g_varchar2_table(39) := 'away if the table has one'||wwv_flow.LF||
+'    -- p_scrub_history: also remove these columns from history already'||wwv_flow.LF||
+'   ';
+wwv_flow_imp.g_varchar2_table(40) := ' --                  recorded (see scrub_columns). Does not commit.'||wwv_flow.LF||
+'    PROCEDURE set_table_excluded';
+wwv_flow_imp.g_varchar2_table(41) := '_columns('||wwv_flow.LF||
+'        p_table_name    IN VARCHAR2,'||wwv_flow.LF||
+'        p_columns       IN VARCHAR2,'||wwv_flow.LF||
+'        p_regene';
+wwv_flow_imp.g_varchar2_table(42) := 'rate    IN BOOLEAN DEFAULT TRUE,'||wwv_flow.LF||
+'        p_scrub_history IN BOOLEAN DEFAULT FALSE'||wwv_flow.LF||
+'    );'||wwv_flow.LF||
+''||wwv_flow.LF||
+'    -- Rem';
+wwv_flow_imp.g_varchar2_table(43) := 'oves columns from one table''s recorded history: from the row'||wwv_flow.LF||
+'    -- snapshots of every event and the';
+wwv_flow_imp.g_varchar2_table(44) := ' column changes. Use it when a'||wwv_flow.LF||
+'    -- secret was audited before it was excluded. Archive files alrea';
+wwv_flow_imp.g_varchar2_table(45) := 'dy'||wwv_flow.LF||
+'    -- made (util_audit_archive) are not changed. Does not commit.'||wwv_flow.LF||
+'    PROCEDURE scrub_columns('||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(46) := '       p_table_name IN VARCHAR2,'||wwv_flow.LF||
+'        p_columns    IN VARCHAR2'||wwv_flow.LF||
+'    );'||wwv_flow.LF||
+''||wwv_flow.LF||
+'    -- The CREATE TRIGGER ';
+wwv_flow_imp.g_varchar2_table(47) := 'statement create_audit_trigger would run'||wwv_flow.LF||
 '    FUNCTION get_trigger_ddl('||wwv_flow.LF||
-'        p_tab';
-wwv_flow_imp.g_varchar2_table(36) := 'le_name IN VARCHAR2'||wwv_flow.LF||
+'        p_table_name IN VARCH';
+wwv_flow_imp.g_varchar2_table(48) := 'AR2'||wwv_flow.LF||
 '    ) RETURN CLOB;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -- Re-create every existing audit trigger, e.g. after an';
-wwv_flow_imp.g_varchar2_table(37) := ' upgrade.'||wwv_flow.LF||
-'    -- Tables that fail are reported (DBMS_OUTPUT) and skipped; the call then'||wwv_flow.LF||
-'    -- raise';
-wwv_flow_imp.g_varchar2_table(38) := 's ORA-20004 naming how many failed.'||wwv_flow.LF||
+'    -- Re-create every existing audit trigger, e.g. after an upgrade.'||wwv_flow.LF||
+'    --';
+wwv_flow_imp.g_varchar2_table(49) := ' Tables that fail are reported (DBMS_OUTPUT) and skipped; the call then'||wwv_flow.LF||
+'    -- raises ORA-20004 nami';
+wwv_flow_imp.g_varchar2_table(50) := 'ng how many failed.'||wwv_flow.LF||
 '    PROCEDURE recreate_all_triggers;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 'END util_audit_gen;'||wwv_flow.LF||
@@ -14085,275 +14444,286 @@ wwv_flow_imp.g_varchar2_table(110) := '  END IF;'||wwv_flow.LF||
 '        -- Columns to write: those in the snapshot that can still be written'||wwv_flow.LF||
 '        FOR ';
 wwv_flow_imp.g_varchar2_table(111) := 'c IN ('||wwv_flow.LF||
-'            SELECT tc.column_name, tc.data_type, tc.virtual_column,'||wwv_flow.LF||
-'                   NVL(ic';
-wwv_flow_imp.g_varchar2_table(112) := '.generation_type, ''-'') generation_type'||wwv_flow.LF||
-'            FROM user_tab_cols tc'||wwv_flow.LF||
-'            LEFT JOIN user_';
-wwv_flow_imp.g_varchar2_table(113) := 'tab_identity_cols ic'||wwv_flow.LF||
-'              ON ic.table_name  = tc.table_name'||wwv_flow.LF||
-'             AND ic.column_name';
-wwv_flow_imp.g_varchar2_table(114) := ' = tc.column_name'||wwv_flow.LF||
+'            SELECT tc.column_name, tc.data_type, tc.virtual_column, tc.nullable, tc.default_l';
+wwv_flow_imp.g_varchar2_table(112) := 'ength,'||wwv_flow.LF||
+'                   NVL(ic.generation_type, ''-'') generation_type'||wwv_flow.LF||
+'            FROM user_tab_col';
+wwv_flow_imp.g_varchar2_table(113) := 's tc'||wwv_flow.LF||
+'            LEFT JOIN user_tab_identity_cols ic'||wwv_flow.LF||
+'              ON ic.table_name  = tc.table_name';
+wwv_flow_imp.g_varchar2_table(114) := ''||wwv_flow.LF||
+'             AND ic.column_name = tc.column_name'||wwv_flow.LF||
 '            WHERE tc.table_name    = e.table_name'||wwv_flow.LF||
-'              AND tc.hidden_colu';
-wwv_flow_imp.g_varchar2_table(115) := 'mn = ''NO'''||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(115) := '              AND tc.hidden_column = ''NO'''||wwv_flow.LF||
 '            ORDER BY tc.column_id'||wwv_flow.LF||
 '        ) LOOP'||wwv_flow.LF||
-'            IF c.virtual_column = ''YES'' T';
-wwv_flow_imp.g_varchar2_table(116) := 'HEN'||wwv_flow.LF||
+'         ';
+wwv_flow_imp.g_varchar2_table(116) := '   IF c.virtual_column = ''YES'' THEN'||wwv_flow.LF||
 '                CONTINUE;'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
-'            IF NOT l_old.has(c.column_name) THEN'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(117) := '               IF e.transaction_type = ''DELETE'' THEN'||wwv_flow.LF||
-'                    l_pk_cols := pk_columns(e.t';
-wwv_flow_imp.g_varchar2_table(118) := 'able_name);'||wwv_flow.LF||
-'                    FOR i IN 1 .. l_pk_cols.COUNT LOOP'||wwv_flow.LF||
-'                        IF l_pk_c';
-wwv_flow_imp.g_varchar2_table(119) := 'ols(i) = c.column_name THEN'||wwv_flow.LF||
-'                            RAISE_APPLICATION_ERROR(-20015, ''Key column ';
-wwv_flow_imp.g_varchar2_table(120) := ''' || c.column_name ||'||wwv_flow.LF||
-'                                '' is not in the audit snapshot, so the row can';
-wwv_flow_imp.g_varchar2_table(121) := 'not be re-inserted.'');'||wwv_flow.LF||
-'                        END IF;'||wwv_flow.LF||
-'                    END LOOP;'||wwv_flow.LF||
+'            IF NOT';
+wwv_flow_imp.g_varchar2_table(117) := ' l_old.has(c.column_name) THEN'||wwv_flow.LF||
+'                IF e.transaction_type = ''DELETE'' THEN'||wwv_flow.LF||
 '               ';
-wwv_flow_imp.g_varchar2_table(122) := ' END IF;'||wwv_flow.LF||
-'                l_missing := l_missing || '', '' || c.column_name;'||wwv_flow.LF||
-'                CONTINUE;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(118) := '     l_pk_cols := pk_columns(e.table_name);'||wwv_flow.LF||
+'                    FOR i IN 1 .. l_pk_cols.COUNT LOOP'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(119) := '                       IF l_pk_cols(i) = c.column_name THEN'||wwv_flow.LF||
+'                            RAISE_APPLIC';
+wwv_flow_imp.g_varchar2_table(120) := 'ATION_ERROR(-20015, ''Key column '' || c.column_name ||'||wwv_flow.LF||
+'                                '' is not in th';
+wwv_flow_imp.g_varchar2_table(121) := 'e audit snapshot, so the row cannot be re-inserted.'');'||wwv_flow.LF||
+'                        END IF;'||wwv_flow.LF||
+'             ';
+wwv_flow_imp.g_varchar2_table(122) := '       END LOOP;'||wwv_flow.LF||
+'                    -- Typically an excluded column (a password, say)'||wwv_flow.LF||
+'             ';
+wwv_flow_imp.g_varchar2_table(123) := '       IF c.nullable = ''N'' AND NVL(c.default_length, 0) = 0 AND c.generation_type = ''-'' THEN'||wwv_flow.LF||
+'       ';
+wwv_flow_imp.g_varchar2_table(124) := '                 RAISE_APPLICATION_ERROR(-20009, e.table_name || ''.'' || c.column_name ||'||wwv_flow.LF||
+'           ';
+wwv_flow_imp.g_varchar2_table(125) := '                 '' is not recorded (it is excluded from auditing, or was added later) and is '' ||'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(126) := '                          ''NOT NULL without a default, so the deleted row cannot be re-inserted.'');'||wwv_flow.LF||
 '';
-wwv_flow_imp.g_varchar2_table(123) := '            END IF;'||wwv_flow.LF||
-'            IF c.generation_type = ''ALWAYS'' THEN'||wwv_flow.LF||
-'                IF e.transactio';
-wwv_flow_imp.g_varchar2_table(124) := 'n_type = ''DELETE'' THEN'||wwv_flow.LF||
-'                    RAISE_APPLICATION_ERROR(-20014, e.table_name || ''.'' || c.';
-wwv_flow_imp.g_varchar2_table(125) := 'column_name ||'||wwv_flow.LF||
-'                        '' is GENERATED ALWAYS AS IDENTITY, so the row cannot be re-in';
-wwv_flow_imp.g_varchar2_table(126) := 'serted with its original value.'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(127) := '                    END IF;'||wwv_flow.LF||
 '                END IF;'||wwv_flow.LF||
+'                l_missing := l_missing || '', '' |';
+wwv_flow_imp.g_varchar2_table(128) := '| c.column_name;'||wwv_flow.LF||
 '                CONTINUE;'||wwv_flow.LF||
-'            END';
-wwv_flow_imp.g_varchar2_table(127) := ' IF;'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
+'            IF c.generation_type = ''A';
+wwv_flow_imp.g_varchar2_table(129) := 'LWAYS'' THEN'||wwv_flow.LF||
+'                IF e.transaction_type = ''DELETE'' THEN'||wwv_flow.LF||
+'                    RAISE_APPLICAT';
+wwv_flow_imp.g_varchar2_table(130) := 'ION_ERROR(-20014, e.table_name || ''.'' || c.column_name ||'||wwv_flow.LF||
+'                        '' is GENERATED ALW';
+wwv_flow_imp.g_varchar2_table(131) := 'AYS AS IDENTITY, so the row cannot be re-inserted with its original value.'');'||wwv_flow.LF||
+'                END IF';
+wwv_flow_imp.g_varchar2_table(132) := ';'||wwv_flow.LF||
+'                CONTINUE;'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '            l_n := l_n + 1;'||wwv_flow.LF||
-'            l_cols(l_n) := c.column_name;'||wwv_flow.LF||
-'            l_dts(l_n)  ';
-wwv_flow_imp.g_varchar2_table(128) := ':= c.data_type;'||wwv_flow.LF||
+'            l_cols(l_n)';
+wwv_flow_imp.g_varchar2_table(133) := ' := c.column_name;'||wwv_flow.LF||
+'            l_dts(l_n)  := c.data_type;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'            IF e.transaction_type = ''DELETE'' THEN'||wwv_flow.LF||
-'                l_list := l_list ';
-wwv_flow_imp.g_varchar2_table(129) := '|| '', '' || q(c.column_name);'||wwv_flow.LF||
-'                l_vals := l_vals || '', '' || from_text_expr('':b'' || l_n,';
-wwv_flow_imp.g_varchar2_table(130) := ' c.data_type);'||wwv_flow.LF||
+'            IF e.transaction_type = ''DEL';
+wwv_flow_imp.g_varchar2_table(134) := 'ETE'' THEN'||wwv_flow.LF||
+'                l_list := l_list || '', '' || q(c.column_name);'||wwv_flow.LF||
+'                l_vals := l_';
+wwv_flow_imp.g_varchar2_table(135) := 'vals || '', '' || from_text_expr('':b'' || l_n, c.data_type);'||wwv_flow.LF||
 '            ELSE'||wwv_flow.LF||
-'                l_list := l_list || '', '' || q(c.column_name) || '' = ';
-wwv_flow_imp.g_varchar2_table(131) := ''' || from_text_expr('':b'' || l_n, c.data_type);'||wwv_flow.LF||
-'            END IF;'||wwv_flow.LF||
+'                l_list :=';
+wwv_flow_imp.g_varchar2_table(136) := ' l_list || '', '' || q(c.column_name) || '' = '' || from_text_expr('':b'' || l_n, c.data_type);'||wwv_flow.LF||
+'          ';
+wwv_flow_imp.g_varchar2_table(137) := '  END IF;'||wwv_flow.LF||
 '        END LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        IF e.t';
-wwv_flow_imp.g_varchar2_table(132) := 'ransaction_type = ''DELETE'' THEN'||wwv_flow.LF||
-'            l_sql := ''INSERT INTO '' || q(e.table_name) || '' ('' || SU';
-wwv_flow_imp.g_varchar2_table(133) := 'BSTR(l_list, 3) || '')'' ||'||wwv_flow.LF||
-'                     '' VALUES ('' || SUBSTR(l_vals, 3) || '')'';'||wwv_flow.LF||
-'        ELSE';
-wwv_flow_imp.g_varchar2_table(134) := ''||wwv_flow.LF||
-'            -- Find the row by its key as it was right after the event'||wwv_flow.LF||
-'            l_pk_cols := pk_';
-wwv_flow_imp.g_varchar2_table(135) := 'columns(e.table_name);'||wwv_flow.LF||
-'            FOR i IN 1 .. l_pk_cols.COUNT LOOP'||wwv_flow.LF||
-'                IF NOT l_new.h';
-wwv_flow_imp.g_varchar2_table(136) := 'as(l_pk_cols(i)) THEN'||wwv_flow.LF||
-'                    RAISE_APPLICATION_ERROR(-20015, ''Key column '' || l_pk_cols';
-wwv_flow_imp.g_varchar2_table(137) := '(i) || '' is not in the audit snapshot.'');'||wwv_flow.LF||
-'                END IF;'||wwv_flow.LF||
+'        IF e.transaction_type = ''DELETE'' THEN'||wwv_flow.LF||
+'            l_sql := ''INS';
+wwv_flow_imp.g_varchar2_table(138) := 'ERT INTO '' || q(e.table_name) || '' ('' || SUBSTR(l_list, 3) || '')'' ||'||wwv_flow.LF||
+'                     '' VALUES (';
+wwv_flow_imp.g_varchar2_table(139) := ''' || SUBSTR(l_vals, 3) || '')'';'||wwv_flow.LF||
+'        ELSE'||wwv_flow.LF||
+'            -- Find the row by its key as it was right a';
+wwv_flow_imp.g_varchar2_table(140) := 'fter the event'||wwv_flow.LF||
+'            l_pk_cols := pk_columns(e.table_name);'||wwv_flow.LF||
+'            FOR i IN 1 .. l_pk_col';
+wwv_flow_imp.g_varchar2_table(141) := 's.COUNT LOOP'||wwv_flow.LF||
+'                IF NOT l_new.has(l_pk_cols(i)) THEN'||wwv_flow.LF||
+'                    RAISE_APPLICATI';
+wwv_flow_imp.g_varchar2_table(142) := 'ON_ERROR(-20015, ''Key column '' || l_pk_cols(i) || '' is not in the audit snapshot.'');'||wwv_flow.LF||
+'               ';
+wwv_flow_imp.g_varchar2_table(143) := ' END IF;'||wwv_flow.LF||
 '                SELECT data_type'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(138) := '               INTO l_pk_dt'||wwv_flow.LF||
-'                FROM user_tab_columns'||wwv_flow.LF||
-'                WHERE table_name  ';
-wwv_flow_imp.g_varchar2_table(139) := '= e.table_name'||wwv_flow.LF||
-'                  AND column_name = l_pk_cols(i);'||wwv_flow.LF||
-'                l_where := l_where ';
-wwv_flow_imp.g_varchar2_table(140) := '|| '' AND '' || q(l_pk_cols(i)) || '' = '' ||'||wwv_flow.LF||
-'                           from_text_expr('':k'' || i, l_pk_';
-wwv_flow_imp.g_varchar2_table(141) := 'dt);'||wwv_flow.LF||
+'                INTO l_pk_dt'||wwv_flow.LF||
+'                FROM user_tab';
+wwv_flow_imp.g_varchar2_table(144) := '_columns'||wwv_flow.LF||
+'                WHERE table_name  = e.table_name'||wwv_flow.LF||
+'                  AND column_name = l_pk_c';
+wwv_flow_imp.g_varchar2_table(145) := 'ols(i);'||wwv_flow.LF||
+'                l_where := l_where || '' AND '' || q(l_pk_cols(i)) || '' = '' ||'||wwv_flow.LF||
+'               ';
+wwv_flow_imp.g_varchar2_table(146) := '            from_text_expr('':k'' || i, l_pk_dt);'||wwv_flow.LF||
 '            END LOOP;'||wwv_flow.LF||
-'            l_sql := ''UPDATE '' || q(e.table_name) || '' SET '' || SUBSTR(l_';
-wwv_flow_imp.g_varchar2_table(142) := 'list, 3) ||'||wwv_flow.LF||
-'                     '' WHERE '' || SUBSTR(l_where, 6);'||wwv_flow.LF||
+'            l_sql := ''UPDATE ''';
+wwv_flow_imp.g_varchar2_table(147) := ' || q(e.table_name) || '' SET '' || SUBSTR(l_list, 3) ||'||wwv_flow.LF||
+'                     '' WHERE '' || SUBSTR(l_wh';
+wwv_flow_imp.g_varchar2_table(148) := 'ere, 6);'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        l_cur := ';
-wwv_flow_imp.g_varchar2_table(143) := 'DBMS_SQL.OPEN_CURSOR;'||wwv_flow.LF||
+'        l_cur := DBMS_SQL.OPEN_CURSOR;'||wwv_flow.LF||
 '        BEGIN'||wwv_flow.LF||
-'            DBMS_SQL.PARSE(l_cur, l_sql, DBMS_SQL.NATIVE);'||wwv_flow.LF||
+'            DBMS_SQL.';
+wwv_flow_imp.g_varchar2_table(149) := 'PARSE(l_cur, l_sql, DBMS_SQL.NATIVE);'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    ';
-wwv_flow_imp.g_varchar2_table(144) := '        FOR i IN 1 .. l_n LOOP'||wwv_flow.LF||
-'                IF l_dts(i) = ''CLOB'' THEN'||wwv_flow.LF||
-'                    -- JSON';
-wwv_flow_imp.g_varchar2_table(145) := ' null must stay NULL, not become an empty CLOB'||wwv_flow.LF||
-'                    l_clob := CASE WHEN NOT l_old.get';
-wwv_flow_imp.g_varchar2_table(146) := '(l_cols(i)).is_null THEN l_old.get_clob(l_cols(i)) END;'||wwv_flow.LF||
-'                    DBMS_SQL.BIND_VARIABLE(l';
-wwv_flow_imp.g_varchar2_table(147) := '_cur, '':b'' || i, l_clob);'||wwv_flow.LF||
+'            FOR i IN 1 .. l_n LOOP'||wwv_flow.LF||
+'                IF l_dts(i';
+wwv_flow_imp.g_varchar2_table(150) := ') = ''CLOB'' THEN'||wwv_flow.LF||
+'                    -- JSON null must stay NULL, not become an empty CLOB'||wwv_flow.LF||
+'          ';
+wwv_flow_imp.g_varchar2_table(151) := '          l_clob := CASE WHEN NOT l_old.get(l_cols(i)).is_null THEN l_old.get_clob(l_cols(i)) END;'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(152) := '                   DBMS_SQL.BIND_VARIABLE(l_cur, '':b'' || i, l_clob);'||wwv_flow.LF||
 '                ELSE'||wwv_flow.LF||
-'                    DBMS_SQL.BIND_VARIABLE(l_cur, '':b';
-wwv_flow_imp.g_varchar2_table(148) := ''' || i, l_old.get_string(l_cols(i)), 32767);'||wwv_flow.LF||
-'                END IF;'||wwv_flow.LF||
+'          ';
+wwv_flow_imp.g_varchar2_table(153) := '          DBMS_SQL.BIND_VARIABLE(l_cur, '':b'' || i, l_old.get_string(l_cols(i)), 32767);'||wwv_flow.LF||
+'            ';
+wwv_flow_imp.g_varchar2_table(154) := '    END IF;'||wwv_flow.LF||
 '            END LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        ';
-wwv_flow_imp.g_varchar2_table(149) := '    IF e.transaction_type = ''UPDATE'' THEN'||wwv_flow.LF||
-'                FOR i IN 1 .. l_pk_cols.COUNT LOOP'||wwv_flow.LF||
-'       ';
-wwv_flow_imp.g_varchar2_table(150) := '             DBMS_SQL.BIND_VARIABLE(l_cur, '':k'' || i, l_new.get_string(l_pk_cols(i)), 32767);'||wwv_flow.LF||
-'      ';
-wwv_flow_imp.g_varchar2_table(151) := '          END LOOP;'||wwv_flow.LF||
+'            IF e.transaction_type = ''UPDATE'' THEN'||wwv_flow.LF||
+'               ';
+wwv_flow_imp.g_varchar2_table(155) := ' FOR i IN 1 .. l_pk_cols.COUNT LOOP'||wwv_flow.LF||
+'                    DBMS_SQL.BIND_VARIABLE(l_cur, '':k'' || i, l_n';
+wwv_flow_imp.g_varchar2_table(156) := 'ew.get_string(l_pk_cols(i)), 32767);'||wwv_flow.LF||
+'                END LOOP;'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'            l_rows := DBMS_SQL.EXECUTE(l_cur);'||wwv_flow.LF||
-'            ';
-wwv_flow_imp.g_varchar2_table(152) := 'DBMS_SQL.CLOSE_CURSOR(l_cur);'||wwv_flow.LF||
+'            l_ro';
+wwv_flow_imp.g_varchar2_table(157) := 'ws := DBMS_SQL.EXECUTE(l_cur);'||wwv_flow.LF||
+'            DBMS_SQL.CLOSE_CURSOR(l_cur);'||wwv_flow.LF||
 '        EXCEPTION'||wwv_flow.LF||
-'            WHEN OTHERS THEN'||wwv_flow.LF||
-'                IF DBMS';
-wwv_flow_imp.g_varchar2_table(153) := '_SQL.IS_OPEN(l_cur) THEN'||wwv_flow.LF||
-'                    DBMS_SQL.CLOSE_CURSOR(l_cur);'||wwv_flow.LF||
+'         ';
+wwv_flow_imp.g_varchar2_table(158) := '   WHEN OTHERS THEN'||wwv_flow.LF||
+'                IF DBMS_SQL.IS_OPEN(l_cur) THEN'||wwv_flow.LF||
+'                    DBMS_SQL.CLO';
+wwv_flow_imp.g_varchar2_table(159) := 'SE_CURSOR(l_cur);'||wwv_flow.LF||
 '                END IF;'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(154) := '               IF SQLCODE = -1 THEN'||wwv_flow.LF||
-'                    RAISE_APPLICATION_ERROR(-20016, e.table_name';
-wwv_flow_imp.g_varchar2_table(155) := ' || '' '' || l_pk_after ||'||wwv_flow.LF||
-'                        '' already exists, so the deleted row cannot be re-i';
-wwv_flow_imp.g_varchar2_table(156) := 'nserted.'');'||wwv_flow.LF||
-'                ELSIF SQLCODE = -2291 AND p_depth > 0 THEN'||wwv_flow.LF||
-'                    -- A chil';
-wwv_flow_imp.g_varchar2_table(157) := 'd row that also references another deleted parent:'||wwv_flow.LF||
-'                    -- try again once the other r';
-wwv_flow_imp.g_varchar2_table(158) := 'ows are back (see restore_row)'||wwv_flow.LF||
-'                    p_seen.DELETE(p_txn_id);'||wwv_flow.LF||
-'                    g_pe';
-wwv_flow_imp.g_varchar2_table(159) := 'nding(g_pending.COUNT + 1) := p_txn_id;'||wwv_flow.LF||
-'                    say(p_depth, ''Waiting: '' || e.table_name';
-wwv_flow_imp.g_varchar2_table(160) := ' || '' '' || l_pk_after ||'||wwv_flow.LF||
-'                                 '' also needs another parent row.'');'||wwv_flow.LF||
+'                IF SQLCODE = -1 THEN'||wwv_flow.LF||
+'                    R';
+wwv_flow_imp.g_varchar2_table(160) := 'AISE_APPLICATION_ERROR(-20016, e.table_name || '' '' || l_pk_after ||'||wwv_flow.LF||
+'                        '' alread';
+wwv_flow_imp.g_varchar2_table(161) := 'y exists, so the deleted row cannot be re-inserted.'');'||wwv_flow.LF||
+'                ELSIF SQLCODE = -2291 AND p_d';
+wwv_flow_imp.g_varchar2_table(162) := 'epth > 0 THEN'||wwv_flow.LF||
+'                    -- A child row that also references another deleted parent:'||wwv_flow.LF||
 '      ';
-wwv_flow_imp.g_varchar2_table(161) := '              RETURN;'||wwv_flow.LF||
-'                ELSIF SQLCODE = -2291 THEN'||wwv_flow.LF||
-'                    RAISE_APPLICATI';
-wwv_flow_imp.g_varchar2_table(162) := 'ON_ERROR(-20017, ''The parent row of '' || e.table_name || '' '' || l_pk_after ||'||wwv_flow.LF||
-'                      ';
-wwv_flow_imp.g_varchar2_table(163) := '  '' does not exist. Restore the parent row first.'', TRUE);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(163) := '              -- try again once the other rows are back (see restore_row)'||wwv_flow.LF||
+'                    p_seen';
+wwv_flow_imp.g_varchar2_table(164) := '.DELETE(p_txn_id);'||wwv_flow.LF||
+'                    g_pending(g_pending.COUNT + 1) := p_txn_id;'||wwv_flow.LF||
+'                 ';
+wwv_flow_imp.g_varchar2_table(165) := '   say(p_depth, ''Waiting: '' || e.table_name || '' '' || l_pk_after ||'||wwv_flow.LF||
+'                                ';
+wwv_flow_imp.g_varchar2_table(166) := ' '' also needs another parent row.'');'||wwv_flow.LF||
+'                    RETURN;'||wwv_flow.LF||
+'                ELSIF SQLCODE = -22';
+wwv_flow_imp.g_varchar2_table(167) := '91 THEN'||wwv_flow.LF||
+'                    RAISE_APPLICATION_ERROR(-20017, ''The parent row of '' || e.table_name || ';
+wwv_flow_imp.g_varchar2_table(168) := ''' '' || l_pk_after ||'||wwv_flow.LF||
+'                        '' does not exist. Restore the parent row first.'', TRUE)';
+wwv_flow_imp.g_varchar2_table(169) := ';'||wwv_flow.LF||
 '                END IF;'||wwv_flow.LF||
-'                R';
-wwv_flow_imp.g_varchar2_table(164) := 'AISE;'||wwv_flow.LF||
+'                RAISE;'||wwv_flow.LF||
 '        END;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        IF e.transaction_type = ''UPDATE'' AND l_rows = 0 THEN'||wwv_flow.LF||
-'            RAISE_A';
-wwv_flow_imp.g_varchar2_table(165) := 'PPLICATION_ERROR(-20018, e.table_name || '' '' || l_pk_after ||'||wwv_flow.LF||
-'                '' no longer exists. Re';
-wwv_flow_imp.g_varchar2_table(166) := 'store its DELETE event instead.'');'||wwv_flow.LF||
+'        IF e.transaction_type = ''UPDA';
+wwv_flow_imp.g_varchar2_table(170) := 'TE'' AND l_rows = 0 THEN'||wwv_flow.LF||
+'            RAISE_APPLICATION_ERROR(-20018, e.table_name || '' '' || l_pk_afte';
+wwv_flow_imp.g_varchar2_table(171) := 'r ||'||wwv_flow.LF||
+'                '' no longer exists. Restore its DELETE event instead.'');'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        say(p_depth, ''Restored '' || e.table_name';
-wwv_flow_imp.g_varchar2_table(167) := ' || '' '' || e.pk_value_vc ||'||wwv_flow.LF||
-'                     '' (undid '' || e.transaction_type || '' at '' ||'||wwv_flow.LF||
 '     ';
-wwv_flow_imp.g_varchar2_table(168) := '                TO_CHAR(e.audit_ts, ''YYYY-MM-DD HH24:MI:SS'', ''NLS_CALENDAR=GREGORIAN'') || '')'');'||wwv_flow.LF||
-'    ';
-wwv_flow_imp.g_varchar2_table(169) := '    IF l_missing IS NOT NULL THEN'||wwv_flow.LF||
-'            say(p_depth, ''  Not in the audit snapshot, left '' ||'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(170) := '                        CASE e.transaction_type WHEN ''DELETE'' THEN ''NULL/default'' ELSE ''as they are''';
-wwv_flow_imp.g_varchar2_table(171) := ' END ||'||wwv_flow.LF||
-'                         '': '' || SUBSTR(l_missing, 3));'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(172) := '   say(p_depth, ''Restored '' || e.table_name || '' '' || e.pk_value_vc ||'||wwv_flow.LF||
+'                     '' (undid';
+wwv_flow_imp.g_varchar2_table(173) := ' '' || e.transaction_type || '' at '' ||'||wwv_flow.LF||
+'                     TO_CHAR(e.audit_ts, ''YYYY-MM-DD HH24:MI:S';
+wwv_flow_imp.g_varchar2_table(174) := 'S'', ''NLS_CALENDAR=GREGORIAN'') || '')'');'||wwv_flow.LF||
+'        IF l_missing IS NOT NULL THEN'||wwv_flow.LF||
+'            say(p_depth';
+wwv_flow_imp.g_varchar2_table(175) := ', ''  Not in the audit snapshot, left '' ||'||wwv_flow.LF||
+'                         CASE e.transaction_type WHEN ''DEL';
+wwv_flow_imp.g_varchar2_table(176) := 'ETE'' THEN ''NULL/default'' ELSE ''as they are'' END ||'||wwv_flow.LF||
+'                         '': '' || SUBSTR(l_missing';
+wwv_flow_imp.g_varchar2_table(177) := ', 3));'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        IF e.transa';
-wwv_flow_imp.g_varchar2_table(172) := 'ction_type = ''DELETE'' AND p_include_children THEN'||wwv_flow.LF||
-'            restore_children(e, l_old, p_force, p_';
-wwv_flow_imp.g_varchar2_table(173) := 'depth, p_seen);'||wwv_flow.LF||
+'        IF e.transaction_type = ''DELETE'' AND p_include_children THEN'||wwv_flow.LF||
+'       ';
+wwv_flow_imp.g_varchar2_table(178) := '     restore_children(e, l_old, p_force, p_depth, p_seen);'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 '    END restore_event;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    PROCEDURE restore_row('||wwv_flow.LF||
-'        p_transac';
-wwv_flow_imp.g_varchar2_table(174) := 'tion_id   IN VARCHAR2,'||wwv_flow.LF||
-'        p_include_children IN BOOLEAN DEFAULT TRUE,'||wwv_flow.LF||
-'        p_force          ';
-wwv_flow_imp.g_varchar2_table(175) := '  IN BOOLEAN DEFAULT FALSE,'||wwv_flow.LF||
-'        p_preview          IN BOOLEAN DEFAULT FALSE'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(179) := '   PROCEDURE restore_row('||wwv_flow.LF||
+'        p_transaction_id   IN VARCHAR2,'||wwv_flow.LF||
+'        p_include_children IN BOOL';
+wwv_flow_imp.g_varchar2_table(180) := 'EAN DEFAULT TRUE,'||wwv_flow.LF||
+'        p_force            IN BOOLEAN DEFAULT FALSE,'||wwv_flow.LF||
+'        p_preview          IN';
+wwv_flow_imp.g_varchar2_table(181) := ' BOOLEAN DEFAULT FALSE'||wwv_flow.LF||
 '    ) IS'||wwv_flow.LF||
-'        l_s';
-wwv_flow_imp.g_varchar2_table(176) := 'een     t_seen;'||wwv_flow.LF||
+'        l_seen     t_seen;'||wwv_flow.LF||
 '        l_module   VARCHAR2(64);'||wwv_flow.LF||
-'        l_action   VARCHAR2(64);'||wwv_flow.LF||
-'        l_waiting ';
-wwv_flow_imp.g_varchar2_table(177) := ' t_names;'||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(182) := 'l_action   VARCHAR2(64);'||wwv_flow.LF||
+'        l_waiting  t_names;'||wwv_flow.LF||
 '        l_progress BOOLEAN;'||wwv_flow.LF||
 '    BEGIN'||wwv_flow.LF||
-'        SAVEPOINT util_audit_restore;'||wwv_flow.LF||
-'        g_pend';
-wwv_flow_imp.g_varchar2_table(178) := 'ing.DELETE;'||wwv_flow.LF||
+'        S';
+wwv_flow_imp.g_varchar2_table(183) := 'AVEPOINT util_audit_restore;'||wwv_flow.LF||
+'        g_pending.DELETE;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        -- Tag the session so the restore''s own audit events say what they are'||wwv_flow.LF||
-'        ';
-wwv_flow_imp.g_varchar2_table(179) := 'DBMS_APPLICATION_INFO.READ_MODULE(l_module, l_action);'||wwv_flow.LF||
-'        DBMS_APPLICATION_INFO.SET_ACTION(''uti';
-wwv_flow_imp.g_varchar2_table(180) := 'l_audit.restore_row '' || SUBSTR(p_transaction_id, 1, 40));'||wwv_flow.LF||
+'        -- Tag the session so the restore''s ';
+wwv_flow_imp.g_varchar2_table(184) := 'own audit events say what they are'||wwv_flow.LF||
+'        DBMS_APPLICATION_INFO.READ_MODULE(l_module, l_action);'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(185) := '      DBMS_APPLICATION_INFO.SET_ACTION(''util_audit.restore_row '' || SUBSTR(p_transaction_id, 1, 40))';
+wwv_flow_imp.g_varchar2_table(186) := ';'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        restore_event(p_transaction_id, ';
-wwv_flow_imp.g_varchar2_table(181) := 'p_include_children, p_force, 0, l_seen);'||wwv_flow.LF||
+'        restore_event(p_transaction_id, p_include_children, p_force, 0, l_seen);'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        -- Retry child rows that waited for another parent';
-wwv_flow_imp.g_varchar2_table(182) := ' row until a round'||wwv_flow.LF||
+'        -- Retr';
+wwv_flow_imp.g_varchar2_table(187) := 'y child rows that waited for another parent row until a round'||wwv_flow.LF||
 '        -- restores none of them'||wwv_flow.LF||
-'        LOOP'||wwv_flow.LF||
-'            EXIT WHEN g_pending.COU';
-wwv_flow_imp.g_varchar2_table(183) := 'NT = 0;'||wwv_flow.LF||
+'     ';
+wwv_flow_imp.g_varchar2_table(188) := '   LOOP'||wwv_flow.LF||
+'            EXIT WHEN g_pending.COUNT = 0;'||wwv_flow.LF||
 '            l_waiting  := g_pending;'||wwv_flow.LF||
-'            g_pending.DELETE;'||wwv_flow.LF||
-'            l_progress :=';
-wwv_flow_imp.g_varchar2_table(184) := ' FALSE;'||wwv_flow.LF||
+'            ';
+wwv_flow_imp.g_varchar2_table(189) := 'g_pending.DELETE;'||wwv_flow.LF||
+'            l_progress := FALSE;'||wwv_flow.LF||
 '            FOR i IN 1 .. l_waiting.COUNT LOOP'||wwv_flow.LF||
-'                IF NOT l_seen.EXISTS(l_waitin';
-wwv_flow_imp.g_varchar2_table(185) := 'g(i)) THEN'||wwv_flow.LF||
-'                    restore_event(l_waiting(i), p_include_children, p_force, 1, l_seen);'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(186) := '                    l_progress := l_progress OR l_seen.EXISTS(l_waiting(i));'||wwv_flow.LF||
-'                END IF;';
-wwv_flow_imp.g_varchar2_table(187) := ''||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(190) := '              IF NOT l_seen.EXISTS(l_waiting(i)) THEN'||wwv_flow.LF||
+'                    restore_event(l_waiting(i)';
+wwv_flow_imp.g_varchar2_table(191) := ', p_include_children, p_force, 1, l_seen);'||wwv_flow.LF||
+'                    l_progress := l_progress OR l_seen.EX';
+wwv_flow_imp.g_varchar2_table(192) := 'ISTS(l_waiting(i));'||wwv_flow.LF||
+'                END IF;'||wwv_flow.LF||
 '            END LOOP;'||wwv_flow.LF||
-'            IF NOT l_progress AND g_pending.COUNT > 0 THEN'||wwv_flow.LF||
-'                RA';
-wwv_flow_imp.g_varchar2_table(188) := 'ISE_APPLICATION_ERROR(-20017, ''Event '' || g_pending(1) || '' references a parent row '' ||'||wwv_flow.LF||
-'           ';
-wwv_flow_imp.g_varchar2_table(189) := '         ''that this restore does not bring back. Restore that parent row first.'');'||wwv_flow.LF||
-'            END I';
-wwv_flow_imp.g_varchar2_table(190) := 'F;'||wwv_flow.LF||
+'            IF NOT l_progress AND ';
+wwv_flow_imp.g_varchar2_table(193) := 'g_pending.COUNT > 0 THEN'||wwv_flow.LF||
+'                RAISE_APPLICATION_ERROR(-20017, ''Event '' || g_pending(1) ||';
+wwv_flow_imp.g_varchar2_table(194) := ' '' references a parent row '' ||'||wwv_flow.LF||
+'                    ''that this restore does not bring back. Restore ';
+wwv_flow_imp.g_varchar2_table(195) := 'that parent row first.'');'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
 '        END LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        IF p_preview THEN'||wwv_flow.LF||
-'            ROLLBACK TO util_audit_restore;'||wwv_flow.LF||
-'        ';
-wwv_flow_imp.g_varchar2_table(191) := '    DBMS_OUTPUT.PUT_LINE(''Preview only: all changes rolled back.'');'||wwv_flow.LF||
+'         ';
+wwv_flow_imp.g_varchar2_table(196) := '   ROLLBACK TO util_audit_restore;'||wwv_flow.LF||
+'            DBMS_OUTPUT.PUT_LINE(''Preview only: all changes rolle';
+wwv_flow_imp.g_varchar2_table(197) := 'd back.'');'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        DBMS_AP';
-wwv_flow_imp.g_varchar2_table(192) := 'PLICATION_INFO.SET_ACTION(l_action);'||wwv_flow.LF||
+'        DBMS_APPLICATION_INFO.SET_ACTION(l_action);'||wwv_flow.LF||
 '    EXCEPTION'||wwv_flow.LF||
-'        WHEN OTHERS THEN'||wwv_flow.LF||
-'            ROLLBACK TO ';
-wwv_flow_imp.g_varchar2_table(193) := 'util_audit_restore;'||wwv_flow.LF||
+'      ';
+wwv_flow_imp.g_varchar2_table(198) := '  WHEN OTHERS THEN'||wwv_flow.LF||
+'            ROLLBACK TO util_audit_restore;'||wwv_flow.LF||
 '            g_pending.DELETE;'||wwv_flow.LF||
-'            DBMS_APPLICATION_INFO.SET_ACTION(l_act';
-wwv_flow_imp.g_varchar2_table(194) := 'ion);'||wwv_flow.LF||
-'            DBMS_OUTPUT.PUT_LINE(''Restore failed: all changes rolled back.'');'||wwv_flow.LF||
-'            RAIS';
-wwv_flow_imp.g_varchar2_table(195) := 'E;'||wwv_flow.LF||
+'       ';
+wwv_flow_imp.g_varchar2_table(199) := '     DBMS_APPLICATION_INFO.SET_ACTION(l_action);'||wwv_flow.LF||
+'            DBMS_OUTPUT.PUT_LINE(''Restore failed: a';
+wwv_flow_imp.g_varchar2_table(200) := 'll changes rolled back.'');'||wwv_flow.LF||
+'            RAISE;'||wwv_flow.LF||
 '    END restore_row;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 'END util_audit_restore;'||wwv_flow.LF||
@@ -14718,145 +15088,146 @@ wwv_flow_imp.g_varchar2_table(27) := '  ELSE ''Paused'''||wwv_flow.LF||
 '    NVL(';
 wwv_flow_imp.g_varchar2_table(28) := 'c.enabled_flag, ''N'')             enabled_flag,'||wwv_flow.LF||
 '    c.ignored_columns,'||wwv_flow.LF||
-'    CASE WHEN EXISTS (SELECT 1';
-wwv_flow_imp.g_varchar2_table(29) := ' FROM user_constraints k'||wwv_flow.LF||
-'                      WHERE k.table_name = t.table_name'||wwv_flow.LF||
-'                   ';
-wwv_flow_imp.g_varchar2_table(30) := '     AND k.constraint_type = ''P'')'||wwv_flow.LF||
-'         THEN ''Y'' ELSE ''N'' END           has_pk,'||wwv_flow.LF||
-'    (SELECT COUNT';
-wwv_flow_imp.g_varchar2_table(31) := '(*) FROM v_util_audit_child_tables ch'||wwv_flow.LF||
-'     WHERE ch.parent_table = t.table_name)                 chi';
-wwv_flow_imp.g_varchar2_table(32) := 'ld_tables,'||wwv_flow.LF||
+'    c.excluded_columns,'||wwv_flow.LF||
+'    CA';
+wwv_flow_imp.g_varchar2_table(29) := 'SE WHEN EXISTS (SELECT 1 FROM user_constraints k'||wwv_flow.LF||
+'                      WHERE k.table_name = t.table_';
+wwv_flow_imp.g_varchar2_table(30) := 'name'||wwv_flow.LF||
+'                        AND k.constraint_type = ''P'')'||wwv_flow.LF||
+'         THEN ''Y'' ELSE ''N'' END           h';
+wwv_flow_imp.g_varchar2_table(31) := 'as_pk,'||wwv_flow.LF||
 '    (SELECT COUNT(*) FROM v_util_audit_child_tables ch'||wwv_flow.LF||
-'     WHERE ch.parent_table = t.tab';
-wwv_flow_imp.g_varchar2_table(33) := 'le_name'||wwv_flow.LF||
-'       AND ch.child_audited = ''N'')                         unaudited_child_tables,'||wwv_flow.LF||
-'    (SELE';
-wwv_flow_imp.g_varchar2_table(34) := 'CT COUNT(*) FROM util_audit_txn x'||wwv_flow.LF||
-'     WHERE x.table_name = t.table_name)                    event_c';
-wwv_flow_imp.g_varchar2_table(35) := 'ount,'||wwv_flow.LF||
+'     WHERE ch.parent_table = t.table_n';
+wwv_flow_imp.g_varchar2_table(32) := 'ame)                 child_tables,'||wwv_flow.LF||
+'    (SELECT COUNT(*) FROM v_util_audit_child_tables ch'||wwv_flow.LF||
+'     WHERE';
+wwv_flow_imp.g_varchar2_table(33) := ' ch.parent_table = t.table_name'||wwv_flow.LF||
+'       AND ch.child_audited = ''N'')                         unaudited';
+wwv_flow_imp.g_varchar2_table(34) := '_child_tables,'||wwv_flow.LF||
+'    (SELECT COUNT(*) FROM util_audit_txn x'||wwv_flow.LF||
+'     WHERE x.table_name = t.table_name)   ';
+wwv_flow_imp.g_varchar2_table(35) := '                 event_count,'||wwv_flow.LF||
 '    (SELECT MAX(x.audit_ts) FROM util_audit_txn x'||wwv_flow.LF||
-'     WHERE x.table_name = t.table_name)     ';
-wwv_flow_imp.g_varchar2_table(36) := '               last_event_ts'||wwv_flow.LF||
+'     WHERE x.table_n';
+wwv_flow_imp.g_varchar2_table(36) := 'ame = t.table_name)                    last_event_ts'||wwv_flow.LF||
 'FROM user_tables t'||wwv_flow.LF||
-'LEFT JOIN (SELECT table_name,'||wwv_flow.LF||
-'                  MIN(';
-wwv_flow_imp.g_varchar2_table(37) := 'trigger_name)  trigger_name,'||wwv_flow.LF||
+'LEFT JOIN (SELECT table_name';
+wwv_flow_imp.g_varchar2_table(37) := ','||wwv_flow.LF||
+'                  MIN(trigger_name)  trigger_name,'||wwv_flow.LF||
 '                  MIN(status)        status,'||wwv_flow.LF||
-'                  MIN(obje';
-wwv_flow_imp.g_varchar2_table(38) := 'ct_status) object_status'||wwv_flow.LF||
-'           FROM v_util_audit_triggers'||wwv_flow.LF||
-'           GROUP BY table_name) tr'||wwv_flow.LF||
 '  ';
-wwv_flow_imp.g_varchar2_table(39) := 'ON tr.table_name = t.table_name'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(38) := '                MIN(object_status) object_status'||wwv_flow.LF||
+'           FROM v_util_audit_triggers'||wwv_flow.LF||
+'           GR';
+wwv_flow_imp.g_varchar2_table(39) := 'OUP BY table_name) tr'||wwv_flow.LF||
+'  ON tr.table_name = t.table_name'||wwv_flow.LF||
 'LEFT JOIN util_audit_config c'||wwv_flow.LF||
-'  ON c.table_name = t.table_name'||wwv_flow.LF||
-'WHERE';
-wwv_flow_imp.g_varchar2_table(40) := ' t.table_name NOT LIKE ''UTIL\_AUDIT\_%'' ESCAPE ''\'''||wwv_flow.LF||
+'  ON c.table_n';
+wwv_flow_imp.g_varchar2_table(40) := 'ame = t.table_name'||wwv_flow.LF||
+'WHERE t.table_name NOT LIKE ''UTIL\_AUDIT\_%'' ESCAPE ''\'''||wwv_flow.LF||
 '  AND t.dropped = ''NO'''||wwv_flow.LF||
 '/'||wwv_flow.LF||
-'create or replace view V';
-wwv_flow_imp.g_varchar2_table(41) := '_UTIL_AUDIT_EVENTS as'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(41) := 'create or replace view V_UTIL_AUDIT_EVENTS as'||wwv_flow.LF||
 'SELECT'||wwv_flow.LF||
 '    t.audit_ts,'||wwv_flow.LF||
 '    t.table_name,'||wwv_flow.LF||
-'    t.pk_value_vc,'||wwv_flow.LF||
-'    t.transaction_';
-wwv_flow_imp.g_varchar2_table(42) := 'type,'||wwv_flow.LF||
+'    t.pk_valu';
+wwv_flow_imp.g_varchar2_table(42) := 'e_vc,'||wwv_flow.LF||
+'    t.transaction_type,'||wwv_flow.LF||
 '    t.username,'||wwv_flow.LF||
 '    t.transaction_id,'||wwv_flow.LF||
 '    t.db_transaction_id,'||wwv_flow.LF||
-'    t.audit_context,'||wwv_flow.LF||
-'    t.old_';
-wwv_flow_imp.g_varchar2_table(43) := 'row_json,'||wwv_flow.LF||
+'    t.a';
+wwv_flow_imp.g_varchar2_table(43) := 'udit_context,'||wwv_flow.LF||
+'    t.old_row_json,'||wwv_flow.LF||
 '    t.new_row_json'||wwv_flow.LF||
 'FROM util_audit_txn t'||wwv_flow.LF||
 '/'||wwv_flow.LF||
-'create or replace view V_UTIL_AUDIT_CHANGES as'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(44) := 'SELECT'||wwv_flow.LF||
+'create or replace view ';
+wwv_flow_imp.g_varchar2_table(44) := 'V_UTIL_AUDIT_CHANGES as'||wwv_flow.LF||
+'SELECT'||wwv_flow.LF||
 '    r.audit_ts,'||wwv_flow.LF||
 '    r.table_name,'||wwv_flow.LF||
 '    r.pk_value_vc,'||wwv_flow.LF||
-'    r.transaction_type,'||wwv_flow.LF||
+'    r.transactio';
+wwv_flow_imp.g_varchar2_table(45) := 'n_type,'||wwv_flow.LF||
 '    r.username,'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(45) := '    r.transaction_id,'||wwv_flow.LF||
+'    r.transaction_id,'||wwv_flow.LF||
 '    r.column_name,'||wwv_flow.LF||
 '    r.data_type,'||wwv_flow.LF||
 '    r.old_value,'||wwv_flow.LF||
-'    r.new_value,'||wwv_flow.LF||
-'    r.ol';
-wwv_flow_imp.g_varchar2_table(46) := 'd_clob,'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(46) := '   r.new_value,'||wwv_flow.LF||
+'    r.old_clob,'||wwv_flow.LF||
 '    r.new_clob,'||wwv_flow.LF||
 '    r.change_hash'||wwv_flow.LF||
 'FROM util_audit_records r'||wwv_flow.LF||
 '/'||wwv_flow.LF||
-'create or replace view V_UTIL_';
-wwv_flow_imp.g_varchar2_table(47) := 'AUDIT_ROW_HISTORY as'||wwv_flow.LF||
+'create';
+wwv_flow_imp.g_varchar2_table(47) := ' or replace view V_UTIL_AUDIT_ROW_HISTORY as'||wwv_flow.LF||
 'SELECT'||wwv_flow.LF||
 '    e.audit_ts,'||wwv_flow.LF||
 '    e.table_name,'||wwv_flow.LF||
-'    e.pk_value_vc,'||wwv_flow.LF||
-'    e.transaction_t';
-wwv_flow_imp.g_varchar2_table(48) := 'ype,'||wwv_flow.LF||
+'    e.pk_value';
+wwv_flow_imp.g_varchar2_table(48) := '_vc,'||wwv_flow.LF||
+'    e.transaction_type,'||wwv_flow.LF||
 '    e.username,'||wwv_flow.LF||
 '    e.transaction_id,'||wwv_flow.LF||
 '    e.db_transaction_id,'||wwv_flow.LF||
-'    c.column_name,'||wwv_flow.LF||
-'    c.data_ty';
-wwv_flow_imp.g_varchar2_table(49) := 'pe,'||wwv_flow.LF||
+'    c.co';
+wwv_flow_imp.g_varchar2_table(49) := 'lumn_name,'||wwv_flow.LF||
+'    c.data_type,'||wwv_flow.LF||
 '    c.old_value,'||wwv_flow.LF||
 '    c.new_value,'||wwv_flow.LF||
 '    c.old_clob,'||wwv_flow.LF||
 '    c.new_clob,'||wwv_flow.LF||
-'    e.audit_context,'||wwv_flow.LF||
-'    e.old';
-wwv_flow_imp.g_varchar2_table(50) := '_row_json,'||wwv_flow.LF||
+'    e.';
+wwv_flow_imp.g_varchar2_table(50) := 'audit_context,'||wwv_flow.LF||
+'    e.old_row_json,'||wwv_flow.LF||
 '    e.new_row_json'||wwv_flow.LF||
 'FROM v_util_audit_events  e'||wwv_flow.LF||
-'LEFT JOIN v_util_audit_changes c'||wwv_flow.LF||
-'  ON c.tr';
-wwv_flow_imp.g_varchar2_table(51) := 'ansaction_id = e.transaction_id'||wwv_flow.LF||
+'LEFT JOIN v_util_a';
+wwv_flow_imp.g_varchar2_table(51) := 'udit_changes c'||wwv_flow.LF||
+'  ON c.transaction_id = e.transaction_id'||wwv_flow.LF||
 '/'||wwv_flow.LF||
-'create or replace view V_UTIL_AUDIT_LATEST_BY_ROW as'||wwv_flow.LF||
-'SELECT "AUDIT';
-wwv_flow_imp.g_varchar2_table(52) := '_TS","TABLE_NAME","PK_VALUE_VC","TRANSACTION_TYPE","USERNAME","TRANSACTION_ID","DB_TRANSACTION_ID","';
-wwv_flow_imp.g_varchar2_table(53) := 'AUDIT_CONTEXT","OLD_ROW_JSON","NEW_ROW_JSON","RN"'||wwv_flow.LF||
+'create or replace view V_UTIL_AUDIT_LATEST';
+wwv_flow_imp.g_varchar2_table(52) := '_BY_ROW as'||wwv_flow.LF||
+'SELECT "AUDIT_TS","TABLE_NAME","PK_VALUE_VC","TRANSACTION_TYPE","USERNAME","TRANSACTION_I';
+wwv_flow_imp.g_varchar2_table(53) := 'D","DB_TRANSACTION_ID","AUDIT_CONTEXT","OLD_ROW_JSON","NEW_ROW_JSON","RN"'||wwv_flow.LF||
 'FROM ('||wwv_flow.LF||
 '    SELECT'||wwv_flow.LF||
-'        e.*,'||wwv_flow.LF||
-'        ROW_NUMBER(';
-wwv_flow_imp.g_varchar2_table(54) := ') OVER ('||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(54) := 'e.*,'||wwv_flow.LF||
+'        ROW_NUMBER() OVER ('||wwv_flow.LF||
 '            PARTITION BY e.table_name, e.pk_value_vc'||wwv_flow.LF||
-'            ORDER BY e.audit_ts DESC'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(55) := '       ) rn'||wwv_flow.LF||
+'            OR';
+wwv_flow_imp.g_varchar2_table(55) := 'DER BY e.audit_ts DESC'||wwv_flow.LF||
+'        ) rn'||wwv_flow.LF||
 '    FROM v_util_audit_events e'||wwv_flow.LF||
 ')'||wwv_flow.LF||
 'WHERE rn = 1'||wwv_flow.LF||
 '/'||wwv_flow.LF||
-'create or replace view V_UTIL_AUDIT_EVEN';
-wwv_flow_imp.g_varchar2_table(56) := 'T_SUMMARY as'||wwv_flow.LF||
+'create or replac';
+wwv_flow_imp.g_varchar2_table(56) := 'e view V_UTIL_AUDIT_EVENT_SUMMARY as'||wwv_flow.LF||
 'SELECT'||wwv_flow.LF||
 '    e.audit_ts,'||wwv_flow.LF||
 '    e.table_name,'||wwv_flow.LF||
 '    e.pk_value_vc,'||wwv_flow.LF||
-'    e.transaction_type,'||wwv_flow.LF||
 '   ';
-wwv_flow_imp.g_varchar2_table(57) := ' e.username,'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(57) := ' e.transaction_type,'||wwv_flow.LF||
+'    e.username,'||wwv_flow.LF||
 '    e.transaction_id,'||wwv_flow.LF||
-'    LISTAGG(c.column_name, '', '' ON OVERFLOW TRUNCATE ''...'' WITH C';
-wwv_flow_imp.g_varchar2_table(58) := 'OUNT)'||wwv_flow.LF||
+'    LISTAGG(c.column_name, '', '' ON OVERFL';
+wwv_flow_imp.g_varchar2_table(58) := 'OW TRUNCATE ''...'' WITH COUNT)'||wwv_flow.LF||
 '        WITHIN GROUP (ORDER BY c.column_name) AS changed_columns'||wwv_flow.LF||
-'FROM v_util_audit_events e'||wwv_flow.LF||
-'LE';
-wwv_flow_imp.g_varchar2_table(59) := 'FT JOIN v_util_audit_changes c'||wwv_flow.LF||
+'FROM ';
+wwv_flow_imp.g_varchar2_table(59) := 'v_util_audit_events e'||wwv_flow.LF||
+'LEFT JOIN v_util_audit_changes c'||wwv_flow.LF||
 '  ON c.transaction_id = e.transaction_id'||wwv_flow.LF||
-'GROUP BY'||wwv_flow.LF||
-'    e.audit_ts, e.t';
-wwv_flow_imp.g_varchar2_table(60) := 'able_name, e.pk_value_vc, e.transaction_type, e.username, e.transaction_id'||wwv_flow.LF||
+'GROU';
+wwv_flow_imp.g_varchar2_table(60) := 'P BY'||wwv_flow.LF||
+'    e.audit_ts, e.table_name, e.pk_value_vc, e.transaction_type, e.username, e.transaction_id'||wwv_flow.LF||
 '/';
 wwv_flow_imp_shared.create_install_script(
  p_id=>wwv_flow_imp.id(5507939723560917)
@@ -15129,420 +15500,436 @@ wwv_flow_imp.g_varchar2_table(73) := 'eate Trigger** |'||wwv_flow.LF||
 '## Other colum';
 wwv_flow_imp.g_varchar2_table(74) := 'ns'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- **Ignored Columns**: columns this table''s trigger skips.'||wwv_flow.LF||
-'- **Child Tables**: tables that point';
-wwv_flow_imp.g_varchar2_table(75) := ' at this one with a foreign key. **Unaudited Child Tables** counts the ones without a trigger. Resto';
-wwv_flow_imp.g_varchar2_table(76) := 'ring a deleted row cannot bring back rows from those.'||wwv_flow.LF||
-'- **Events** and **Last Event**: how much has ';
-wwv_flow_imp.g_varchar2_table(77) := 'been recorded, and when last.'||wwv_flow.LF||
+'- **Ignored Columns**: bookkeeping columns whose changes are not listed.'||wwv_flow.LF||
+'- **Excluded Columns**:';
+wwv_flow_imp.g_varchar2_table(75) := ' secrets that are never recorded at all.'||wwv_flow.LF||
+'- **Child Tables**: tables that point at this one with a fo';
+wwv_flow_imp.g_varchar2_table(76) := 'reign key. **Unaudited Child Tables** counts the ones without a trigger. Restoring a deleted row can';
+wwv_flow_imp.g_varchar2_table(77) := 'not bring back rows from those.'||wwv_flow.LF||
+'- **Events** and **Last Event**: how much has been recorded, and whe';
+wwv_flow_imp.g_varchar2_table(78) := 'n last.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 'A table needs a primary key before it can be audited.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(';
-wwv_flow_imp.g_varchar2_table(78) := '''auditing-a-table'', ''Auditing a table'', 3, ''N'', 35, q''['||wwv_flow.LF||
-'Open **Tables** and click a table name. The ';
-wwv_flow_imp.g_varchar2_table(79) := 'panel on the right shows the table''s status and what you can do with it. Only administrators see the';
-wwv_flow_imp.g_varchar2_table(80) := ' buttons.'||wwv_flow.LF||
+'    seed(''auditing-a-table'', ''A';
+wwv_flow_imp.g_varchar2_table(79) := 'uditing a table'', 3, ''N'', 35, q''['||wwv_flow.LF||
+'Open **Tables** and click a table name. The panel on the right sho';
+wwv_flow_imp.g_varchar2_table(80) := 'ws the table''s status and what you can do with it. Only administrators see the buttons.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Buttons'||wwv_flow.LF||
-''||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(81) := ''||wwv_flow.LF||
 '| Button | What it does |'||wwv_flow.LF||
 '| --- | --- |'||wwv_flow.LF||
-'| **Start Auditing** | Creates the au';
-wwv_flow_imp.g_varchar2_table(81) := 'dit trigger. Recording starts at once |'||wwv_flow.LF||
+'| **Start Auditing** | Creates the audit trigger. Recording';
+wwv_flow_imp.g_varchar2_table(82) := ' starts at once |'||wwv_flow.LF||
 '| **Pause** | Stops recording but keeps the trigger |'||wwv_flow.LF||
-'| **Re';
-wwv_flow_imp.g_varchar2_table(82) := 'sume** | Starts recording again after a pause |'||wwv_flow.LF||
-'| **Re-create Trigger** | Rebuilds the trigger. Do t';
-wwv_flow_imp.g_varchar2_table(83) := 'his after adding or dropping columns |'||wwv_flow.LF||
-'| **Stop Auditing** | Removes the trigger. The history alread';
-wwv_flow_imp.g_varchar2_table(84) := 'y recorded is kept |'||wwv_flow.LF||
+'| **Resume** | Starts record';
+wwv_flow_imp.g_varchar2_table(83) := 'ing again after a pause |'||wwv_flow.LF||
+'| **Re-create Trigger** | Rebuilds the trigger. Do this after adding or dr';
+wwv_flow_imp.g_varchar2_table(84) := 'opping columns |'||wwv_flow.LF||
+'| **Stop Auditing** | Removes the trigger. The history already recorded is kept |'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Ignored columns'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(85) := '## Ignored columns'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Move the columns you do not want recorded to the right, th';
-wwv_flow_imp.g_varchar2_table(85) := 'en press **Save Ignored Columns**. The trigger is rebuilt straight away, and the list is kept every ';
-wwv_flow_imp.g_varchar2_table(86) := 'time the trigger is rebuilt.'||wwv_flow.LF||
+'Move the columns you do not want recorded to the right, then press **Save Ignore';
+wwv_flow_imp.g_varchar2_table(86) := 'd Columns**. The trigger is rebuilt straight away, and the list is kept every time the trigger is re';
+wwv_flow_imp.g_varchar2_table(87) := 'built.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'A change that only touches ignored columns records nothing. These are ';
-wwv_flow_imp.g_varchar2_table(87) := 'always ignored: CREATED, CREATED_ON, CREATED_BY, UPDATED, UPDATED_ON, UPDATED_BY, MODIFIED, MODIFIED';
-wwv_flow_imp.g_varchar2_table(88) := '_ON, MODIFIED_BY.'||wwv_flow.LF||
+'A change that only touches ignored columns records nothing. These are always ignored: CREATE';
+wwv_flow_imp.g_varchar2_table(88) := 'D, CREATED_ON, CREATED_BY, UPDATED, UPDATED_ON, UPDATED_BY, MODIFIED, MODIFIED_ON, MODIFIED_BY.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Ignored columns are still kept in the copy of the whole row that each event store';
-wwv_flow_imp.g_varchar2_table(89) := 's, so a restored row gets them back.'||wwv_flow.LF||
+'Ign';
+wwv_flow_imp.g_varchar2_table(89) := 'ored columns are still kept in the copy of the whole row that each event stores, so a restored row g';
+wwv_flow_imp.g_varchar2_table(90) := 'ets them back.'||wwv_flow.LF||
+''||wwv_flow.LF||
+'## Excluded columns'||wwv_flow.LF||
+''||wwv_flow.LF||
+'For secrets, such as password hashes and reset tokens. An exclu';
+wwv_flow_imp.g_varchar2_table(91) := 'ded column is never written to the audit trail: not as a change, and not in the copy of the whole ro';
+wwv_flow_imp.g_varchar2_table(92) := 'w. Key columns cannot be excluded.'||wwv_flow.LF||
+''||wwv_flow.LF||
+'A restored row gets an empty value or the column default for exc';
+wwv_flow_imp.g_varchar2_table(93) := 'luded columns. If such a column is required and has no default, a deleted row cannot be restored, an';
+wwv_flow_imp.g_varchar2_table(94) := 'd Restore says so.'||wwv_flow.LF||
+''||wwv_flow.LF||
+'Turn on **Also remove them from history already recorded** to delete these colum';
+wwv_flow_imp.g_varchar2_table(95) := 'ns from everything this table has recorded so far. This cannot be undone, and archive files made ear';
+wwv_flow_imp.g_varchar2_table(96) := 'lier keep them.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Child tables'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Lists every table that points at this one, ho';
-wwv_flow_imp.g_varchar2_table(90) := 'w it reacts when a row here is deleted (**On Delete**), and whether it is audited.'||wwv_flow.LF||
+'Lists every table that points at this one, how it reacts when a ro';
+wwv_flow_imp.g_varchar2_table(97) := 'w here is deleted (**On Delete**), and whether it is audited.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'When you restore';
-wwv_flow_imp.g_varchar2_table(91) := ' a deleted row, Util Audit also brings back its child rows, but only from audited child tables. Audi';
-wwv_flow_imp.g_varchar2_table(92) := 't the child tables too if you want restores to be complete.'||wwv_flow.LF||
+'When you restore a deleted row, Util ';
+wwv_flow_imp.g_varchar2_table(98) := 'Audit also brings back its child rows, but only from audited child tables. Audit the child tables to';
+wwv_flow_imp.g_varchar2_table(99) := 'o if you want restores to be complete.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Trigger code'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Shows the exact trigge';
-wwv_flow_imp.g_varchar2_table(93) := 'r the app creates for this table. Nothing runs when you open it.'||wwv_flow.LF||
+'Shows the exact trigger the app creates for';
+wwv_flow_imp.g_varchar2_table(100) := ' this table. Nothing runs when you open it.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''events'', ''Events'', ';
-wwv_flow_imp.g_varchar2_table(94) := '4, ''N'', 40, q''['||wwv_flow.LF||
-'Events lists every recorded change, newest first.'||wwv_flow.LF||
+'    seed(''events'', ''Events'', 4, ''N'', 40, q''['||wwv_flow.LF||
+'Event';
+wwv_flow_imp.g_varchar2_table(101) := 's lists every recorded change, newest first.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Finding a change'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- Type in **';
-wwv_flow_imp.g_varchar2_table(95) := 'Search** to match any word in the list.'||wwv_flow.LF||
-'- Tick a **Table**, **Type** (INSERT, UPDATE or DELETE) or *';
-wwv_flow_imp.g_varchar2_table(96) := '*User** to narrow the list. The numbers next to each value show how many events match.'||wwv_flow.LF||
-'- Enter dates';
-wwv_flow_imp.g_varchar2_table(97) := ' under **When** and press **Go** to limit the time range.'||wwv_flow.LF||
+'- Type in **Search** to match any';
+wwv_flow_imp.g_varchar2_table(102) := ' word in the list.'||wwv_flow.LF||
+'- Tick a **Table**, **Type** (INSERT, UPDATE or DELETE) or **User** to narrow the';
+wwv_flow_imp.g_varchar2_table(103) := ' list. The numbers next to each value show how many events match.'||wwv_flow.LF||
+'- Enter dates under **When** and p';
+wwv_flow_imp.g_varchar2_table(104) := 'ress **Go** to limit the time range.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Columns'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'**Key** is the row''s primary ';
-wwv_flow_imp.g_varchar2_table(98) := 'key. A key made of several columns is shown as `{"ORDER_ID":"100","LINE_NO":"1"}`. **Changed Columns';
-wwv_flow_imp.g_varchar2_table(99) := '** lists the columns that changed. An insert or delete lists every column.'||wwv_flow.LF||
+'**Key** is the row''s primary key. A key made of se';
+wwv_flow_imp.g_varchar2_table(105) := 'veral columns is shown as `{"ORDER_ID":"100","LINE_NO":"1"}`. **Changed Columns** lists the columns ';
+wwv_flow_imp.g_varchar2_table(106) := 'that changed. An insert or delete lists every column.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Opening a change'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Cli';
-wwv_flow_imp.g_varchar2_table(100) := 'ck the time to see the full event and, for administrators, to restore the row. Click **History** to ';
-wwv_flow_imp.g_varchar2_table(101) := 'see every change to that row.'||wwv_flow.LF||
+'Click the time to see th';
+wwv_flow_imp.g_varchar2_table(107) := 'e full event and, for administrators, to restore the row. Click **History** to see every change to t';
+wwv_flow_imp.g_varchar2_table(108) := 'hat row.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''event-and-restore'', ''An event, and restoring a row'', 5';
-wwv_flow_imp.g_varchar2_table(102) := ', ''N'', 50, q''['||wwv_flow.LF||
-'The Event panel shows one recorded change.'||wwv_flow.LF||
+'    seed(''event-and-restore'', ''An event, and restoring a row'', 5, ''N'', 50, q''['||wwv_flow.LF||
+'The Ev';
+wwv_flow_imp.g_varchar2_table(109) := 'ent panel shows one recorded change.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## What it shows'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- **Event**: when, whic';
-wwv_flow_imp.g_varchar2_table(103) := 'h table and row, what kind of change, and who made it. The user is the APEX user for changes made in';
-wwv_flow_imp.g_varchar2_table(104) := ' an APEX app, otherwise the database user.'||wwv_flow.LF||
-'- **Context**: where the change came from. For an APEX ap';
-wwv_flow_imp.g_varchar2_table(105) := 'p: the app, page and session numbers and the user''s IP address. For other tools: the program name (*';
-wwv_flow_imp.g_varchar2_table(106) := '*Module**), the computer (**Host**) and the operating-system user.'||wwv_flow.LF||
-'- **Column Changes**: each column';
-wwv_flow_imp.g_varchar2_table(107) := '''s value before and after.'||wwv_flow.LF||
+'- **Event**: when, which table and row, what';
+wwv_flow_imp.g_varchar2_table(110) := ' kind of change, and who made it. The user is the APEX user for changes made in an APEX app, otherwi';
+wwv_flow_imp.g_varchar2_table(111) := 'se the database user.'||wwv_flow.LF||
+'- **Context**: where the change came from. For an APEX app: the app, page and ';
+wwv_flow_imp.g_varchar2_table(112) := 'session numbers and the user''s IP address. For other tools: the program name (**Module**), the compu';
+wwv_flow_imp.g_varchar2_table(113) := 'ter (**Host**) and the operating-system user.'||wwv_flow.LF||
+'- **Column Changes**: each column''s value before and a';
+wwv_flow_imp.g_varchar2_table(114) := 'fter.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Restoring a row'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Restore puts the row back the way it was just before';
-wwv_flow_imp.g_varchar2_table(108) := ' this event.'||wwv_flow.LF||
+'Restore puts the row back the way it was just before this event.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- For a **delete**, the row is inserted again.'||wwv_flow.LF||
-'- For an **update**, the columns go bac';
-wwv_flow_imp.g_varchar2_table(109) := 'k to their old values.'||wwv_flow.LF||
+'- For a';
+wwv_flow_imp.g_varchar2_table(115) := ' **delete**, the row is inserted again.'||wwv_flow.LF||
+'- For an **update**, the columns go back to their old values';
+wwv_flow_imp.g_varchar2_table(116) := '.'||wwv_flow.LF||
 '- An **insert** cannot be restored.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'1. Leave **Include child rows** on to al';
-wwv_flow_imp.g_varchar2_table(110) := 'so bring back rows in audited child tables that were deleted, or had their link cleared, in the same';
-wwv_flow_imp.g_varchar2_table(111) := ' transaction.'||wwv_flow.LF||
-'2. Press **Preview Restore**. The restore runs, the **Result** box lists every row it ';
-wwv_flow_imp.g_varchar2_table(112) := 'would touch, and then everything is rolled back. Nothing changes.'||wwv_flow.LF||
-'3. If the result looks right, pres';
-wwv_flow_imp.g_varchar2_table(113) := 's **Restore**.'||wwv_flow.LF||
+'1. Leave **Include child rows** on to also bring back rows in';
+wwv_flow_imp.g_varchar2_table(117) := ' audited child tables that were deleted, or had their link cleared, in the same transaction.'||wwv_flow.LF||
+'2. Pres';
+wwv_flow_imp.g_varchar2_table(118) := 's **Preview Restore**. The restore runs, the **Result** box lists every row it would touch, and then';
+wwv_flow_imp.g_varchar2_table(119) := ' everything is rolled back. Nothing changes.'||wwv_flow.LF||
+'3. If the result looks right, press **Restore**.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'If the row changed again after this event, Restore stops and says so. Turn on **Over';
-wwv_flow_imp.g_varchar2_table(114) := 'write later changes** to restore anyway. Those later changes are then lost.'||wwv_flow.LF||
+'If th';
+wwv_flow_imp.g_varchar2_table(120) := 'e row changed again after this event, Restore stops and says so. Turn on **Overwrite later changes**';
+wwv_flow_imp.g_varchar2_table(121) := ' to restore anyway. Those later changes are then lost.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'If any step fails, noth';
-wwv_flow_imp.g_varchar2_table(115) := 'ing is changed. The reason appears in **Result**.'||wwv_flow.LF||
+'If any step fails, nothing is changed. The r';
+wwv_flow_imp.g_varchar2_table(122) := 'eason appears in **Result**.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'The restore is recorded like any other change. It';
-wwv_flow_imp.g_varchar2_table(116) := 's events show `util_audit.restore_row` as the **Action** in their context.'||wwv_flow.LF||
+'The restore is recorded like any other change. Its events show `util_a';
+wwv_flow_imp.g_varchar2_table(123) := 'udit.restore_row` as the **Action** in their context.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## What a restore cannot';
-wwv_flow_imp.g_varchar2_table(117) := ' bring back'||wwv_flow.LF||
+'## What a restore cannot bring back'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- Columns of unsupported types, such as BLOB. A re-inserted row gets an empty value or ';
-wwv_flow_imp.g_varchar2_table(118) := 'the column default for those.'||wwv_flow.LF||
-'- Events copied from util_audit v1. They have no copy of the whole row';
-wwv_flow_imp.g_varchar2_table(119) := '.'||wwv_flow.LF||
-'- Rows in child tables that are not audited. The Result says which tables these are.'||wwv_flow.LF||
-'- A row whose';
-wwv_flow_imp.g_varchar2_table(120) := ' primary key is GENERATED ALWAYS AS IDENTITY, after a delete.'||wwv_flow.LF||
+'- Column';
+wwv_flow_imp.g_varchar2_table(124) := 's of unsupported types, such as BLOB. A re-inserted row gets an empty value or the column default fo';
+wwv_flow_imp.g_varchar2_table(125) := 'r those.'||wwv_flow.LF||
+'- Events copied from util_audit v1. They have no copy of the whole row.'||wwv_flow.LF||
+'- Rows in child tab';
+wwv_flow_imp.g_varchar2_table(126) := 'les that are not audited. The Result says which tables these are.'||wwv_flow.LF||
+'- A row whose primary key is GENER';
+wwv_flow_imp.g_varchar2_table(127) := 'ATED ALWAYS AS IDENTITY, after a delete.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''row-history'', ''Row His';
-wwv_flow_imp.g_varchar2_table(121) := 'tory'', 6, ''N'', 60, q''['||wwv_flow.LF||
+'    seed(''row-history'', ''Row History'', 6, ''N'', 60, q''';
+wwv_flow_imp.g_varchar2_table(128) := '['||wwv_flow.LF||
 'Row History shows every recorded change to one row.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'1. Choose the **Table**.';
-wwv_flow_imp.g_varchar2_table(122) := ''||wwv_flow.LF||
-'2. Choose the row''s **Key**. The list shows every key that has events.'||wwv_flow.LF||
+'1. Choose the **Table**.'||wwv_flow.LF||
+'2. Choose the row''s ';
+wwv_flow_imp.g_varchar2_table(129) := '**Key**. The list shows every key that has events.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'The **Timeline** lists the ';
-wwv_flow_imp.g_varchar2_table(123) := 'changes, newest first. Click one to open the event. **All Column Changes** lists each column''s old a';
-wwv_flow_imp.g_varchar2_table(124) := 'nd new value, change by change. Long values are cut at 200 characters here; open the event to see th';
-wwv_flow_imp.g_varchar2_table(125) := 'em in full.'||wwv_flow.LF||
+'The **Timeline** lists the changes, newest first';
+wwv_flow_imp.g_varchar2_table(130) := '. Click one to open the event. **All Column Changes** lists each column''s old and new value, change ';
+wwv_flow_imp.g_varchar2_table(131) := 'by change. Long values are cut at 200 characters here; open the event to see them in full.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Opening a change from **Events** with **History** fills in the table and key for you.'||wwv_flow.LF||
+'Opening ';
+wwv_flow_imp.g_varchar2_table(132) := 'a change from **Events** with **History** fills in the table and key for you.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(126) := 'If a change altered the primary key, the history before and after it sits under two different keys.'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(127) := ']'');'||wwv_flow.LF||
+'If a change altered t';
+wwv_flow_imp.g_varchar2_table(133) := 'he primary key, the history before and after it sits under two different keys.'||wwv_flow.LF||
+']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''errors'', ''Errors'', 7, ''N'', 70, q''['||wwv_flow.LF||
-'When a trigger cannot record a change, the change';
-wwv_flow_imp.g_varchar2_table(128) := ' itself still goes through. The failure is recorded here instead, so nothing is lost without a trace';
-wwv_flow_imp.g_varchar2_table(129) := '.'||wwv_flow.LF||
+'    seed(''error';
+wwv_flow_imp.g_varchar2_table(134) := 's'', ''Errors'', 7, ''N'', 70, q''['||wwv_flow.LF||
+'When a trigger cannot record a change, the change itself still goes th';
+wwv_flow_imp.g_varchar2_table(135) := 'rough. The failure is recorded here instead, so nothing is lost without a trace.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Each row shows when it happened, the table, the kind of change, the row''s key, the user, and the ';
-wwv_flow_imp.g_varchar2_table(130) := 'error with the exact line it came from (**Backtrace**).'||wwv_flow.LF||
+'Each row shows whe';
+wwv_flow_imp.g_varchar2_table(136) := 'n it happened, the table, the kind of change, the row''s key, the user, and the error with the exact ';
+wwv_flow_imp.g_varchar2_table(137) := 'line it came from (**Backtrace**).'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## What to do'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- A single error: check the ';
-wwv_flow_imp.g_varchar2_table(131) := 'message. It usually names the cause, for example a value too large for a column.'||wwv_flow.LF||
-'- Many errors on on';
-wwv_flow_imp.g_varchar2_table(132) := 'e table after a change to that table: open the table under **Tables** and press **Re-create Trigger*';
-wwv_flow_imp.g_varchar2_table(133) := '*.'||wwv_flow.LF||
+'- A single error: check the message. It usually n';
+wwv_flow_imp.g_varchar2_table(138) := 'ames the cause, for example a value too large for a column.'||wwv_flow.LF||
+'- Many errors on one table after a chang';
+wwv_flow_imp.g_varchar2_table(139) := 'e to that table: open the table under **Tables** and press **Re-create Trigger**.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Old errors can be deleted under **Maintenance**.'||wwv_flow.LF||
+'Old errors can be';
+wwv_flow_imp.g_varchar2_table(140) := ' deleted under **Maintenance**.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''maintenance'', ''Maintenance'', 8,';
-wwv_flow_imp.g_varchar2_table(134) := ' ''Y'', 80, q''['||wwv_flow.LF||
-'Maintenance is for administrators.'||wwv_flow.LF||
+'    seed(''maintenance'', ''Maintenance'', 8, ''Y'', 80, q''['||wwv_flow.LF||
+'Mainten';
+wwv_flow_imp.g_varchar2_table(141) := 'ance is for administrators.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Purge Audit History'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Deletes events, and their ';
-wwv_flow_imp.g_varchar2_table(135) := 'column changes, recorded before the date you choose. Choose a table to purge only that table. Delete';
-wwv_flow_imp.g_varchar2_table(136) := 'd history cannot be restored, and rows cannot be restored from it.'||wwv_flow.LF||
+'Deletes events, and their column changes, recor';
+wwv_flow_imp.g_varchar2_table(142) := 'ded before the date you choose. Choose a table to purge only that table. Deleted history cannot be r';
+wwv_flow_imp.g_varchar2_table(143) := 'estored, and rows cannot be restored from it.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'To remove old history but keep a';
-wwv_flow_imp.g_varchar2_table(137) := ' copy you can load back, use **Archive** instead.'||wwv_flow.LF||
+'To remove old history but keep a copy you can load ba';
+wwv_flow_imp.g_varchar2_table(144) := 'ck, use **Archive** instead.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Purge Errors'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Deletes logged errors recorded b';
-wwv_flow_imp.g_varchar2_table(138) := 'efore the date you choose.'||wwv_flow.LF||
+'Deletes logged errors recorded before the date you ch';
+wwv_flow_imp.g_varchar2_table(145) := 'oose.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Re-create All Triggers'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Rebuilds every audit trigger from the current';
-wwv_flow_imp.g_varchar2_table(139) := ' code. Do this after upgrading Util Audit, or after adding or dropping columns on several audited ta';
-wwv_flow_imp.g_varchar2_table(140) := 'bles. The **Result** box lists each table and any that failed.'||wwv_flow.LF||
+'Rebuilds every audit trigger from the current code. Do this after ';
+wwv_flow_imp.g_varchar2_table(146) := 'upgrading Util Audit, or after adding or dropping columns on several audited tables. The **Result** ';
+wwv_flow_imp.g_varchar2_table(147) := 'box lists each table and any that failed.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''how-auditing-works'', ';
-wwv_flow_imp.g_varchar2_table(141) := '''How auditing works'', NULL, ''N'', 90, q''['||wwv_flow.LF||
-'Each audited table has a trigger that runs after every inse';
-wwv_flow_imp.g_varchar2_table(142) := 'rt, update and delete, once per row.'||wwv_flow.LF||
+'    seed(''how-auditing-works'', ''How auditing works'',';
+wwv_flow_imp.g_varchar2_table(148) := ' NULL, ''N'', 90, q''['||wwv_flow.LF||
+'Each audited table has a trigger that runs after every insert, update and delete';
+wwv_flow_imp.g_varchar2_table(149) := ', once per row.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## What is recorded'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- One **event** per changed row: when, wh';
-wwv_flow_imp.g_varchar2_table(143) := 'o, the kind of change, the row''s key, and the whole row before and after.'||wwv_flow.LF||
-'- One **column change** pe';
-wwv_flow_imp.g_varchar2_table(144) := 'r changed column, with the old and new value. For an insert or a delete, every column that has a val';
-wwv_flow_imp.g_varchar2_table(145) := 'ue.'||wwv_flow.LF||
+'- One **event** per changed row: when, who, the kind of change';
+wwv_flow_imp.g_varchar2_table(150) := ', the row''s key, and the whole row before and after.'||wwv_flow.LF||
+'- One **column change** per changed column, wit';
+wwv_flow_imp.g_varchar2_table(151) := 'h the old and new value. For an insert or a delete, every column that has a value.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'An update that changes nothing, or only ignored columns, records nothing.'||wwv_flow.LF||
+'An update that c';
+wwv_flow_imp.g_varchar2_table(152) := 'hanges nothing, or only ignored columns, records nothing.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Supported column ';
-wwv_flow_imp.g_varchar2_table(146) := 'types'||wwv_flow.LF||
+'## Supported column types'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'NUMBER, FLOAT, BINARY_FLOAT, BINARY_DOUBLE, VARCHAR2, CHAR, NVARCHAR2, NCHAR, DATE, TIMESTAMP';
-wwv_flow_imp.g_varchar2_table(147) := ' (with or without time zone), INTERVAL, CLOB and RAW (stored as hex). Other types, such as BLOB, are';
-wwv_flow_imp.g_varchar2_table(148) := ' skipped.'||wwv_flow.LF||
+'NUMBER, FLOAT,';
+wwv_flow_imp.g_varchar2_table(153) := ' BINARY_FLOAT, BINARY_DOUBLE, VARCHAR2, CHAR, NVARCHAR2, NCHAR, DATE, TIMESTAMP (with or without tim';
+wwv_flow_imp.g_varchar2_table(154) := 'e zone), INTERVAL, CLOB and RAW (stored as hex). Other types, such as BLOB, are skipped.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Numbers and dates are always written the same way, whatever the user''s language settings:';
-wwv_flow_imp.g_varchar2_table(149) := ' `1234.5` and `2026-02-03T00:00:00`.'||wwv_flow.LF||
+'Numbers an';
+wwv_flow_imp.g_varchar2_table(155) := 'd dates are always written the same way, whatever the user''s language settings: `1234.5` and `2026-0';
+wwv_flow_imp.g_varchar2_table(156) := '2-03T00:00:00`.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Keys'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'A table needs a primary key. A key of one column is s';
-wwv_flow_imp.g_varchar2_table(150) := 'tored as its value, for example `42`. A key of several columns is stored as `{"ORDER_ID":"100","LINE';
-wwv_flow_imp.g_varchar2_table(151) := '_NO":"1"}`.'||wwv_flow.LF||
+'A table needs a primary key. A key of one column is stored as its value, f';
+wwv_flow_imp.g_varchar2_table(157) := 'or example `42`. A key of several columns is stored as `{"ORDER_ID":"100","LINE_NO":"1"}`.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Transactions'||wwv_flow.LF||
+'## Trans';
+wwv_flow_imp.g_varchar2_table(158) := 'actions'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Audit records are part of the same transaction as the change. If the c';
-wwv_flow_imp.g_varchar2_table(152) := 'hange is rolled back, so is its record.'||wwv_flow.LF||
+'Audit records are part of the same transaction as the change. If the change is rolled back,';
+wwv_flow_imp.g_varchar2_table(159) := ' so is its record.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Speed'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Every audited change does extra work. Audit the t';
-wwv_flow_imp.g_varchar2_table(153) := 'ables that matter, and avoid staging tables, bulk loads and high-volume logging tables.'||wwv_flow.LF||
+'Every audited change does extra work. Audit the tables that matter, an';
+wwv_flow_imp.g_varchar2_table(160) := 'd avoid staging tables, bulk loads and high-volume logging tables.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    se';
-wwv_flow_imp.g_varchar2_table(154) := 'ed(''installing-and-upgrading'', ''Installing and upgrading'', NULL, ''Y'', 100, q''['||wwv_flow.LF||
+'    seed(''installing-and-up';
+wwv_flow_imp.g_varchar2_table(161) := 'grading'', ''Installing and upgrading'', NULL, ''Y'', 100, q''['||wwv_flow.LF||
 '## Installing'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'1. In ';
-wwv_flow_imp.g_varchar2_table(155) := 'App Builder, import the Util Audit app into the workspace.'||wwv_flow.LF||
-'2. Answer **Yes** to **Install Supporting';
-wwv_flow_imp.g_varchar2_table(156) := ' Objects**. This creates the Util Audit tables, views and packages, and these help articles, in the ';
-wwv_flow_imp.g_varchar2_table(157) := 'workspace''s schema.'||wwv_flow.LF||
+'1. In App Builder, import t';
+wwv_flow_imp.g_varchar2_table(162) := 'he Util Audit app into the workspace.'||wwv_flow.LF||
+'2. Answer **Yes** to **Install Supporting Objects**. This crea';
+wwv_flow_imp.g_varchar2_table(163) := 'tes the Util Audit tables, views and packages, and these help articles, in the workspace''s schema.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Upgrading'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(164) := '## Upgrading'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Import the new version over the old one and install its Supportin';
-wwv_flow_imp.g_varchar2_table(158) := 'g Objects again. Your audit history, settings and edited help articles are kept. Then open **Mainten';
-wwv_flow_imp.g_varchar2_table(159) := 'ance** and press **Re-create All Triggers** so every table uses the new trigger code.'||wwv_flow.LF||
+'Import the new version over the old one and install its Supporting Objects again. Your';
+wwv_flow_imp.g_varchar2_table(165) := ' audit history, settings and edited help articles are kept. Then open **Maintenance** and press **Re';
+wwv_flow_imp.g_varchar2_table(166) := '-create All Triggers** so every table uses the new trigger code.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Schemas th';
-wwv_flow_imp.g_varchar2_table(160) := 'at have util_audit v1'||wwv_flow.LF||
+'## Schemas that have util_audit v1';
+wwv_flow_imp.g_varchar2_table(167) := ''||wwv_flow.LF||
 ''||wwv_flow.LF||
-'If the schema already runs the older util_audit v1 (a UTIL_AUDIT_RECORDS tabl';
-wwv_flow_imp.g_varchar2_table(161) := 'e with a PK_VALUE column), installing stops with an error and changes nothing. Migrate the schema fi';
-wwv_flow_imp.g_varchar2_table(162) := 'rst with `migrate_v1.sql` from the util_audit repository, as described in its `docs/migrating-from-v';
-wwv_flow_imp.g_varchar2_table(163) := '1.md`, then install the app. The v1 history is kept, and the app shows it once it is copied.'||wwv_flow.LF||
+'If the schema already runs the older util_audit v1 (a UTIL_AUDIT_RECORDS table with a PK_VALUE col';
+wwv_flow_imp.g_varchar2_table(168) := 'umn), installing stops with an error and changes nothing. Migrate the schema first with `migrate_v1.';
+wwv_flow_imp.g_varchar2_table(169) := 'sql` from the util_audit repository, as described in its `docs/migrating-from-v1.md`, then install t';
+wwv_flow_imp.g_varchar2_table(170) := 'he app. The v1 history is kept, and the app shows it once it is copied.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Rem';
-wwv_flow_imp.g_varchar2_table(164) := 'oving'||wwv_flow.LF||
+'## Removing'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Delete the app in App Builder and choose to deinstall its Supporting Objects. This removes th';
-wwv_flow_imp.g_varchar2_table(165) := 'e triggers, packages, views, tables and the archive job, **including all audit history**. Export any';
-wwv_flow_imp.g_varchar2_table(166) := 'thing you need first. Archive files already in S3 stay there.'||wwv_flow.LF||
+'Delete the app';
+wwv_flow_imp.g_varchar2_table(171) := ' in App Builder and choose to deinstall its Supporting Objects. This removes the triggers, packages,';
+wwv_flow_imp.g_varchar2_table(172) := ' views, tables and the archive job, **including all audit history**. Export anything you need first.';
+wwv_flow_imp.g_varchar2_table(173) := ' Archive files already in S3 stay there.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    seed(''query-generator'', ''Que';
-wwv_flow_imp.g_varchar2_table(167) := 'ry Generator'', 11, ''N'', 105, q''['||wwv_flow.LF||
-'The Query Generator builds an **Audit History** region for a page i';
-wwv_flow_imp.g_varchar2_table(168) := 'n another app: the changes recorded for the row that page shows.'||wwv_flow.LF||
+'    seed(''query-generator'', ''Query Generator'', 11, ''N';
+wwv_flow_imp.g_varchar2_table(174) := ''', 105, q''['||wwv_flow.LF||
+'The Query Generator builds an **Audit History** region for a page in another app: the ch';
+wwv_flow_imp.g_varchar2_table(175) := 'anges recorded for the row that page shows.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Building a region'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'1. Choose th';
-wwv_flow_imp.g_varchar2_table(169) := 'e **Table** your page shows or edits.'||wwv_flow.LF||
-'2. Enter the **Page number in your app**. The key items are na';
-wwv_flow_imp.g_varchar2_table(170) := 'med after it, for example `P10_EMP_ID`. If your items have other names, enter them in **Key page ite';
-wwv_flow_imp.g_varchar2_table(171) := 'ms** instead, one per key column, in key column order.'||wwv_flow.LF||
+'1. Choose the **Table** your page';
+wwv_flow_imp.g_varchar2_table(176) := ' shows or edits.'||wwv_flow.LF||
+'2. Enter the **Page number in your app**. The key items are named after it, for exa';
+wwv_flow_imp.g_varchar2_table(177) := 'mple `P10_EMP_ID`. If your items have other names, enter them in **Key page items** instead, one per';
+wwv_flow_imp.g_varchar2_table(178) := ' key column, in key column order.'||wwv_flow.LF||
 '3. Choose what to **Show**:'||wwv_flow.LF||
-'    - **One row p';
-wwv_flow_imp.g_varchar2_table(172) := 'er changed column**: each column''s old and new value.'||wwv_flow.LF||
-'    - **One row per change**: one line per ins';
-wwv_flow_imp.g_varchar2_table(173) := 'ert, update or delete, listing the columns that changed.'||wwv_flow.LF||
-'4. Optional: pick **Only these columns**, a';
-wwv_flow_imp.g_varchar2_table(174) := 'nd choose **Include child tables** to also show changes to rows that point at this one, for example ';
-wwv_flow_imp.g_varchar2_table(175) := 'an employee''s tasks.'||wwv_flow.LF||
-'5. Press **Generate**.'||wwv_flow.LF||
+'    - **One row per changed column**: ';
+wwv_flow_imp.g_varchar2_table(179) := 'each column''s old and new value.'||wwv_flow.LF||
+'    - **One row per change**: one line per insert, update or delete';
+wwv_flow_imp.g_varchar2_table(180) := ', listing the columns that changed.'||wwv_flow.LF||
+'4. Optional: pick **Only these columns**, and choose **Include c';
+wwv_flow_imp.g_varchar2_table(181) := 'hild tables** to also show changes to rows that point at this one, for example an employee''s tasks.'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(182) := '5. Press **Generate**.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Three ways to add it to your app'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- **Audit History ';
-wwv_flow_imp.g_varchar2_table(176) := 'plugin**, the easiest. Add the plugin to your app once, then add a region of type Audit History and ';
-wwv_flow_imp.g_varchar2_table(177) := 'set Table and Key Items. APEXlang apps can paste the generated block.'||wwv_flow.LF||
-'- **SQL for App Builder**: cre';
-wwv_flow_imp.g_varchar2_table(178) := 'ate a Classic Report (or any report) region and paste the SQL. It reads `util_audit_query.history`, ';
-wwv_flow_imp.g_varchar2_table(179) := 'so it keeps working as util_audit improves. Turn on **Plain SQL** for a query that calls no package.';
-wwv_flow_imp.g_varchar2_table(180) := ''||wwv_flow.LF||
-'- **APEXlang Region**: a complete Classic Report region to paste into a page''s `.apx` file.'||wwv_flow.LF||
+'- **Audit History plugin**, the easiest';
+wwv_flow_imp.g_varchar2_table(183) := '. Add the plugin to your app once, then add a region of type Audit History and set Table and Key Ite';
+wwv_flow_imp.g_varchar2_table(184) := 'ms. APEXlang apps can paste the generated block.'||wwv_flow.LF||
+'- **SQL for App Builder**: create a Classic Report ';
+wwv_flow_imp.g_varchar2_table(185) := '(or any report) region and paste the SQL. It reads `util_audit_query.history`, so it keeps working a';
+wwv_flow_imp.g_varchar2_table(186) := 's util_audit improves. Turn on **Plain SQL** for a query that calls no package.'||wwv_flow.LF||
+'- **APEXlang Region*';
+wwv_flow_imp.g_varchar2_table(187) := '*: a complete Classic Report region to paste into a page''s `.apx` file.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'**Prev';
-wwv_flow_imp.g_varchar2_table(181) := 'iew** shows what the region will display for a row that already has changes.'||wwv_flow.LF||
+'**Preview** shows what the ';
+wwv_flow_imp.g_varchar2_table(188) := 'region will display for a row that already has changes.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## From SQL'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'The same ';
-wwv_flow_imp.g_varchar2_table(182) := 'history is available anywhere:'||wwv_flow.LF||
+'The same history is available ';
+wwv_flow_imp.g_varchar2_table(189) := 'anywhere:'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '`select * from table(util_audit_query.history(''EMP'', :P10_EMP_ID))`'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(183) := ''||wwv_flow.LF||
-'Give one key value per key column (`p_key1`, `p_key2`, ...). Optional: `p_style => ''EVENTS''`, `p_co';
-wwv_flow_imp.g_varchar2_table(184) := 'lumns`, `p_child_tables`, `p_max_rows`.'||wwv_flow.LF||
+''||wwv_flow.LF||
+'Give one key value p';
+wwv_flow_imp.g_varchar2_table(190) := 'er key column (`p_key1`, `p_key2`, ...). Optional: `p_style => ''EVENTS''`, `p_columns`, `p_child_tabl';
+wwv_flow_imp.g_varchar2_table(191) := 'es`, `p_max_rows`.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## If your app uses another schema'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Enter the util_audit sc';
-wwv_flow_imp.g_varchar2_table(185) := 'hema in **util_audit schema**, and grant your app''s schema EXECUTE on UTIL_AUDIT_QUERY. For plain SQ';
-wwv_flow_imp.g_varchar2_table(186) := 'L, grant SELECT on V_UTIL_AUDIT_ROW_HISTORY, V_UTIL_AUDIT_EVENTS and UTIL_AUDIT_RECORDS instead.'||wwv_flow.LF||
+'Enter the util_audit schema in **util_audit ';
+wwv_flow_imp.g_varchar2_table(192) := 'schema**, and grant your app''s schema EXECUTE on UTIL_AUDIT_QUERY. For plain SQL, grant SELECT on V_';
+wwv_flow_imp.g_varchar2_table(193) := 'UTIL_AUDIT_ROW_HISTORY, V_UTIL_AUDIT_EVENTS and UTIL_AUDIT_RECORDS instead.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'##';
-wwv_flow_imp.g_varchar2_table(187) := ' Keys'||wwv_flow.LF||
+'## Keys'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Keys are matched as text, so a key item must hold the value exactly as stored, for example `1';
-wwv_flow_imp.g_varchar2_table(188) := '00`, not `100.0`.'||wwv_flow.LF||
-']'');'||wwv_flow.LF||
+'Keys are match';
+wwv_flow_imp.g_varchar2_table(194) := 'ed as text, so a key item must hold the value exactly as stored, for example `100`, not `100.0`.'||wwv_flow.LF||
+']'')';
+wwv_flow_imp.g_varchar2_table(195) := ';'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    seed(''archive'', ''Archive'', 12, ''Y'', 85, q''['||wwv_flow.LF||
-'Moves old audit history out ';
-wwv_flow_imp.g_varchar2_table(189) := 'of the audit tables into files, preferably in Amazon S3, and brings it back when needed.'||wwv_flow.LF||
+'Moves old audit history out of the audit tables i';
+wwv_flow_imp.g_varchar2_table(196) := 'nto files, preferably in Amazon S3, and brings it back when needed.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## How it ';
-wwv_flow_imp.g_varchar2_table(190) := 'works'||wwv_flow.LF||
+'## How it works'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Each file holds one table''s events for one calendar month, as gzipped JSON lines. Every archi';
-wwv_flow_imp.g_varchar2_table(191) := 've goes through these steps:'||wwv_flow.LF||
+'Each file hold';
+wwv_flow_imp.g_varchar2_table(197) := 's one table''s events for one calendar month, as gzipped JSON lines. Every archive goes through these';
+wwv_flow_imp.g_varchar2_table(198) := ' steps:'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '1. **Archive**: the file is built.'||wwv_flow.LF||
-'2. **Store**: the file is sent to i';
-wwv_flow_imp.g_varchar2_table(192) := 'ts storage, then read back and compared, so a damaged upload is never counted as stored.'||wwv_flow.LF||
-'3. **Purge*';
-wwv_flow_imp.g_varchar2_table(193) := '* (only if you turn it on): the month''s events are deleted from the audit tables, after checking tha';
-wwv_flow_imp.g_varchar2_table(194) := 't they still match the file.'||wwv_flow.LF||
-'4. **Restore** (when needed): the month''s events are loaded back. Loadi';
-wwv_flow_imp.g_varchar2_table(195) := 'ng twice does no harm.'||wwv_flow.LF||
+'2. **Store**: the file is sent to its storage, then read';
+wwv_flow_imp.g_varchar2_table(199) := ' back and compared, so a damaged upload is never counted as stored.'||wwv_flow.LF||
+'3. **Purge** (only if you turn i';
+wwv_flow_imp.g_varchar2_table(200) := 't on): the month''s events are deleted from the audit tables, after checking that they still match th';
+wwv_flow_imp.g_varchar2_table(201) := 'e file.'||wwv_flow.LF||
+'4. **Restore** (when needed): the month''s events are loaded back. Loading twice does no harm';
+wwv_flow_imp.g_varchar2_table(202) := '.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Storage and retention'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '| Storage | Where the files go |'||wwv_flow.LF||
 '|---|---|'||wwv_flow.LF||
-'| Datab';
-wwv_flow_imp.g_varchar2_table(196) := 'ase | Kept in the archive table itself |'||wwv_flow.LF||
-'| Amazon S3 via AWS4_S3_PKG | Your bucket, through the S3 p';
-wwv_flow_imp.g_varchar2_table(197) := 'ackage this schema already uses for documents |'||wwv_flow.LF||
-'| Object storage via DBMS_CLOUD | Needs a DBMS_CLOUD';
-wwv_flow_imp.g_varchar2_table(198) := ' credential and a base URI |'||wwv_flow.LF||
-'| Custom procedure | Your own procedure and function, for any other sys';
-wwv_flow_imp.g_varchar2_table(199) := 'tem |'||wwv_flow.LF||
+'| Database | Kept in the arc';
+wwv_flow_imp.g_varchar2_table(203) := 'hive table itself |'||wwv_flow.LF||
+'| Amazon S3 via AWS4_S3_PKG | Your bucket, through the S3 package this schema al';
+wwv_flow_imp.g_varchar2_table(204) := 'ready uses for documents |'||wwv_flow.LF||
+'| Object storage via DBMS_CLOUD | Needs a DBMS_CLOUD credential and a bas';
+wwv_flow_imp.g_varchar2_table(205) := 'e URI |'||wwv_flow.LF||
+'| Custom procedure | Your own procedure and function, for any other system |'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'**Months to keep** says how many recent months stay in the audit tables; older complete month';
-wwv_flow_imp.g_varchar2_table(200) := 's are archived. **Delete archived months** is off at first, so the first runs only make copies. Turn';
-wwv_flow_imp.g_varchar2_table(201) := ' it on once you have restored one archive and checked it.'||wwv_flow.LF||
+'**Months to ke';
+wwv_flow_imp.g_varchar2_table(206) := 'ep** says how many recent months stay in the audit tables; older complete months are archived. **Del';
+wwv_flow_imp.g_varchar2_table(207) := 'ete archived months** is off at first, so the first runs only make copies. Turn it on once you have ';
+wwv_flow_imp.g_varchar2_table(208) := 'restored one archive and checked it.'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '## Schedule'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'**Schedule** creates a datab';
-wwv_flow_imp.g_varchar2_table(202) := 'ase job that archives every night (it needs the CREATE JOB privilege). **Run Now** does the same wor';
-wwv_flow_imp.g_varchar2_table(203) := 'k straight away. The last run''s result shows here; a failed step says why in the file list.'||wwv_flow.LF||
+'**Schedule** creates a database job that archives';
+wwv_flow_imp.g_varchar2_table(209) := ' every night (it needs the CREATE JOB privilege). **Run Now** does the same work straight away. The ';
+wwv_flow_imp.g_varchar2_table(210) := 'last run''s result shows here; a failed step says why in the file list.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Arch';
-wwv_flow_imp.g_varchar2_table(204) := 'ive files'||wwv_flow.LF||
+'## Archive files'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'One row per file, with its status: Created, Stored, Purged, Restored or Failed. You can s';
-wwv_flow_imp.g_varchar2_table(205) := 'tore a file again after a failure, purge it, restore it, or download it.'||wwv_flow.LF||
+'One row pe';
+wwv_flow_imp.g_varchar2_table(211) := 'r file, with its status: Created, Stored, Purged, Restored or Failed. You can store a file again aft';
+wwv_flow_imp.g_varchar2_table(212) := 'er a failure, purge it, restore it, or download it.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'A restored month is archiv';
-wwv_flow_imp.g_varchar2_table(206) := 'ed again by the next scheduled run. To keep it in the tables for a while, stop the schedule or raise';
-wwv_flow_imp.g_varchar2_table(207) := ' **Months to keep**.'||wwv_flow.LF||
-']'');'||wwv_flow.LF||
+'A restored month is archived again by the next ';
+wwv_flow_imp.g_varchar2_table(213) := 'scheduled run. To keep it in the tables for a while, stop the schedule or raise **Months to keep**.'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(214) := ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    seed(''documentation'', ''Documentation'', 9, ''N'', 110, q''['||wwv_flow.LF||
-'Documentation';
-wwv_flow_imp.g_varchar2_table(208) := ' lists every help topic. Click a topic to read it, or type a word in **Search** to find topics that ';
-wwv_flow_imp.g_varchar2_table(209) := 'mention it.'||wwv_flow.LF||
+'Documentation lists every help top';
+wwv_flow_imp.g_varchar2_table(215) := 'ic. Click a topic to read it, or type a word in **Search** to find topics that mention it.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'**Help** in the top bar opens the article for the screen you are on.'||wwv_flow.LF||
+'**Help**';
+wwv_flow_imp.g_varchar2_table(216) := ' in the top bar opens the article for the screen you are on.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'## Editing articl';
-wwv_flow_imp.g_varchar2_table(210) := 'es'||wwv_flow.LF||
+'## Editing articles'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Administrators see **New Article** and **Edit**.'||wwv_flow.LF||
+'Administrators se';
+wwv_flow_imp.g_varchar2_table(217) := 'e **New Article** and **Edit**.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'- **Linked screen**: the screen whose Help ope';
-wwv_flow_imp.g_varchar2_table(211) := 'ns this article. Leave it empty for a general topic.'||wwv_flow.LF||
-'- **Administrators only**: hides the article fr';
-wwv_flow_imp.g_varchar2_table(212) := 'om users who are not administrators.'||wwv_flow.LF||
-'- **Order**: where the article sits in the topic list. Lower nu';
-wwv_flow_imp.g_varchar2_table(213) := 'mbers come first.'||wwv_flow.LF||
-'- **Active**: turn off to hide an article without deleting it.'||wwv_flow.LF||
-'- **Body**: the art';
-wwv_flow_imp.g_varchar2_table(214) := 'icle, in Markdown. `## ` starts a heading, `**bold**`, `- ` starts a list item, and `| a | b |` rows';
-wwv_flow_imp.g_varchar2_table(215) := ' make a table.'||wwv_flow.LF||
+'- **Linked screen**: the screen whose Help opens this article. Leav';
+wwv_flow_imp.g_varchar2_table(218) := 'e it empty for a general topic.'||wwv_flow.LF||
+'- **Administrators only**: hides the article from users who are not ';
+wwv_flow_imp.g_varchar2_table(219) := 'administrators.'||wwv_flow.LF||
+'- **Order**: where the article sits in the topic list. Lower numbers come first.'||wwv_flow.LF||
+'- *';
+wwv_flow_imp.g_varchar2_table(220) := '*Active**: turn off to hide an article without deleting it.'||wwv_flow.LF||
+'- **Body**: the article, in Markdown. `#';
+wwv_flow_imp.g_varchar2_table(221) := '# ` starts a heading, `**bold**`, `- ` starts a list item, and `| a | b |` rows make a table.'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'Upgrading Util Audit adds new articles and brings unedited ones up to date. An artic';
-wwv_flow_imp.g_varchar2_table(216) := 'le you edited here is left as you wrote it.'||wwv_flow.LF||
+'Upgra';
+wwv_flow_imp.g_varchar2_table(222) := 'ding Util Audit adds new articles and brings unedited ones up to date. An article you edited here is';
+wwv_flow_imp.g_varchar2_table(223) := ' left as you wrote it.'||wwv_flow.LF||
 ']'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    COMMIT;'||wwv_flow.LF||
@@ -15623,191 +16010,197 @@ wwv_flow_imp.g_varchar2_table(15) := 'r-table columns the trigger skips (comma-s
 '    ddl(q''[alter table UTIL_AUDIT';
 wwv_flow_imp.g_varchar2_table(16) := '_CONFIG add (IGNORED_COLUMNS VARCHAR2(4000))]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
+'    -- Per-table columns never recorded at all, no';
+wwv_flow_imp.g_varchar2_table(17) := 't even in the row'||wwv_flow.LF||
+'    -- snapshots: passwords, tokens and other secrets (comma-separated)'||wwv_flow.LF||
+'    ddl(q''';
+wwv_flow_imp.g_varchar2_table(18) := '[alter table UTIL_AUDIT_CONFIG add (EXCLUDED_COLUMNS VARCHAR2(4000))]'');'||wwv_flow.LF||
+''||wwv_flow.LF||
 '    ddl(q''['||wwv_flow.LF||
-'create table UTIL_AUDIT_TXN'||wwv_flow.LF||
+'create table U';
+wwv_flow_imp.g_varchar2_table(19) := 'TIL_AUDIT_TXN'||wwv_flow.LF||
 '('||wwv_flow.LF||
-'    AUDI';
-wwv_flow_imp.g_varchar2_table(17) := 'T_TXN_ID      NUMBER generated by default on null as identity'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_TXN_PK'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(18) := '           primary key,'||wwv_flow.LF||
+'    AUDIT_TXN_ID      NUMBER generated by default on null as identity'||wwv_flow.LF||
+'        constr';
+wwv_flow_imp.g_varchar2_table(20) := 'aint UTIL_AUDIT_TXN_PK'||wwv_flow.LF||
+'            primary key,'||wwv_flow.LF||
 '    TRANSACTION_ID    VARCHAR2(64)  not null'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_T';
-wwv_flow_imp.g_varchar2_table(19) := 'XN_UK'||wwv_flow.LF||
+'       ';
+wwv_flow_imp.g_varchar2_table(21) := ' constraint UTIL_AUDIT_TXN_UK'||wwv_flow.LF||
 '            unique,'||wwv_flow.LF||
 '    DB_TRANSACTION_ID VARCHAR2(100),'||wwv_flow.LF||
-'    TABLE_NAME        VARCHAR2(255) n';
-wwv_flow_imp.g_varchar2_table(20) := 'ot null,'||wwv_flow.LF||
+'    TABLE_NAM';
+wwv_flow_imp.g_varchar2_table(22) := 'E        VARCHAR2(255) not null,'||wwv_flow.LF||
 '    PK_VALUE_VC       VARCHAR2(4000),'||wwv_flow.LF||
-'    TRANSACTION_TYPE  VARCHAR2(6)   not null'||wwv_flow.LF||
-'        ';
-wwv_flow_imp.g_varchar2_table(21) := 'constraint UTIL_AUDIT_TXN_TRX_CHK'||wwv_flow.LF||
-'            check (transaction_type IN (''INSERT'', ''UPDATE'', ''DELET';
-wwv_flow_imp.g_varchar2_table(22) := 'E'')),'||wwv_flow.LF||
+'    TRANSACTION_TYPE  VARCHAR';
+wwv_flow_imp.g_varchar2_table(23) := '2(6)   not null'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_TXN_TRX_CHK'||wwv_flow.LF||
+'            check (transaction_type IN (''I';
+wwv_flow_imp.g_varchar2_table(24) := 'NSERT'', ''UPDATE'', ''DELETE'')),'||wwv_flow.LF||
 '    USERNAME          VARCHAR2(255),'||wwv_flow.LF||
 '    AUDIT_CONTEXT     CLOB'||wwv_flow.LF||
-'        check (audit_context I';
-wwv_flow_imp.g_varchar2_table(23) := 'S JSON),'||wwv_flow.LF||
+'      ';
+wwv_flow_imp.g_varchar2_table(25) := '  check (audit_context IS JSON),'||wwv_flow.LF||
 '    OLD_ROW_JSON      CLOB'||wwv_flow.LF||
 '        check (old_row_json IS JSON),'||wwv_flow.LF||
-'    NEW_ROW_JSON      CLOB';
-wwv_flow_imp.g_varchar2_table(24) := ''||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(26) := '  NEW_ROW_JSON      CLOB'||wwv_flow.LF||
 '        check (new_row_json IS JSON),'||wwv_flow.LF||
-'    AUDIT_TS          TIMESTAMP(6) default SYSTIMESTAMP not n';
-wwv_flow_imp.g_varchar2_table(25) := 'ull'||wwv_flow.LF||
+'    AUDIT_TS          TIMESTAMP(6) de';
+wwv_flow_imp.g_varchar2_table(27) := 'fault SYSTIMESTAMP not null'||wwv_flow.LF||
 ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ddl(q''['||wwv_flow.LF||
 'create table UTIL_AUDIT_RECORDS'||wwv_flow.LF||
 '('||wwv_flow.LF||
-'    UTIL_AUDIT_RECORD_ID NUMBER generated b';
-wwv_flow_imp.g_varchar2_table(26) := 'y default on null as identity'||wwv_flow.LF||
+'    UTIL_AUDIT_RECO';
+wwv_flow_imp.g_varchar2_table(28) := 'RD_ID NUMBER generated by default on null as identity'||wwv_flow.LF||
 '        constraint UTIL_AUDIT_RECORDS_PK'||wwv_flow.LF||
-'            primary key,'||wwv_flow.LF||
-'    ';
-wwv_flow_imp.g_varchar2_table(27) := 'TRANSACTION_ID       VARCHAR2(64)'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_RECORDS_TXN_FK'||wwv_flow.LF||
-'            reference';
-wwv_flow_imp.g_varchar2_table(28) := 's UTIL_AUDIT_TXN (TRANSACTION_ID),'||wwv_flow.LF||
-'    TABLE_NAME           VARCHAR2(255) not null,'||wwv_flow.LF||
-'    PK_VALUE_VC ';
-wwv_flow_imp.g_varchar2_table(29) := '         VARCHAR2(4000),'||wwv_flow.LF||
+'     ';
+wwv_flow_imp.g_varchar2_table(29) := '       primary key,'||wwv_flow.LF||
+'    TRANSACTION_ID       VARCHAR2(64)'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_RECORDS_TXN_';
+wwv_flow_imp.g_varchar2_table(30) := 'FK'||wwv_flow.LF||
+'            references UTIL_AUDIT_TXN (TRANSACTION_ID),'||wwv_flow.LF||
+'    TABLE_NAME           VARCHAR2(255) no';
+wwv_flow_imp.g_varchar2_table(31) := 't null,'||wwv_flow.LF||
+'    PK_VALUE_VC          VARCHAR2(4000),'||wwv_flow.LF||
 '    COLUMN_NAME          VARCHAR2(255),'||wwv_flow.LF||
-'    DATA_TYPE            VARCHAR2(1';
-wwv_flow_imp.g_varchar2_table(30) := '28),'||wwv_flow.LF||
+'    DATA_TY';
+wwv_flow_imp.g_varchar2_table(32) := 'PE            VARCHAR2(128),'||wwv_flow.LF||
 '    TRANSACTION_TYPE     VARCHAR2(6)'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_RECORDS_TRX_CHK'||wwv_flow.LF||
-'            ';
-wwv_flow_imp.g_varchar2_table(31) := 'check (transaction_type IN (''INSERT'', ''UPDATE'', ''DELETE'')),'||wwv_flow.LF||
-'    USERNAME             VARCHAR2(255),'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(32) := '    OLD_VALUE            VARCHAR2(4000),'||wwv_flow.LF||
-'    NEW_VALUE            VARCHAR2(4000),'||wwv_flow.LF||
-'    OLD_CLOB      ';
-wwv_flow_imp.g_varchar2_table(33) := '       CLOB,'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_RECO';
+wwv_flow_imp.g_varchar2_table(33) := 'RDS_TRX_CHK'||wwv_flow.LF||
+'            check (transaction_type IN (''INSERT'', ''UPDATE'', ''DELETE'')),'||wwv_flow.LF||
+'    USERNAME    ';
+wwv_flow_imp.g_varchar2_table(34) := '         VARCHAR2(255),'||wwv_flow.LF||
+'    OLD_VALUE            VARCHAR2(4000),'||wwv_flow.LF||
+'    NEW_VALUE            VARCHAR2(4';
+wwv_flow_imp.g_varchar2_table(35) := '000),'||wwv_flow.LF||
+'    OLD_CLOB             CLOB,'||wwv_flow.LF||
 '    NEW_CLOB             CLOB,'||wwv_flow.LF||
-'    CHANGE_HASH          VARCHAR2(64),'||wwv_flow.LF||
-'    AUDIT_TS     ';
-wwv_flow_imp.g_varchar2_table(34) := '        TIMESTAMP(6) default SYSTIMESTAMP not null'||wwv_flow.LF||
+'    CHANGE_HASH          VARCHAR';
+wwv_flow_imp.g_varchar2_table(36) := '2(64),'||wwv_flow.LF||
+'    AUDIT_TS             TIMESTAMP(6) default SYSTIMESTAMP not null'||wwv_flow.LF||
 ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -- Audit failures are logged here inst';
-wwv_flow_imp.g_varchar2_table(35) := 'ead of breaking business DML'||wwv_flow.LF||
+'    -- Audit failu';
+wwv_flow_imp.g_varchar2_table(37) := 'res are logged here instead of breaking business DML'||wwv_flow.LF||
 '    ddl(q''['||wwv_flow.LF||
 'create table UTIL_AUDIT_ERRORS'||wwv_flow.LF||
 '('||wwv_flow.LF||
-'    UTIL_AUDIT_ERROR_ID NU';
-wwv_flow_imp.g_varchar2_table(36) := 'MBER generated by default on null as identity'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_ERRORS_PK'||wwv_flow.LF||
-'            pr';
-wwv_flow_imp.g_varchar2_table(37) := 'imary key,'||wwv_flow.LF||
-'    ERROR_TS            TIMESTAMP(6) default SYSTIMESTAMP not null,'||wwv_flow.LF||
-'    TABLE_NAME       ';
-wwv_flow_imp.g_varchar2_table(38) := '   VARCHAR2(255),'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(38) := '  UTIL_AUDIT_ERROR_ID NUMBER generated by default on null as identity'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_';
+wwv_flow_imp.g_varchar2_table(39) := 'ERRORS_PK'||wwv_flow.LF||
+'            primary key,'||wwv_flow.LF||
+'    ERROR_TS            TIMESTAMP(6) default SYSTIMESTAMP not nul';
+wwv_flow_imp.g_varchar2_table(40) := 'l,'||wwv_flow.LF||
+'    TABLE_NAME          VARCHAR2(255),'||wwv_flow.LF||
 '    TRANSACTION_TYPE    VARCHAR2(6),'||wwv_flow.LF||
-'    PK_VALUE_VC         VARCHAR2(4000),'||wwv_flow.LF||
-'    U';
-wwv_flow_imp.g_varchar2_table(39) := 'SERNAME            VARCHAR2(255),'||wwv_flow.LF||
+'    PK_VALUE_VC      ';
+wwv_flow_imp.g_varchar2_table(41) := '   VARCHAR2(4000),'||wwv_flow.LF||
+'    USERNAME            VARCHAR2(255),'||wwv_flow.LF||
 '    ERROR_CODE          NUMBER,'||wwv_flow.LF||
-'    ERROR_MESSAGE       VARCHAR2(4';
-wwv_flow_imp.g_varchar2_table(40) := '000),'||wwv_flow.LF||
+'    ERROR_';
+wwv_flow_imp.g_varchar2_table(42) := 'MESSAGE       VARCHAR2(4000),'||wwv_flow.LF||
 '    ERROR_BACKTRACE     VARCHAR2(4000)'||wwv_flow.LF||
 ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    ddl(q''[create index UTIL_AUDIT_RECORDS_HIST_';
-wwv_flow_imp.g_varchar2_table(41) := 'IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_RECORDS (TABLE_NAME asc, PK_VALUE_VC asc, AUDIT_TS desc)]'');'||wwv_flow.LF||
+'    ddl(q''[create index ';
+wwv_flow_imp.g_varchar2_table(43) := 'UTIL_AUDIT_RECORDS_HIST_IX'||wwv_flow.LF||
+'    on UTIL_AUDIT_RECORDS (TABLE_NAME asc, PK_VALUE_VC asc, AUDIT_TS desc';
+wwv_flow_imp.g_varchar2_table(44) := ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    ddl(q''[create';
-wwv_flow_imp.g_varchar2_table(42) := ' index UTIL_AUDIT_RECORDS_TBL_TS_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_RECORDS (TABLE_NAME asc, AUDIT_TS desc)]'');'||wwv_flow.LF||
+'    ddl(q''[create index UTIL_AUDIT_RECORDS_TBL_TS_IX'||wwv_flow.LF||
+'    on UTIL_AUDIT_RECORDS (TABLE_NAME as';
+wwv_flow_imp.g_varchar2_table(45) := 'c, AUDIT_TS desc)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(43) := '   -- Settings, e.g. for archiving (name/value pairs)'||wwv_flow.LF||
+'    -- Settings, e.g. for archiving (name/value pairs)'||wwv_flow.LF||
 '    ddl(q''['||wwv_flow.LF||
-'create table UTIL_AUDIT_SETTINGS'||wwv_flow.LF||
-'(';
-wwv_flow_imp.g_varchar2_table(44) := ''||wwv_flow.LF||
+'create tab';
+wwv_flow_imp.g_varchar2_table(46) := 'le UTIL_AUDIT_SETTINGS'||wwv_flow.LF||
+'('||wwv_flow.LF||
 '    NAME       VARCHAR2(100) not null'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_SETTINGS_PK'||wwv_flow.LF||
-'            primary';
-wwv_flow_imp.g_varchar2_table(45) := ' key,'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_SETTING';
+wwv_flow_imp.g_varchar2_table(47) := 'S_PK'||wwv_flow.LF||
+'            primary key,'||wwv_flow.LF||
 '    VALUE      VARCHAR2(4000),'||wwv_flow.LF||
 '    UPDATED_ON DATE default SYSDATE,'||wwv_flow.LF||
-'    UPDATED_BY VARCHAR2(25';
-wwv_flow_imp.g_varchar2_table(46) := '5)'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(48) := '  UPDATED_BY VARCHAR2(255)'||wwv_flow.LF||
 ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    -- One row per archive file: one table, one month of events'||wwv_flow.LF||
-'    ddl(q''['||wwv_flow.LF||
-'create table U';
-wwv_flow_imp.g_varchar2_table(47) := 'TIL_AUDIT_ARCHIVE_FILES'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(49) := '  ddl(q''['||wwv_flow.LF||
+'create table UTIL_AUDIT_ARCHIVE_FILES'||wwv_flow.LF||
 '('||wwv_flow.LF||
-'    ARCHIVE_ID   NUMBER generated by default on null as identity'||wwv_flow.LF||
-'        c';
-wwv_flow_imp.g_varchar2_table(48) := 'onstraint UTIL_AUDIT_ARCHIVE_FILES_PK'||wwv_flow.LF||
+'    ARCHIVE_ID   NUMBER generated by default on nu';
+wwv_flow_imp.g_varchar2_table(50) := 'll as identity'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_ARCHIVE_FILES_PK'||wwv_flow.LF||
 '            primary key,'||wwv_flow.LF||
-'    TABLE_NAME   VARCHAR2(255) not nu';
-wwv_flow_imp.g_varchar2_table(49) := 'll,'||wwv_flow.LF||
+'    TABLE_NAM';
+wwv_flow_imp.g_varchar2_table(51) := 'E   VARCHAR2(255) not null,'||wwv_flow.LF||
 '    PERIOD_START TIMESTAMP(6)  not null,'||wwv_flow.LF||
-'    PERIOD_END   TIMESTAMP(6)  not null,'||wwv_flow.LF||
-'    EVENT_COUN';
-wwv_flow_imp.g_varchar2_table(50) := 'T  NUMBER,'||wwv_flow.LF||
+'    PERIOD_END   TIMESTAMP(6)  ';
+wwv_flow_imp.g_varchar2_table(52) := 'not null,'||wwv_flow.LF||
+'    EVENT_COUNT  NUMBER,'||wwv_flow.LF||
 '    RECORD_COUNT NUMBER,'||wwv_flow.LF||
 '    FILE_NAME    VARCHAR2(1000),'||wwv_flow.LF||
-'    FILE_BYTES   NUMBER,'||wwv_flow.LF||
-'    FI';
-wwv_flow_imp.g_varchar2_table(51) := 'LE_SHA256  VARCHAR2(80),'||wwv_flow.LF||
+'    FIL';
+wwv_flow_imp.g_varchar2_table(53) := 'E_BYTES   NUMBER,'||wwv_flow.LF||
+'    FILE_SHA256  VARCHAR2(80),'||wwv_flow.LF||
 '    STORAGE      VARCHAR2(20),'||wwv_flow.LF||
-'    LOCATION     VARCHAR2(1000),'||wwv_flow.LF||
-'    STATUS ';
-wwv_flow_imp.g_varchar2_table(52) := '      VARCHAR2(20) not null'||wwv_flow.LF||
-'        constraint UTIL_AUDIT_ARCHIVE_FILES_ST_CHK'||wwv_flow.LF||
-'            check (st';
-wwv_flow_imp.g_varchar2_table(53) := 'atus IN (''CREATED'', ''STORED'', ''PURGED'', ''RESTORED'', ''FAILED'')),'||wwv_flow.LF||
-'    CONTENT      BLOB,'||wwv_flow.LF||
-'    MESSAGE  ';
-wwv_flow_imp.g_varchar2_table(54) := '    VARCHAR2(4000),'||wwv_flow.LF||
-'    CREATED_ON   TIMESTAMP(6) default SYSTIMESTAMP not null,'||wwv_flow.LF||
-'    CREATED_BY   VA';
-wwv_flow_imp.g_varchar2_table(55) := 'RCHAR2(255),'||wwv_flow.LF||
+'    LOCATION     VAR';
+wwv_flow_imp.g_varchar2_table(54) := 'CHAR2(1000),'||wwv_flow.LF||
+'    STATUS       VARCHAR2(20) not null'||wwv_flow.LF||
+'        constraint UTIL_AUDIT_ARCHIVE_FILES_ST_C';
+wwv_flow_imp.g_varchar2_table(55) := 'HK'||wwv_flow.LF||
+'            check (status IN (''CREATED'', ''STORED'', ''PURGED'', ''RESTORED'', ''FAILED'')),'||wwv_flow.LF||
+'    CONTENT ';
+wwv_flow_imp.g_varchar2_table(56) := '     BLOB,'||wwv_flow.LF||
+'    MESSAGE      VARCHAR2(4000),'||wwv_flow.LF||
+'    CREATED_ON   TIMESTAMP(6) default SYSTIMESTAMP not n';
+wwv_flow_imp.g_varchar2_table(57) := 'ull,'||wwv_flow.LF||
+'    CREATED_BY   VARCHAR2(255),'||wwv_flow.LF||
 '    STORED_ON    TIMESTAMP(6),'||wwv_flow.LF||
 '    PURGED_ON    TIMESTAMP(6),'||wwv_flow.LF||
-'    RESTORED_ON  TIMESTAM';
-wwv_flow_imp.g_varchar2_table(56) := 'P(6)'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(58) := '   RESTORED_ON  TIMESTAMP(6)'||wwv_flow.LF||
 ')]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ddl(q''[create index UTIL_AUDIT_ARCHIVE_FILES_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_ARCHIVE_FILES (TAB';
-wwv_flow_imp.g_varchar2_table(57) := 'LE_NAME, PERIOD_START)]'');'||wwv_flow.LF||
+'    on UTIL_';
+wwv_flow_imp.g_varchar2_table(59) := 'AUDIT_ARCHIVE_FILES (TABLE_NAME, PERIOD_START)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -- Restore looks up the other events of the same database transactio';
-wwv_flow_imp.g_varchar2_table(58) := 'n'||wwv_flow.LF||
+'    -- Restore looks up the other events of the ';
+wwv_flow_imp.g_varchar2_table(60) := 'same database transaction'||wwv_flow.LF||
 '    ddl(q''[create index UTIL_AUDIT_TXN_DBTXN_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_TXN (DB_TRANSACTION_ID asc, TABL';
-wwv_flow_imp.g_varchar2_table(59) := 'E_NAME asc)]'');'||wwv_flow.LF||
+'    on UTIL_AUDIT_TXN (DB_';
+wwv_flow_imp.g_varchar2_table(61) := 'TRANSACTION_ID asc, TABLE_NAME asc)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ddl(q''[create index UTIL_AUDIT_RECORDS_HASH_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_RECORDS (CHANG';
-wwv_flow_imp.g_varchar2_table(60) := 'E_HASH)]'');'||wwv_flow.LF||
+'    on U';
+wwv_flow_imp.g_varchar2_table(62) := 'TIL_AUDIT_RECORDS (CHANGE_HASH)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -- FK column: used by the views'' joins and by purges of UTIL_AUDIT_TXN'||wwv_flow.LF||
-'    ddl(q''[c';
-wwv_flow_imp.g_varchar2_table(61) := 'reate index UTIL_AUDIT_RECORDS_TXN_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_RECORDS (TRANSACTION_ID)]'');'||wwv_flow.LF||
+'    -- FK column: used by the views'' joins and by purges of UTI';
+wwv_flow_imp.g_varchar2_table(63) := 'L_AUDIT_TXN'||wwv_flow.LF||
+'    ddl(q''[create index UTIL_AUDIT_RECORDS_TXN_IX'||wwv_flow.LF||
+'    on UTIL_AUDIT_RECORDS (TRANSACTION';
+wwv_flow_imp.g_varchar2_table(64) := '_ID)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    ddl(q''[cre';
-wwv_flow_imp.g_varchar2_table(62) := 'ate index UTIL_AUDIT_TXN_HIST_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_TXN (TABLE_NAME asc, PK_VALUE_VC asc, AUDIT_TS de';
-wwv_flow_imp.g_varchar2_table(63) := 'sc)]'');'||wwv_flow.LF||
+'    ddl(q''[create index UTIL_AUDIT_TXN_HIST_IX'||wwv_flow.LF||
+'    on UTIL_AUDIT_TXN (TABLE_NAME asc, PK_V';
+wwv_flow_imp.g_varchar2_table(65) := 'ALUE_VC asc, AUDIT_TS desc)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ddl(q''[create index UTIL_AUDIT_TXN_TBL_TS_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_TXN (TABLE_NAME asc, AUD';
-wwv_flow_imp.g_varchar2_table(64) := 'IT_TS desc)]'');'||wwv_flow.LF||
+'    on UTIL_AUDIT_';
+wwv_flow_imp.g_varchar2_table(66) := 'TXN (TABLE_NAME asc, AUDIT_TS desc)]'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ddl(q''[create index UTIL_AUDIT_ERRORS_TS_IX'||wwv_flow.LF||
-'    on UTIL_AUDIT_ERRORS (ERROR_TS ';
-wwv_flow_imp.g_varchar2_table(65) := 'desc)]'');'||wwv_flow.LF||
+'    on UTIL';
+wwv_flow_imp.g_varchar2_table(67) := '_AUDIT_ERRORS (ERROR_TS desc)]'');'||wwv_flow.LF||
 'END;'||wwv_flow.LF||
 '/';
 wwv_flow_imp_shared.create_install_script(
@@ -18358,513 +18751,672 @@ wwv_flow_imp.g_varchar2_table(119) := 'ames;'||wwv_flow.LF||
 '        v_pk_dts     t_names;'||wwv_flow.LF||
 '        v_ignored    util_audit_config.ignored_columns%TYPE;'||wwv_flow.LF||
 '   ';
-wwv_flow_imp.g_varchar2_table(120) := '     v_track      BOOLEAN;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(120) := '     v_excluded   util_audit_config.excluded_columns%TYPE;'||wwv_flow.LF||
+'        v_track      BOOLEAN;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        v_sql        CLOB;'||wwv_flow.LF||
+'        v_';
+wwv_flow_imp.g_varchar2_table(121) := 'sql        CLOB;'||wwv_flow.LF||
 '        v_has_cols   BOOLEAN := FALSE;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'     ';
-wwv_flow_imp.g_varchar2_table(121) := '   -- local utility to append'||wwv_flow.LF||
-'        PROCEDURE ap(p IN VARCHAR2) IS'||wwv_flow.LF||
+'        -- local utility to append'||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(122) := 'PROCEDURE ap(p IN VARCHAR2) IS'||wwv_flow.LF||
 '        BEGIN'||wwv_flow.LF||
-'            v_sql';
-wwv_flow_imp.g_varchar2_table(122) := ' := v_sql || p || CHR(10);'||wwv_flow.LF||
-'        END;'||wwv_flow.LF||
+'            v_sql := v_sql || p || CHR(10);'||wwv_flow.LF||
+'        END';
+wwv_flow_imp.g_varchar2_table(123) := ';'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        -- :NEW value on INSERT, :OLD value otherwise'||wwv_flow.LF||
-'     ';
-wwv_flow_imp.g_varchar2_table(123) := '   FUNCTION pk_part(p_col IN VARCHAR2, p_dt IN VARCHAR2) RETURN VARCHAR2 IS'||wwv_flow.LF||
+'        FUNCTION pk_part(p_col IN VARCHAR2,';
+wwv_flow_imp.g_varchar2_table(124) := ' p_dt IN VARCHAR2) RETURN VARCHAR2 IS'||wwv_flow.LF||
 '        BEGIN'||wwv_flow.LF||
-'          ';
-wwv_flow_imp.g_varchar2_table(124) := '  RETURN ''CASE WHEN INSERTING THEN '' || to_char_expr('':NEW.'' || q(p_col), p_dt) ||'||wwv_flow.LF||
-'                 ';
-wwv_flow_imp.g_varchar2_table(125) := '  '' ELSE '' || to_char_expr('':OLD.'' || q(p_col), p_dt) || '' END'';'||wwv_flow.LF||
+'            RETURN ''CASE WHEN INSERTING THEN '' |';
+wwv_flow_imp.g_varchar2_table(125) := '| to_char_expr('':NEW.'' || q(p_col), p_dt) ||'||wwv_flow.LF||
+'                   '' ELSE '' || to_char_expr('':OLD.'' || ';
+wwv_flow_imp.g_varchar2_table(126) := 'q(p_col), p_dt) || '' END'';'||wwv_flow.LF||
 '        END;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    BEGIN'||wwv_flow.LF||
-'        -- ';
-wwv_flow_imp.g_varchar2_table(126) := 'Validate table exists'||wwv_flow.LF||
+'        -- Validate table exists'||wwv_flow.LF||
 '        DECLARE'||wwv_flow.LF||
-'            v_cnt NUMBER;'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(127) := '            v_cnt NUMBER;'||wwv_flow.LF||
 '        BEGIN'||wwv_flow.LF||
-'            SELECT COU';
-wwv_flow_imp.g_varchar2_table(127) := 'NT(*)'||wwv_flow.LF||
+'            SELECT COUNT(*)'||wwv_flow.LF||
 '            INTO v_cnt'||wwv_flow.LF||
-'            FROM user_tables'||wwv_flow.LF||
-'            WHERE table_name = v_table_nam';
-wwv_flow_imp.g_varchar2_table(128) := 'e;'||wwv_flow.LF||
+'         ';
+wwv_flow_imp.g_varchar2_table(128) := '   FROM user_tables'||wwv_flow.LF||
+'            WHERE table_name = v_table_name;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '            IF v_cnt = 0 THEN'||wwv_flow.LF||
-'                RAISE_APPLICATION_ERROR(-20001, ''Table not found i';
-wwv_flow_imp.g_varchar2_table(129) := 'n schema: '' || v_table_name);'||wwv_flow.LF||
+'    ';
+wwv_flow_imp.g_varchar2_table(129) := '            RAISE_APPLICATION_ERROR(-20001, ''Table not found in schema: '' || v_table_name);'||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(130) := '    END IF;'||wwv_flow.LF||
+'            -- Auditing the audit tables would recurse'||wwv_flow.LF||
+'            IF v_table_name LIKE ';
+wwv_flow_imp.g_varchar2_table(131) := '''UTIL\_AUDIT\_%'' ESCAPE ''\'' THEN'||wwv_flow.LF||
+'                RAISE_APPLICATION_ERROR(-20005, ''util_audit''''s own ';
+wwv_flow_imp.g_varchar2_table(132) := 'tables cannot be audited: '' || v_table_name);'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
-'            -- Auditing the audit tables would rec';
-wwv_flow_imp.g_varchar2_table(130) := 'urse'||wwv_flow.LF||
-'            IF v_table_name LIKE ''UTIL\_AUDIT\_%'' ESCAPE ''\'' THEN'||wwv_flow.LF||
-'                RAISE_APPLICA';
-wwv_flow_imp.g_varchar2_table(131) := 'TION_ERROR(-20005, ''util_audit''''s own tables cannot be audited: '' || v_table_name);'||wwv_flow.LF||
-'            END ';
-wwv_flow_imp.g_varchar2_table(132) := 'IF;'||wwv_flow.LF||
 '        END;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        -- Primary key columns and datatypes, in key order'||wwv_flow.LF||
-'        SELECT cols.col';
-wwv_flow_imp.g_varchar2_table(133) := 'umn_name, tc.data_type'||wwv_flow.LF||
-'        BULK COLLECT INTO v_pk_cols, v_pk_dts'||wwv_flow.LF||
-'        FROM user_constraints c';
-wwv_flow_imp.g_varchar2_table(134) := 'ons'||wwv_flow.LF||
-'        JOIN user_cons_columns cols'||wwv_flow.LF||
+'        -- Primary k';
+wwv_flow_imp.g_varchar2_table(133) := 'ey columns and datatypes, in key order'||wwv_flow.LF||
+'        SELECT cols.column_name, tc.data_type'||wwv_flow.LF||
+'        BULK CO';
+wwv_flow_imp.g_varchar2_table(134) := 'LLECT INTO v_pk_cols, v_pk_dts'||wwv_flow.LF||
+'        FROM user_constraints cons'||wwv_flow.LF||
+'        JOIN user_cons_columns col';
+wwv_flow_imp.g_varchar2_table(135) := 's'||wwv_flow.LF||
 '          ON cons.constraint_name = cols.constraint_name'||wwv_flow.LF||
-'   ';
-wwv_flow_imp.g_varchar2_table(135) := '      AND cons.owner          = cols.owner'||wwv_flow.LF||
+'         AND cons.owner          = cols.o';
+wwv_flow_imp.g_varchar2_table(136) := 'wner'||wwv_flow.LF||
 '        JOIN user_tab_columns tc'||wwv_flow.LF||
-'          ON tc.table_na';
-wwv_flow_imp.g_varchar2_table(136) := 'me  = cons.table_name'||wwv_flow.LF||
-'         AND tc.column_name = cols.column_name'||wwv_flow.LF||
-'        WHERE cons.table_name =';
-wwv_flow_imp.g_varchar2_table(137) := ' v_table_name'||wwv_flow.LF||
-'          AND cons.constraint_type = ''P'''||wwv_flow.LF||
+'          ON tc.table_name  = cons.table_name'||wwv_flow.LF||
+'         AND tc.';
+wwv_flow_imp.g_varchar2_table(137) := 'column_name = cols.column_name'||wwv_flow.LF||
+'        WHERE cons.table_name = v_table_name'||wwv_flow.LF||
+'          AND cons.const';
+wwv_flow_imp.g_varchar2_table(138) := 'raint_type = ''P'''||wwv_flow.LF||
 '        ORDER BY cols.position;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        IF v';
-wwv_flow_imp.g_varchar2_table(138) := '_pk_cols.COUNT = 0 THEN'||wwv_flow.LF||
-'            RAISE_APPLICATION_ERROR(-20002, ''No primary key found for table:';
-wwv_flow_imp.g_varchar2_table(139) := ' '' || v_table_name);'||wwv_flow.LF||
+'        IF v_pk_cols.COUNT = 0 THEN'||wwv_flow.LF||
+'            RA';
+wwv_flow_imp.g_varchar2_table(139) := 'ISE_APPLICATION_ERROR(-20002, ''No primary key found for table: '' || v_table_name);'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        BEGIN'||wwv_flow.LF||
-'            SELECT ignored_columns INTO v_ignore';
-wwv_flow_imp.g_varchar2_table(140) := 'd'||wwv_flow.LF||
-'            FROM util_audit_config'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(140) := '        BEGIN'||wwv_flow.LF||
+'            SELECT ignored_columns, excluded_columns INTO v_ignored, v_excluded'||wwv_flow.LF||
+'      ';
+wwv_flow_imp.g_varchar2_table(141) := '      FROM util_audit_config'||wwv_flow.LF||
 '            WHERE table_name = v_table_name;'||wwv_flow.LF||
 '        EXCEPTION'||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(142) := '    WHEN NO_DATA_FOUND THEN'||wwv_flow.LF||
+'                v_ignored  := NULL;'||wwv_flow.LF||
+'                v_excluded := NULL;'||wwv_flow.LF||
 '';
-wwv_flow_imp.g_varchar2_table(141) := '            WHEN NO_DATA_FOUND THEN'||wwv_flow.LF||
-'                v_ignored := NULL;'||wwv_flow.LF||
-'        END;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(143) := '        END;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        v_sql :';
-wwv_flow_imp.g_varchar2_table(142) := '= EMPTY_CLOB();'||wwv_flow.LF||
+'        v_sql := EMPTY_CLOB();'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        ap(''CREATE OR REPLACE TRIGGER '' || q(v_trg_name));'||wwv_flow.LF||
-'        ap(''AFTER INSERT';
-wwv_flow_imp.g_varchar2_table(143) := ' OR UPDATE OR DELETE ON '' || q(v_table_name));'||wwv_flow.LF||
-'        ap(''FOR EACH ROW'');'||wwv_flow.LF||
-'        ap(''DECLARE'');'||wwv_flow.LF||
-'  ';
-wwv_flow_imp.g_varchar2_table(144) := '      ap(''    l_txn_id    VARCHAR2(64) := RAWTOHEX(SYS_GUID());'');'||wwv_flow.LF||
-'        ap(''    l_action    VARCH';
-wwv_flow_imp.g_varchar2_table(145) := 'AR2(6);'');'||wwv_flow.LF||
-'        ap(''    l_pk        VARCHAR2(4000);'');'||wwv_flow.LF||
-'        ap(''    l_has_changes BOOLEAN := F';
-wwv_flow_imp.g_varchar2_table(146) := 'ALSE;'');'||wwv_flow.LF||
-'        ap(''    v_audit_json JSON_OBJECT_T;'');'||wwv_flow.LF||
-'        ap(''    v_cols_arr   JSON_ARRAY_T;'')';
-wwv_flow_imp.g_varchar2_table(147) := ';'||wwv_flow.LF||
-'        ap(''    v_col_obj    JSON_OBJECT_T;'');'||wwv_flow.LF||
-'        ap(''    v_old_row    JSON_OBJECT_T;'');'||wwv_flow.LF||
-'    ';
-wwv_flow_imp.g_varchar2_table(148) := '    ap(''    v_new_row    JSON_OBJECT_T;'');'||wwv_flow.LF||
-'        IF v_pk_cols.COUNT > 1 THEN'||wwv_flow.LF||
-'            ap(''    v';
-wwv_flow_imp.g_varchar2_table(149) := '_pk_obj     JSON_OBJECT_T;'');'||wwv_flow.LF||
+'        ap(''CREATE OR REPLACE TRIGGER '' || q(v_trg_nam';
+wwv_flow_imp.g_varchar2_table(144) := 'e));'||wwv_flow.LF||
+'        ap(''AFTER INSERT OR UPDATE OR DELETE ON '' || q(v_table_name));'||wwv_flow.LF||
+'        ap(''FOR EACH ROW';
+wwv_flow_imp.g_varchar2_table(145) := ''');'||wwv_flow.LF||
+'        IF v_excluded IS NOT NULL THEN'||wwv_flow.LF||
+'            ap(''-- Never recorded (excluded): '' || REPLAC';
+wwv_flow_imp.g_varchar2_table(146) := 'E(v_excluded, '','', '', ''));'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
-'        ap(''    l_err_code  NUMBER;'');'||wwv_flow.LF||
-'        ap(''   ';
-wwv_flow_imp.g_varchar2_table(150) := ' l_err_msg   VARCHAR2(4000);'');'||wwv_flow.LF||
-'        ap(''    l_err_trace VARCHAR2(4000);'');'||wwv_flow.LF||
-'        ap('''');'||wwv_flow.LF||
-'     ';
-wwv_flow_imp.g_varchar2_table(151) := '   ap(''    -- Last resort when util_audit itself cannot log: write the error'');'||wwv_flow.LF||
-'        ap(''    -- s';
-wwv_flow_imp.g_varchar2_table(152) := 'traight to UTIL_AUDIT_ERRORS in its own transaction'');'||wwv_flow.LF||
-'        ap(''    PROCEDURE log_direct IS'');'||wwv_flow.LF||
+'        ap(''DECLARE'');'||wwv_flow.LF||
+'        ap(''    l_txn_id    VARCHA';
+wwv_flow_imp.g_varchar2_table(147) := 'R2(64) := RAWTOHEX(SYS_GUID());'');'||wwv_flow.LF||
+'        ap(''    l_action    VARCHAR2(6);'');'||wwv_flow.LF||
+'        ap(''    l_pk ';
+wwv_flow_imp.g_varchar2_table(148) := '       VARCHAR2(4000);'');'||wwv_flow.LF||
+'        ap(''    l_has_changes BOOLEAN := FALSE;'');'||wwv_flow.LF||
+'        ap(''    v_audit';
+wwv_flow_imp.g_varchar2_table(149) := '_json JSON_OBJECT_T;'');'||wwv_flow.LF||
+'        ap(''    v_cols_arr   JSON_ARRAY_T;'');'||wwv_flow.LF||
+'        ap(''    v_col_obj    J';
+wwv_flow_imp.g_varchar2_table(150) := 'SON_OBJECT_T;'');'||wwv_flow.LF||
+'        ap(''    v_old_row    JSON_OBJECT_T;'');'||wwv_flow.LF||
+'        ap(''    v_new_row    JSON_OB';
+wwv_flow_imp.g_varchar2_table(151) := 'JECT_T;'');'||wwv_flow.LF||
+'        IF v_pk_cols.COUNT > 1 THEN'||wwv_flow.LF||
+'            ap(''    v_pk_obj     JSON_OBJECT_T;'');'||wwv_flow.LF||
 '  ';
-wwv_flow_imp.g_varchar2_table(153) := '      ap(''        PRAGMA AUTONOMOUS_TRANSACTION;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(152) := '      END IF;'||wwv_flow.LF||
+'        ap(''    l_err_code  NUMBER;'');'||wwv_flow.LF||
+'        ap(''    l_err_msg   VARCHAR2(4000);'');'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(153) := '        ap(''    l_err_trace VARCHAR2(4000);'');'||wwv_flow.LF||
+'        ap('''');'||wwv_flow.LF||
+'        ap(''    -- Last resort when u';
+wwv_flow_imp.g_varchar2_table(154) := 'til_audit itself cannot log: write the error'');'||wwv_flow.LF||
+'        ap(''    -- straight to UTIL_AUDIT_ERRORS in ';
+wwv_flow_imp.g_varchar2_table(155) := 'its own transaction'');'||wwv_flow.LF||
+'        ap(''    PROCEDURE log_direct IS'');'||wwv_flow.LF||
+'        ap(''        PRAGMA AUTONOM';
+wwv_flow_imp.g_varchar2_table(156) := 'OUS_TRANSACTION;'');'||wwv_flow.LF||
 '        ap(''    BEGIN'');'||wwv_flow.LF||
-'        ap(''        INS';
-wwv_flow_imp.g_varchar2_table(154) := 'ERT INTO util_audit_errors'');'||wwv_flow.LF||
-'        ap(''            (table_name, transaction_type, pk_value_vc, us';
-wwv_flow_imp.g_varchar2_table(155) := 'ername, error_code, error_message, error_backtrace)'');'||wwv_flow.LF||
-'        ap(''        VALUES ('' || v_table_lit ';
-wwv_flow_imp.g_varchar2_table(156) := '|| '', l_action, SUBSTRB(l_pk, 1, 4000),'');'||wwv_flow.LF||
-'        ap(''            SUBSTR(NVL(sys_context(''''APEX$SES';
-wwv_flow_imp.g_varchar2_table(157) := 'SION'''', ''''APP_USER''''), USER), 1, 255),'');'||wwv_flow.LF||
-'        ap(''            l_err_code, l_err_msg, l_err_trace';
-wwv_flow_imp.g_varchar2_table(158) := ');'');'||wwv_flow.LF||
-'        ap(''        COMMIT;'');'||wwv_flow.LF||
+'        ap(''        INSERT INTO util_audit_errors'');'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(157) := '      ap(''            (table_name, transaction_type, pk_value_vc, username, error_code, error_messag';
+wwv_flow_imp.g_varchar2_table(158) := 'e, error_backtrace)'');'||wwv_flow.LF||
+'        ap(''        VALUES ('' || v_table_lit || '', l_action, SUBSTRB(l_pk, 1,';
+wwv_flow_imp.g_varchar2_table(159) := ' 4000),'');'||wwv_flow.LF||
+'        ap(''            SUBSTR(NVL(sys_context(''''APEX$SESSION'''', ''''APP_USER''''), USER), 1,';
+wwv_flow_imp.g_varchar2_table(160) := ' 255),'');'||wwv_flow.LF||
+'        ap(''            l_err_code, l_err_msg, l_err_trace);'');'||wwv_flow.LF||
+'        ap(''        COMMIT';
+wwv_flow_imp.g_varchar2_table(161) := ';'');'||wwv_flow.LF||
 '        ap(''    EXCEPTION'');'||wwv_flow.LF||
-'        ap(''        WHEN OTHERS TH';
-wwv_flow_imp.g_varchar2_table(159) := 'EN'');'||wwv_flow.LF||
-'        ap(''            ROLLBACK;'');'||wwv_flow.LF||
+'        ap(''        WHEN OTHERS THEN'');'||wwv_flow.LF||
+'        ap(''            RO';
+wwv_flow_imp.g_varchar2_table(162) := 'LLBACK;'');'||wwv_flow.LF||
 '        ap(''    END;'');'||wwv_flow.LF||
 '        ap(''BEGIN'');'||wwv_flow.LF||
-'        ap(''';
-wwv_flow_imp.g_varchar2_table(160) := '    -- Normalize transaction type (do NOT rely on ORA_SYSEVENT)'');'||wwv_flow.LF||
-'        ap(''    l_action := CASE''';
-wwv_flow_imp.g_varchar2_table(161) := ');'||wwv_flow.LF||
-'        ap(''        WHEN INSERTING THEN ''''INSERT'''''');'||wwv_flow.LF||
-'        ap(''        WHEN UPDATING  THEN ''''U';
-wwv_flow_imp.g_varchar2_table(162) := 'PDATE'''''');'||wwv_flow.LF||
-'        ap(''        WHEN DELETING  THEN ''''DELETE'''''');'||wwv_flow.LF||
+'        ap(''    -- Normalize transaction typ';
+wwv_flow_imp.g_varchar2_table(163) := 'e (do NOT rely on ORA_SYSEVENT)'');'||wwv_flow.LF||
+'        ap(''    l_action := CASE'');'||wwv_flow.LF||
+'        ap(''        WHEN INSE';
+wwv_flow_imp.g_varchar2_table(164) := 'RTING THEN ''''INSERT'''''');'||wwv_flow.LF||
+'        ap(''        WHEN UPDATING  THEN ''''UPDATE'''''');'||wwv_flow.LF||
+'        ap(''        W';
+wwv_flow_imp.g_varchar2_table(165) := 'HEN DELETING  THEN ''''DELETE'''''');'||wwv_flow.LF||
 '        ap(''    END;'');'||wwv_flow.LF||
-'        ap(';
-wwv_flow_imp.g_varchar2_table(163) := ''''');'||wwv_flow.LF||
-'        ap(''    -- Skip when auditing is disabled in util_audit_config'');'||wwv_flow.LF||
-'        ap(''    IF NO';
-wwv_flow_imp.g_varchar2_table(164) := 'T util_audit.table_enabled('' || v_table_lit || '') THEN'');'||wwv_flow.LF||
+'        ap('''');'||wwv_flow.LF||
+'        ap(''    -- Skip whe';
+wwv_flow_imp.g_varchar2_table(166) := 'n auditing is disabled in util_audit_config'');'||wwv_flow.LF||
+'        ap(''    IF NOT util_audit.table_enabled('' || ';
+wwv_flow_imp.g_varchar2_table(167) := 'v_table_lit || '') THEN'');'||wwv_flow.LF||
 '        ap(''        RETURN;'');'||wwv_flow.LF||
-'        ap(';
-wwv_flow_imp.g_varchar2_table(165) := '''    END IF;'');'||wwv_flow.LF||
+'        ap(''    END IF;'');'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
-''||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(168) := ''||wwv_flow.LF||
 '        -- pk_value serialization'||wwv_flow.LF||
-'        ap(''    -- Primary key va';
-wwv_flow_imp.g_varchar2_table(166) := 'lue'');'||wwv_flow.LF||
-'        IF v_pk_cols.COUNT = 1 THEN'||wwv_flow.LF||
-'            ap(''    l_pk := '' || pk_part(v_pk_cols(1), v_';
-wwv_flow_imp.g_varchar2_table(167) := 'pk_dts(1)) || '';'');'||wwv_flow.LF||
-'        ELSE'||wwv_flow.LF||
+'        ap(''    -- Primary key value'');'||wwv_flow.LF||
+'        IF v_pk_cols.COUN';
+wwv_flow_imp.g_varchar2_table(169) := 'T = 1 THEN'||wwv_flow.LF||
+'            ap(''    l_pk := '' || pk_part(v_pk_cols(1), v_pk_dts(1)) || '';'');'||wwv_flow.LF||
+'        ELSE';
+wwv_flow_imp.g_varchar2_table(170) := ''||wwv_flow.LF||
 '            ap(''    v_pk_obj := JSON_OBJECT_T();'');'||wwv_flow.LF||
-'            FOR';
-wwv_flow_imp.g_varchar2_table(168) := ' i IN 1 .. v_pk_cols.COUNT LOOP'||wwv_flow.LF||
-'                ap(''    v_pk_obj.put('' || lit(v_pk_cols(i)) || '', '' ';
-wwv_flow_imp.g_varchar2_table(169) := '|| pk_part(v_pk_cols(i), v_pk_dts(i)) || '');'');'||wwv_flow.LF||
+'            FOR i IN 1 .. v_pk_cols.COUNT LOOP'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(171) := '                ap(''    v_pk_obj.put('' || lit(v_pk_cols(i)) || '', '' || pk_part(v_pk_cols(i), v_pk_dt';
+wwv_flow_imp.g_varchar2_table(172) := 's(i)) || '');'');'||wwv_flow.LF||
 '            END LOOP;'||wwv_flow.LF||
-'            ap(''    l_pk := v_';
-wwv_flow_imp.g_varchar2_table(170) := 'pk_obj.to_string;'');'||wwv_flow.LF||
-'        END IF;'||wwv_flow.LF||
+'            ap(''    l_pk := v_pk_obj.to_string;'');'||wwv_flow.LF||
+'        END';
+wwv_flow_imp.g_varchar2_table(173) := ' IF;'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        ap(''    v_audit_json := JSON_OBJECT_T(';
-wwv_flow_imp.g_varchar2_table(171) := ');'');'||wwv_flow.LF||
-'        ap(''    v_cols_arr   := JSON_ARRAY_T();'');'||wwv_flow.LF||
-'        ap(''    v_old_row    := JSON_OBJECT';
-wwv_flow_imp.g_varchar2_table(172) := '_T();'');'||wwv_flow.LF||
-'        ap(''    v_new_row    := JSON_OBJECT_T();'');'||wwv_flow.LF||
-'        ap(''    v_audit_json.put(''''pk_v';
-wwv_flow_imp.g_varchar2_table(173) := 'alue'''', l_pk);'');'||wwv_flow.LF||
-'        ap(''    v_audit_json.put(''''transaction_id'''', l_txn_id);'');'||wwv_flow.LF||
-'        ap(''   ';
-wwv_flow_imp.g_varchar2_table(174) := ' v_audit_json.put(''''table_name'''', '' || v_table_lit || '');'');'||wwv_flow.LF||
-'        ap(''    v_audit_json.put(''''tran';
-wwv_flow_imp.g_varchar2_table(175) := 'saction_type'''', l_action);'');'||wwv_flow.LF||
-'        ap(''    v_audit_json.put(''''user_name'''', NVL(sys_context(''''APEX';
-wwv_flow_imp.g_varchar2_table(176) := '$SESSION'''',''''APP_USER''''), USER));'');'||wwv_flow.LF||
+'        ap(''    v_audit_json := JSON_OBJECT_T();'');'||wwv_flow.LF||
+'        ap(''    v_cols_arr';
+wwv_flow_imp.g_varchar2_table(174) := '   := JSON_ARRAY_T();'');'||wwv_flow.LF||
+'        ap(''    v_old_row    := JSON_OBJECT_T();'');'||wwv_flow.LF||
+'        ap(''    v_new_r';
+wwv_flow_imp.g_varchar2_table(175) := 'ow    := JSON_OBJECT_T();'');'||wwv_flow.LF||
+'        ap(''    v_audit_json.put(''''pk_value'''', l_pk);'');'||wwv_flow.LF||
+'        ap(''  ';
+wwv_flow_imp.g_varchar2_table(176) := '  v_audit_json.put(''''transaction_id'''', l_txn_id);'');'||wwv_flow.LF||
+'        ap(''    v_audit_json.put(''''table_name''''';
+wwv_flow_imp.g_varchar2_table(177) := ', '' || v_table_lit || '');'');'||wwv_flow.LF||
+'        ap(''    v_audit_json.put(''''transaction_type'''', l_action);'');'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(178) := '      ap(''    v_audit_json.put(''''user_name'''', NVL(sys_context(''''APEX$SESSION'''',''''APP_USER''''), USER))';
+wwv_flow_imp.g_varchar2_table(179) := ';'');'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        -- Per column: row snapshots and colum';
-wwv_flow_imp.g_varchar2_table(177) := 'n-level changes'||wwv_flow.LF||
-'        -- (supported columns only, excluding ignored)'||wwv_flow.LF||
+'        -- Per column: row snapshots and column-level changes'||wwv_flow.LF||
+'        -- (supp';
+wwv_flow_imp.g_varchar2_table(180) := 'orted columns only, excluding ignored)'||wwv_flow.LF||
 '        FOR c IN ('||wwv_flow.LF||
-'          ';
-wwv_flow_imp.g_varchar2_table(178) := '  SELECT column_name, data_type'||wwv_flow.LF||
-'            FROM user_tab_columns'||wwv_flow.LF||
-'            WHERE table_name = v_t';
-wwv_flow_imp.g_varchar2_table(179) := 'able_name'||wwv_flow.LF||
-'            ORDER BY column_id'||wwv_flow.LF||
+'            SELECT column_name, data_type'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(181) := '            FROM user_tab_columns'||wwv_flow.LF||
+'            WHERE table_name = v_table_name'||wwv_flow.LF||
+'            ORDER BY c';
+wwv_flow_imp.g_varchar2_table(182) := 'olumn_id'||wwv_flow.LF||
 '        ) LOOP'||wwv_flow.LF||
-'            IF NOT supported_datatype(c.data';
-wwv_flow_imp.g_varchar2_table(180) := '_type) THEN'||wwv_flow.LF||
+'            IF NOT supported_datatype(c.data_type) THEN'||wwv_flow.LF||
+'                CONT';
+wwv_flow_imp.g_varchar2_table(183) := 'INUE;'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
+'            -- Excluded columns are never read: not in the changes, not in';
+wwv_flow_imp.g_varchar2_table(184) := ''||wwv_flow.LF||
+'            -- the snapshots'||wwv_flow.LF||
+'            IF v_excluded IS NOT NULL AND in_list(v_excluded, c.column';
+wwv_flow_imp.g_varchar2_table(185) := '_name) THEN'||wwv_flow.LF||
 '                CONTINUE;'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
 '            -- Ignored columns are left ou';
-wwv_flow_imp.g_varchar2_table(181) := 't of the changes but kept in the row'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(186) := 't of the changes but kept in the row'||wwv_flow.LF||
 '            -- snapshots: restore needs the whole row (e.g. a N';
-wwv_flow_imp.g_varchar2_table(182) := 'OT NULL CREATED)'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(187) := 'OT NULL CREATED)'||wwv_flow.LF||
 '            v_track := NOT is_ignored_column(c.column_name, v_ignored);'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '          ';
-wwv_flow_imp.g_varchar2_table(183) := '  ap(''    -- '' || c.column_name);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(188) := '  ap(''    -- '' || c.column_name);'||wwv_flow.LF||
 '            IF UPPER(c.data_type) = ''CLOB'' THEN'||wwv_flow.LF||
 '                --';
-wwv_flow_imp.g_varchar2_table(184) := ' An unchanged CLOB is left out of UPDATE snapshots; restore'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(189) := ' An unchanged CLOB is left out of UPDATE snapshots; restore'||wwv_flow.LF||
 '                -- then leaves it as it ';
-wwv_flow_imp.g_varchar2_table(185) := 'is'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(190) := 'is'||wwv_flow.LF||
 '                ap(''    IF DELETING OR (UPDATING AND '' || changed_predicate(c.column_name, c.data';
-wwv_flow_imp.g_varchar2_table(186) := '_type) || '') THEN'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(191) := '_type) || '') THEN'');'||wwv_flow.LF||
 '                ap(''        v_old_row.put('' || lit(c.column_name) || '', :OLD.'' ';
-wwv_flow_imp.g_varchar2_table(187) := '|| q(c.column_name) || '');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(192) := '|| q(c.column_name) || '');'');'||wwv_flow.LF||
 '                ap(''    END IF;'');'||wwv_flow.LF||
 '                ap(''    IF INSERTIN';
-wwv_flow_imp.g_varchar2_table(188) := 'G OR (UPDATING AND '' || changed_predicate(c.column_name, c.data_type) || '') THEN'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(193) := 'G OR (UPDATING AND '' || changed_predicate(c.column_name, c.data_type) || '') THEN'');'||wwv_flow.LF||
 '                ';
-wwv_flow_imp.g_varchar2_table(189) := 'ap(''        v_new_row.put('' || lit(c.column_name) || '', :NEW.'' || q(c.column_name) || '');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(194) := 'ap(''        v_new_row.put('' || lit(c.column_name) || '', :NEW.'' || q(c.column_name) || '');'');'||wwv_flow.LF||
 '       ';
-wwv_flow_imp.g_varchar2_table(190) := '         ap(''    END IF;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(195) := '         ap(''    END IF;'');'||wwv_flow.LF||
 '            ELSE'||wwv_flow.LF||
 '                ap(''    IF NOT INSERTING THEN'');'||wwv_flow.LF||
 '      ';
-wwv_flow_imp.g_varchar2_table(191) := '          ap(''        v_old_row.put('' || lit(c.column_name) || '', '' ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(196) := '          ap(''        v_old_row.put('' || lit(c.column_name) || '', '' ||'||wwv_flow.LF||
 '                   to_char_ex';
-wwv_flow_imp.g_varchar2_table(192) := 'pr('':OLD.'' || q(c.column_name), c.data_type) || '');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(197) := 'pr('':OLD.'' || q(c.column_name), c.data_type) || '');'');'||wwv_flow.LF||
 '                ap(''    END IF;'');'||wwv_flow.LF||
 '          ';
-wwv_flow_imp.g_varchar2_table(193) := '      ap(''    IF NOT DELETING THEN'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(198) := '      ap(''    IF NOT DELETING THEN'');'||wwv_flow.LF||
 '                ap(''        v_new_row.put('' || lit(c.column_na';
-wwv_flow_imp.g_varchar2_table(194) := 'me) || '', '' ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(199) := 'me) || '', '' ||'||wwv_flow.LF||
 '                   to_char_expr('':NEW.'' || q(c.column_name), c.data_type) || '');'');'||wwv_flow.LF||
 ' ';
-wwv_flow_imp.g_varchar2_table(195) := '               ap(''    END IF;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(200) := '               ap(''    END IF;'');'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '            IF NOT v_track THEN'||wwv_flow.LF||
 '             ';
-wwv_flow_imp.g_varchar2_table(196) := '   ap('''');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(201) := '   ap('''');'||wwv_flow.LF||
 '                CONTINUE;'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
 '            v_has_cols := TRUE;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '          ';
-wwv_flow_imp.g_varchar2_table(197) := '  -- A NULL inserted or deleted is not a change, so it gets no row'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(202) := '  -- A NULL inserted or deleted is not a change, so it gets no row'||wwv_flow.LF||
 '            -- (the snapshot stil';
-wwv_flow_imp.g_varchar2_table(198) := 'l has the column)'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(203) := 'l has the column)'||wwv_flow.LF||
 '            ap(''    IF (INSERTING AND :NEW.'' || q(c.column_name) || '' IS NOT NULL)';
-wwv_flow_imp.g_varchar2_table(199) := ''' ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(204) := ''' ||'||wwv_flow.LF||
 '               '' OR (DELETING AND :OLD.'' || q(c.column_name) || '' IS NOT NULL)'' ||'||wwv_flow.LF||
 '            ';
-wwv_flow_imp.g_varchar2_table(200) := '   '' OR (UPDATING AND '' || changed_predicate(c.column_name, c.data_type) || '') THEN'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(205) := '   '' OR (UPDATING AND '' || changed_predicate(c.column_name, c.data_type) || '') THEN'');'||wwv_flow.LF||
 '            a';
-wwv_flow_imp.g_varchar2_table(201) := 'p(''        l_has_changes := TRUE;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(206) := 'p(''        l_has_changes := TRUE;'');'||wwv_flow.LF||
 '            ap(''        v_col_obj := JSON_OBJECT_T();'');'||wwv_flow.LF||
 '      ';
-wwv_flow_imp.g_varchar2_table(202) := '      ap(''        v_col_obj.put(''''column_name'''', '' || lit(c.column_name) || '');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(207) := '      ap(''        v_col_obj.put(''''column_name'''', '' || lit(c.column_name) || '');'');'||wwv_flow.LF||
 '            ap('' ';
-wwv_flow_imp.g_varchar2_table(203) := '       v_col_obj.put(''''data_type'''', '' || lit(UPPER(c.data_type)) || '');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(208) := '       v_col_obj.put(''''data_type'''', '' || lit(UPPER(c.data_type)) || '');'');'||wwv_flow.LF||
 '            ap(''        v';
-wwv_flow_imp.g_varchar2_table(204) := '_col_obj.put(''''old_value'''', CASE WHEN INSERTING THEN NULL ELSE '' ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(209) := '_col_obj.put(''''old_value'''', CASE WHEN INSERTING THEN NULL ELSE '' ||'||wwv_flow.LF||
 '               to_char_expr('':OL';
-wwv_flow_imp.g_varchar2_table(205) := 'D.'' || q(c.column_name), c.data_type) || '' END);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(210) := 'D.'' || q(c.column_name), c.data_type) || '' END);'');'||wwv_flow.LF||
 '            ap(''        v_col_obj.put(''''new_valu';
-wwv_flow_imp.g_varchar2_table(206) := 'e'''', CASE WHEN DELETING THEN NULL ELSE '' ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(211) := 'e'''', CASE WHEN DELETING THEN NULL ELSE '' ||'||wwv_flow.LF||
 '               to_char_expr('':NEW.'' || q(c.column_name),';
-wwv_flow_imp.g_varchar2_table(207) := ' c.data_type) || '' END);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(212) := ' c.data_type) || '' END);'');'||wwv_flow.LF||
 '            ap(''        v_cols_arr.append(v_col_obj);'');'||wwv_flow.LF||
 '            ap(';
-wwv_flow_imp.g_varchar2_table(208) := '''    END IF;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(213) := '''    END IF;'');'||wwv_flow.LF||
 '            ap('''');'||wwv_flow.LF||
 '        END LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        -- An INSERT or DELETE is always reco';
-wwv_flow_imp.g_varchar2_table(209) := 'rded, even with no non-NULL column'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(214) := 'rded, even with no non-NULL column'||wwv_flow.LF||
 '        ap(''    IF UPDATING AND NOT l_has_changes THEN'');'||wwv_flow.LF||
 '       ';
-wwv_flow_imp.g_varchar2_table(210) := ' ap(''        RETURN;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(215) := ' ap(''        RETURN;'');'||wwv_flow.LF||
 '        ap(''    END IF;'');'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
 '        ap(''    v_audit_json.put(';
-wwv_flow_imp.g_varchar2_table(211) := '''''old_row'''', v_old_row);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(216) := '''''old_row'''', v_old_row);'');'||wwv_flow.LF||
 '        ap(''    v_audit_json.put(''''new_row'''', v_new_row);'');'||wwv_flow.LF||
 '        ap(';
-wwv_flow_imp.g_varchar2_table(212) := '''    v_audit_json.put(''''columns'''', v_cols_arr);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(217) := '''    v_audit_json.put(''''columns'''', v_cols_arr);'');'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
 '        ap(''    -- Write audit'');';
-wwv_flow_imp.g_varchar2_table(213) := ''||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(218) := ''||wwv_flow.LF||
 '        ap(''    util_audit.capture_audit(v_audit_json);'');'||wwv_flow.LF||
 '        ap('''');'||wwv_flow.LF||
 '        ap(''EXCEPTION'');';
-wwv_flow_imp.g_varchar2_table(214) := ''||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(219) := ''||wwv_flow.LF||
 '        ap(''    WHEN OTHERS THEN'');'||wwv_flow.LF||
 '        ap(''        -- Do not break business DML; record the fa';
-wwv_flow_imp.g_varchar2_table(215) := 'ilure instead'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(220) := 'ilure instead'');'||wwv_flow.LF||
 '        ap(''        l_err_code  := SQLCODE;'');'||wwv_flow.LF||
 '        ap(''        l_err_msg   := S';
-wwv_flow_imp.g_varchar2_table(216) := 'UBSTRB(SQLERRM, 1, 4000);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(221) := 'UBSTRB(SQLERRM, 1, 4000);'');'||wwv_flow.LF||
 '        ap(''        l_err_trace := SUBSTRB(DBMS_UTILITY.FORMAT_ERROR_BA';
-wwv_flow_imp.g_varchar2_table(217) := 'CKTRACE, 1, 4000);'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(222) := 'CKTRACE, 1, 4000);'');'||wwv_flow.LF||
 '        ap(''        BEGIN'');'||wwv_flow.LF||
 '        ap(''            util_audit.log_error('' ||';
-wwv_flow_imp.g_varchar2_table(218) := ' v_table_lit || '', l_action, l_pk,'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(223) := ' v_table_lit || '', l_action, l_pk,'');'||wwv_flow.LF||
 '        ap(''                l_err_code, l_err_msg, l_err_trace';
-wwv_flow_imp.g_varchar2_table(219) := ');'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(224) := ');'');'||wwv_flow.LF||
 '        ap(''        EXCEPTION'');'||wwv_flow.LF||
 '        ap(''            WHEN OTHERS THEN'');'||wwv_flow.LF||
 '        ap(''     ';
-wwv_flow_imp.g_varchar2_table(220) := '           log_direct;'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(225) := '           log_direct;'');'||wwv_flow.LF||
 '        ap(''        END;'');'||wwv_flow.LF||
 '        ap(''END;'');'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        IF NOT v_has_cols';
-wwv_flow_imp.g_varchar2_table(221) := ' THEN'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(226) := ' THEN'||wwv_flow.LF||
 '            RAISE_APPLICATION_ERROR(-20003, ''No auditable columns found for table: '' || v_tabl';
-wwv_flow_imp.g_varchar2_table(222) := 'e_name);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(227) := 'e_name);'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        RETURN v_sql;'||wwv_flow.LF||
 '    END get_trigger_ddl;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    ----------------------';
-wwv_flow_imp.g_varchar2_table(223) := '----------------------------------------------------'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(228) := '----------------------------------------------------'||wwv_flow.LF||
 '    -- Public: Create trigger'||wwv_flow.LF||
 '    -------------';
-wwv_flow_imp.g_varchar2_table(224) := '-------------------------------------------------------------'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(229) := '-------------------------------------------------------------'||wwv_flow.LF||
 '    PROCEDURE create_audit_trigger('||wwv_flow.LF||
 '  ';
-wwv_flow_imp.g_varchar2_table(225) := '      p_table_name IN VARCHAR2,'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(230) := '      p_table_name IN VARCHAR2,'||wwv_flow.LF||
 '        p_action     IN VARCHAR2 DEFAULT ''EXECUTE'''||wwv_flow.LF||
 '    ) IS'||wwv_flow.LF||
 '        ';
-wwv_flow_imp.g_varchar2_table(226) := 'v_table_name VARCHAR2(128) := norm_name(p_table_name);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(231) := 'v_table_name VARCHAR2(128) := norm_name(p_table_name);'||wwv_flow.LF||
 '        v_trg_name   VARCHAR2(128) := trig_na';
-wwv_flow_imp.g_varchar2_table(227) := 'me(p_table_name);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(232) := 'me(p_table_name);'||wwv_flow.LF||
 '        v_sql        CLOB          := get_trigger_ddl(p_table_name);'||wwv_flow.LF||
 '        v_err';
-wwv_flow_imp.g_varchar2_table(228) := 'or      VARCHAR2(4000);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(233) := 'or      VARCHAR2(4000);'||wwv_flow.LF||
 '    BEGIN'||wwv_flow.LF||
 '        IF norm_name(p_action) = ''GENERATE'' THEN'||wwv_flow.LF||
 '            exec_';
-wwv_flow_imp.g_varchar2_table(229) := 'sql(v_sql, p_action);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(234) := 'sql(v_sql, p_action);'||wwv_flow.LF||
 '            report_child_tables(v_table_name);'||wwv_flow.LF||
 '            RETURN;'||wwv_flow.LF||
 '        END';
-wwv_flow_imp.g_varchar2_table(230) := ' IF;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(235) := ' IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        -- Register first: the trigger DDL commits, which also saves this row.'||wwv_flow.LF||
 '        -- An e';
-wwv_flow_imp.g_varchar2_table(231) := 'xisting flag is kept, so regenerating a trigger (e.g. after'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(236) := 'xisting flag is kept, so regenerating a trigger (e.g. after'||wwv_flow.LF||
 '        -- ALTER TABLE) does not re-enab';
-wwv_flow_imp.g_varchar2_table(232) := 'le a disabled table.'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(237) := 'le a disabled table.'||wwv_flow.LF||
 '        MERGE INTO util_audit_config c'||wwv_flow.LF||
 '        USING (SELECT v_table_name table';
-wwv_flow_imp.g_varchar2_table(233) := '_name FROM dual) src'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(238) := '_name FROM dual) src'||wwv_flow.LF||
 '        ON (c.table_name = src.table_name)'||wwv_flow.LF||
 '        WHEN NOT MATCHED THEN'||wwv_flow.LF||
 '      ';
-wwv_flow_imp.g_varchar2_table(234) := '      INSERT (table_name, enabled_flag, created_on, created_by)'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(239) := '      INSERT (table_name, enabled_flag, created_on, created_by)'||wwv_flow.LF||
 '            VALUES (src.table_name, ';
-wwv_flow_imp.g_varchar2_table(235) := '''Y'', SYSDATE, USER);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(240) := '''Y'', SYSDATE, USER);'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        -- Create it disabled and enable it only when it compiled: an invalid'||wwv_flow.LF||
 '';
-wwv_flow_imp.g_varchar2_table(236) := '        -- enabled trigger would block every change to the table'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(241) := '        -- enabled trigger would block every change to the table'||wwv_flow.LF||
 '        v_sql := REPLACE(v_sql, ''FO';
-wwv_flow_imp.g_varchar2_table(237) := 'R EACH ROW'' || CHR(10), ''FOR EACH ROW'' || CHR(10) || ''DISABLE'' || CHR(10));'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(242) := 'R EACH ROW'' || CHR(10), ''FOR EACH ROW'' || CHR(10) || ''DISABLE'' || CHR(10));'||wwv_flow.LF||
 '        BEGIN'||wwv_flow.LF||
 '          ';
-wwv_flow_imp.g_varchar2_table(238) := '  exec_sql(v_sql, p_action);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(243) := '  exec_sql(v_sql, p_action);'||wwv_flow.LF||
 '        EXCEPTION'||wwv_flow.LF||
 '            WHEN OTHERS THEN'||wwv_flow.LF||
 '                IF SQLCO';
-wwv_flow_imp.g_varchar2_table(239) := 'DE <> -24344 THEN  -- created with compilation errors'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(244) := 'DE <> -24344 THEN  -- created with compilation errors'||wwv_flow.LF||
 '                    RAISE;'||wwv_flow.LF||
 '                END';
-wwv_flow_imp.g_varchar2_table(240) := ' IF;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(245) := ' IF;'||wwv_flow.LF||
 '        END;'||wwv_flow.LF||
 '        SELECT MIN(text) INTO v_error'||wwv_flow.LF||
 '        FROM user_errors'||wwv_flow.LF||
 '        WHERE name ';
-wwv_flow_imp.g_varchar2_table(241) := '= v_trg_name AND type = ''TRIGGER'' AND attribute = ''ERROR'';'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(246) := '= v_trg_name AND type = ''TRIGGER'' AND attribute = ''ERROR'';'||wwv_flow.LF||
 '        IF v_error IS NOT NULL THEN'||wwv_flow.LF||
 '     ';
-wwv_flow_imp.g_varchar2_table(242) := '       RAISE_APPLICATION_ERROR(-20006, ''The audit trigger for '' || v_table_name ||'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(247) := '       RAISE_APPLICATION_ERROR(-20006, ''The audit trigger for '' || v_table_name ||'||wwv_flow.LF||
 '                ''';
-wwv_flow_imp.g_varchar2_table(243) := ' did not compile, so it was left disabled: '' || v_error);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(248) := ' did not compile, so it was left disabled: '' || v_error);'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 '        exec_sql(''ALTER TR';
-wwv_flow_imp.g_varchar2_table(244) := 'IGGER '' || q(v_trg_name) || '' ENABLE'', p_action);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(249) := 'IGGER '' || q(v_trg_name) || '' ENABLE'', p_action);'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        -- Then remove any other trigger on the t';
-wwv_flow_imp.g_varchar2_table(245) := 'able that calls util_audit'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(250) := 'able that calls util_audit'||wwv_flow.LF||
 '        -- (an older name, or a util_audit v1 AIUD_<table>_AUD trigger), ';
-wwv_flow_imp.g_varchar2_table(246) := 'so'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(251) := 'so'||wwv_flow.LF||
 '        -- rows are not audited twice. Creating first leaves no gap.'||wwv_flow.LF||
 '        FOR t IN ('||wwv_flow.LF||
 '         ';
-wwv_flow_imp.g_varchar2_table(247) := '   SELECT trigger_name'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(252) := '   SELECT trigger_name'||wwv_flow.LF||
 '            FROM v_util_audit_triggers'||wwv_flow.LF||
 '            WHERE table_name = v_table';
-wwv_flow_imp.g_varchar2_table(248) := '_name'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(253) := '_name'||wwv_flow.LF||
 '              AND trigger_name <> v_trg_name'||wwv_flow.LF||
 '        ) LOOP'||wwv_flow.LF||
 '            exec_sql(''DROP TRIGGER';
-wwv_flow_imp.g_varchar2_table(249) := ' '' || q(t.trigger_name), p_action);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(254) := ' '' || q(t.trigger_name), p_action);'||wwv_flow.LF||
 '        END LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        report_child_tables(v_table_name);'||wwv_flow.LF||
 '  ';
-wwv_flow_imp.g_varchar2_table(250) := '  END create_audit_trigger;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(255) := '  END create_audit_trigger;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '    -------------------------------------------------------------------';
-wwv_flow_imp.g_varchar2_table(251) := '-------'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(256) := '-------'||wwv_flow.LF||
+'    -- Public: Per-table excluded columns'||wwv_flow.LF||
+'    ----------------------------------------------';
+wwv_flow_imp.g_varchar2_table(257) := '----------------------------'||wwv_flow.LF||
+'    -- The list, upper case, checked against the table: a misspelt name';
+wwv_flow_imp.g_varchar2_table(258) := ''||wwv_flow.LF||
+'    -- would leave the real column audited without anyone noticing'||wwv_flow.LF||
+'    FUNCTION checked_columns(p_t';
+wwv_flow_imp.g_varchar2_table(259) := 'able_name IN VARCHAR2, p_columns IN VARCHAR2) RETURN VARCHAR2 IS'||wwv_flow.LF||
+'        v_columns VARCHAR2(4000) :=';
+wwv_flow_imp.g_varchar2_table(260) := ' UPPER(REPLACE(TRIM(BOTH '','' FROM REPLACE(p_columns, '' '')), '',,'', '',''));'||wwv_flow.LF||
+'        v_col     VARCHAR2(';
+wwv_flow_imp.g_varchar2_table(261) := '4000);'||wwv_flow.LF||
+'        v_cnt     NUMBER;'||wwv_flow.LF||
+'        i         PLS_INTEGER := 1;'||wwv_flow.LF||
+'    BEGIN'||wwv_flow.LF||
+'        LOOP'||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(262) := '    v_col := REGEXP_SUBSTR(v_columns, ''[^,]+'', 1, i);'||wwv_flow.LF||
+'            EXIT WHEN v_col IS NULL;'||wwv_flow.LF||
+'         ';
+wwv_flow_imp.g_varchar2_table(263) := '   SELECT COUNT(*) INTO v_cnt FROM user_tab_columns'||wwv_flow.LF||
+'             WHERE table_name = p_table_name AND';
+wwv_flow_imp.g_varchar2_table(264) := ' column_name = v_col;'||wwv_flow.LF||
+'            IF v_cnt = 0 THEN'||wwv_flow.LF||
+'                RAISE_APPLICATION_ERROR(-20007, ';
+wwv_flow_imp.g_varchar2_table(265) := 'p_table_name || '' has no column '' || v_col || ''.'');'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
+'            i := i + 1;'||wwv_flow.LF||
+'    ';
+wwv_flow_imp.g_varchar2_table(266) := '    END LOOP;'||wwv_flow.LF||
+'        RETURN v_columns;'||wwv_flow.LF||
+'    END;'||wwv_flow.LF||
+''||wwv_flow.LF||
+'    PROCEDURE scrub_columns('||wwv_flow.LF||
+'        p_table_name ';
+wwv_flow_imp.g_varchar2_table(267) := 'IN VARCHAR2,'||wwv_flow.LF||
+'        p_columns    IN VARCHAR2'||wwv_flow.LF||
+'    ) IS'||wwv_flow.LF||
+'        v_table_name VARCHAR2(128)  := norm_n';
+wwv_flow_imp.g_varchar2_table(268) := 'ame(p_table_name);'||wwv_flow.LF||
+'        v_columns    VARCHAR2(4000) := checked_columns(v_table_name, p_columns);'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(269) := '        v_col        VARCHAR2(4000);'||wwv_flow.LF||
+'        v_patch      VARCHAR2(4000);'||wwv_flow.LF||
+'        v_events     NUMBE';
+wwv_flow_imp.g_varchar2_table(270) := 'R;'||wwv_flow.LF||
+'        i            PLS_INTEGER := 1;'||wwv_flow.LF||
+'    BEGIN'||wwv_flow.LF||
+'        LOOP'||wwv_flow.LF||
+'            v_col := REGEXP_SUBSTR(';
+wwv_flow_imp.g_varchar2_table(271) := 'v_columns, ''[^,]+'', 1, i);'||wwv_flow.LF||
+'            EXIT WHEN v_col IS NULL;'||wwv_flow.LF||
+'            -- {"COL":null}: JSON_ME';
+wwv_flow_imp.g_varchar2_table(272) := 'RGEPATCH removes the key'||wwv_flow.LF||
+'            SELECT JSON_OBJECT(KEY v_col VALUE NULL NULL ON NULL) INTO v_pa';
+wwv_flow_imp.g_varchar2_table(273) := 'tch FROM dual;'||wwv_flow.LF||
+'            UPDATE util_audit_txn'||wwv_flow.LF||
+'               SET old_row_json = JSON_MERGEPATCH(o';
+wwv_flow_imp.g_varchar2_table(274) := 'ld_row_json, v_patch RETURNING CLOB),'||wwv_flow.LF||
+'                   new_row_json = JSON_MERGEPATCH(new_row_json';
+wwv_flow_imp.g_varchar2_table(275) := ', v_patch RETURNING CLOB)'||wwv_flow.LF||
+'             WHERE table_name = v_table_name'||wwv_flow.LF||
+'               AND (old_row_j';
+wwv_flow_imp.g_varchar2_table(276) := 'son IS NOT NULL OR new_row_json IS NOT NULL);'||wwv_flow.LF||
+'            v_events := SQL%ROWCOUNT;'||wwv_flow.LF||
+'            DELE';
+wwv_flow_imp.g_varchar2_table(277) := 'TE FROM util_audit_records'||wwv_flow.LF||
+'             WHERE table_name = v_table_name AND column_name = v_col;'||wwv_flow.LF||
+'   ';
+wwv_flow_imp.g_varchar2_table(278) := '         DBMS_OUTPUT.PUT_LINE(''Removed '' || v_col || '' from '' || v_events || '' snapshot(s) and '' ||'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(279) := '                                 SQL%ROWCOUNT || '' column change(s) of '' || v_table_name || ''.'');'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(280) := '          i := i + 1;'||wwv_flow.LF||
+'        END LOOP;'||wwv_flow.LF||
+'    END scrub_columns;'||wwv_flow.LF||
+''||wwv_flow.LF||
+'    PROCEDURE set_table_excluded_col';
+wwv_flow_imp.g_varchar2_table(281) := 'umns('||wwv_flow.LF||
+'        p_table_name    IN VARCHAR2,'||wwv_flow.LF||
+'        p_columns       IN VARCHAR2,'||wwv_flow.LF||
+'        p_regenerate';
+wwv_flow_imp.g_varchar2_table(282) := '    IN BOOLEAN DEFAULT TRUE,'||wwv_flow.LF||
+'        p_scrub_history IN BOOLEAN DEFAULT FALSE'||wwv_flow.LF||
+'    ) IS'||wwv_flow.LF||
+'        v_tab';
+wwv_flow_imp.g_varchar2_table(283) := 'le_name VARCHAR2(128)  := norm_name(p_table_name);'||wwv_flow.LF||
+'        v_columns    VARCHAR2(4000) := checked_co';
+wwv_flow_imp.g_varchar2_table(284) := 'lumns(v_table_name, p_columns);'||wwv_flow.LF||
+'        v_has_trg    NUMBER;'||wwv_flow.LF||
+'    BEGIN'||wwv_flow.LF||
+'        -- The key identifies';
+wwv_flow_imp.g_varchar2_table(285) := ' the row in every event; it has to be recorded'||wwv_flow.LF||
+'        FOR k IN ('||wwv_flow.LF||
+'            SELECT cols.column_nam';
+wwv_flow_imp.g_varchar2_table(286) := 'e'||wwv_flow.LF||
+'            FROM user_constraints cons'||wwv_flow.LF||
+'            JOIN user_cons_columns cols ON cols.constraint_';
+wwv_flow_imp.g_varchar2_table(287) := 'name = cons.constraint_name'||wwv_flow.LF||
+'            WHERE cons.table_name = v_table_name AND cons.constraint_typ';
+wwv_flow_imp.g_varchar2_table(288) := 'e = ''P'''||wwv_flow.LF||
+'        ) LOOP'||wwv_flow.LF||
+'            IF in_list(v_columns, k.column_name) THEN'||wwv_flow.LF||
+'                RAISE_A';
+wwv_flow_imp.g_varchar2_table(289) := 'PPLICATION_ERROR(-20008, k.column_name || '' is part of the primary key of '' ||'||wwv_flow.LF||
+'                    v';
+wwv_flow_imp.g_varchar2_table(290) := '_table_name || '' and cannot be excluded.'');'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
+'        END LOOP;'||wwv_flow.LF||
+''||wwv_flow.LF||
+'        MERGE INT';
+wwv_flow_imp.g_varchar2_table(291) := 'O util_audit_config c'||wwv_flow.LF||
+'        USING (SELECT v_table_name table_name FROM dual) src'||wwv_flow.LF||
+'        ON (c.tab';
+wwv_flow_imp.g_varchar2_table(292) := 'le_name = src.table_name)'||wwv_flow.LF||
+'        WHEN MATCHED THEN'||wwv_flow.LF||
+'            UPDATE SET excluded_columns = v_colu';
+wwv_flow_imp.g_varchar2_table(293) := 'mns'||wwv_flow.LF||
+'        WHEN NOT MATCHED THEN'||wwv_flow.LF||
+'            INSERT (table_name, enabled_flag, created_on, created_';
+wwv_flow_imp.g_varchar2_table(294) := 'by, excluded_columns)'||wwv_flow.LF||
+'            VALUES (src.table_name, ''Y'', SYSDATE, USER, v_columns);'||wwv_flow.LF||
+''||wwv_flow.LF||
+'        I';
+wwv_flow_imp.g_varchar2_table(295) := 'F p_regenerate THEN'||wwv_flow.LF||
+'            SELECT COUNT(*) INTO v_has_trg'||wwv_flow.LF||
+'            FROM v_util_audit_trigger';
+wwv_flow_imp.g_varchar2_table(296) := 's'||wwv_flow.LF||
+'            WHERE table_name = v_table_name;'||wwv_flow.LF||
+'            IF v_has_trg > 0 THEN'||wwv_flow.LF||
+'                cre';
+wwv_flow_imp.g_varchar2_table(297) := 'ate_audit_trigger(v_table_name);'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
+'        END IF;'||wwv_flow.LF||
+''||wwv_flow.LF||
+'        IF p_scrub_history AND';
+wwv_flow_imp.g_varchar2_table(298) := ' v_columns IS NOT NULL THEN'||wwv_flow.LF||
+'            scrub_columns(v_table_name, v_columns);'||wwv_flow.LF||
+'        END IF;'||wwv_flow.LF||
+'    ';
+wwv_flow_imp.g_varchar2_table(299) := 'END set_table_excluded_columns;'||wwv_flow.LF||
+''||wwv_flow.LF||
+'    ---------------------------------------------------------------';
+wwv_flow_imp.g_varchar2_table(300) := '-----------'||wwv_flow.LF||
 '    -- Public: Per-table ignored columns'||wwv_flow.LF||
-'    -----------------------------------------------';
-wwv_flow_imp.g_varchar2_table(252) := '---------------------------'||wwv_flow.LF||
+'    -------------------------------------------';
+wwv_flow_imp.g_varchar2_table(301) := '-------------------------------'||wwv_flow.LF||
 '    PROCEDURE set_table_ignored_columns('||wwv_flow.LF||
-'        p_table_name IN VARCHAR';
-wwv_flow_imp.g_varchar2_table(253) := '2,'||wwv_flow.LF||
+'        p_table_name IN VAR';
+wwv_flow_imp.g_varchar2_table(302) := 'CHAR2,'||wwv_flow.LF||
 '        p_columns    IN VARCHAR2,'||wwv_flow.LF||
 '        p_regenerate IN BOOLEAN DEFAULT TRUE'||wwv_flow.LF||
 '    ) IS'||wwv_flow.LF||
-'        v';
-wwv_flow_imp.g_varchar2_table(254) := '_table_name VARCHAR2(128)  := norm_name(p_table_name);'||wwv_flow.LF||
-'        v_columns    VARCHAR2(4000) := UPPER(';
-wwv_flow_imp.g_varchar2_table(255) := 'REPLACE(TRIM(BOTH '','' FROM REPLACE(p_columns, '' '')), '',,'', '',''));'||wwv_flow.LF||
+'     ';
+wwv_flow_imp.g_varchar2_table(303) := '   v_table_name VARCHAR2(128)  := norm_name(p_table_name);'||wwv_flow.LF||
+'        v_columns    VARCHAR2(4000) := UP';
+wwv_flow_imp.g_varchar2_table(304) := 'PER(REPLACE(TRIM(BOTH '','' FROM REPLACE(p_columns, '' '')), '',,'', '',''));'||wwv_flow.LF||
 '        v_has_trg    NUMBER;'||wwv_flow.LF||
-'    B';
-wwv_flow_imp.g_varchar2_table(256) := 'EGIN'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(305) := '   BEGIN'||wwv_flow.LF||
 '        MERGE INTO util_audit_config c'||wwv_flow.LF||
-'        USING (SELECT v_table_name table_name FROM dual)';
-wwv_flow_imp.g_varchar2_table(257) := ' src'||wwv_flow.LF||
+'        USING (SELECT v_table_name table_name FROM d';
+wwv_flow_imp.g_varchar2_table(306) := 'ual) src'||wwv_flow.LF||
 '        ON (c.table_name = src.table_name)'||wwv_flow.LF||
 '        WHEN MATCHED THEN'||wwv_flow.LF||
-'            UPDATE SET ign';
-wwv_flow_imp.g_varchar2_table(258) := 'ored_columns = v_columns'||wwv_flow.LF||
+'            UPDATE SET';
+wwv_flow_imp.g_varchar2_table(307) := ' ignored_columns = v_columns'||wwv_flow.LF||
 '        WHEN NOT MATCHED THEN'||wwv_flow.LF||
-'            INSERT (table_name, enabled_flag,';
-wwv_flow_imp.g_varchar2_table(259) := ' created_on, created_by, ignored_columns)'||wwv_flow.LF||
-'            VALUES (src.table_name, ''Y'', SYSDATE, USER, v_';
-wwv_flow_imp.g_varchar2_table(260) := 'columns);'||wwv_flow.LF||
+'            INSERT (table_name, enabled_f';
+wwv_flow_imp.g_varchar2_table(308) := 'lag, created_on, created_by, ignored_columns)'||wwv_flow.LF||
+'            VALUES (src.table_name, ''Y'', SYSDATE, USER';
+wwv_flow_imp.g_varchar2_table(309) := ', v_columns);'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        IF p_regenerate THEN'||wwv_flow.LF||
 '            SELECT COUNT(*) INTO v_has_trg'||wwv_flow.LF||
-'            FROM ';
-wwv_flow_imp.g_varchar2_table(261) := 'v_util_audit_triggers'||wwv_flow.LF||
+'            F';
+wwv_flow_imp.g_varchar2_table(310) := 'ROM v_util_audit_triggers'||wwv_flow.LF||
 '            WHERE table_name = v_table_name;'||wwv_flow.LF||
-'            IF v_has_trg > 0 THEN';
-wwv_flow_imp.g_varchar2_table(262) := ''||wwv_flow.LF||
+'            IF v_has_trg > 0 ';
+wwv_flow_imp.g_varchar2_table(311) := 'THEN'||wwv_flow.LF||
 '                create_audit_trigger(v_table_name);'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
-'    END set';
-wwv_flow_imp.g_varchar2_table(263) := '_table_ignored_columns;'||wwv_flow.LF||
+'    END';
+wwv_flow_imp.g_varchar2_table(312) := ' set_table_ignored_columns;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -----------------------------------------------------------------------';
-wwv_flow_imp.g_varchar2_table(264) := '---'||wwv_flow.LF||
+'    -------------------------------------------------------------------';
+wwv_flow_imp.g_varchar2_table(313) := '-------'||wwv_flow.LF||
 '    -- Public: Re-create all triggers'||wwv_flow.LF||
-'    ------------------------------------------------------';
-wwv_flow_imp.g_varchar2_table(265) := '--------------------'||wwv_flow.LF||
+'    --------------------------------------------------';
+wwv_flow_imp.g_varchar2_table(314) := '------------------------'||wwv_flow.LF||
 '    PROCEDURE recreate_all_triggers IS'||wwv_flow.LF||
 '        v_failed PLS_INTEGER := 0;'||wwv_flow.LF||
-'    B';
-wwv_flow_imp.g_varchar2_table(266) := 'EGIN'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(315) := '   BEGIN'||wwv_flow.LF||
 '        FOR t IN ('||wwv_flow.LF||
 '            SELECT DISTINCT table_name'||wwv_flow.LF||
-'            FROM v_util_audit_trigger';
-wwv_flow_imp.g_varchar2_table(267) := 's'||wwv_flow.LF||
+'            FROM v_util_audit_tri';
+wwv_flow_imp.g_varchar2_table(316) := 'ggers'||wwv_flow.LF||
 '            WHERE table_name IN (SELECT table_name FROM util_audit_config)'||wwv_flow.LF||
-'            ORDER BY ta';
-wwv_flow_imp.g_varchar2_table(268) := 'ble_name'||wwv_flow.LF||
+'            ORDER B';
+wwv_flow_imp.g_varchar2_table(317) := 'Y table_name'||wwv_flow.LF||
 '        ) LOOP'||wwv_flow.LF||
 '            BEGIN'||wwv_flow.LF||
 '                create_audit_trigger(t.table_name);'||wwv_flow.LF||
-'      ';
-wwv_flow_imp.g_varchar2_table(269) := '          DBMS_OUTPUT.PUT_LINE(''Re-created trigger for '' || t.table_name);'||wwv_flow.LF||
-'            EXCEPTION'||wwv_flow.LF||
-'   ';
-wwv_flow_imp.g_varchar2_table(270) := '             WHEN OTHERS THEN'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(318) := '              DBMS_OUTPUT.PUT_LINE(''Re-created trigger for '' || t.table_name);'||wwv_flow.LF||
+'            EXCEPTION';
+wwv_flow_imp.g_varchar2_table(319) := ''||wwv_flow.LF||
+'                WHEN OTHERS THEN'||wwv_flow.LF||
 '                    v_failed := v_failed + 1;'||wwv_flow.LF||
-'                    DBMS';
-wwv_flow_imp.g_varchar2_table(271) := '_OUTPUT.PUT_LINE(''FAILED for '' || t.table_name || '': '' || SQLERRM);'||wwv_flow.LF||
+'                    ';
+wwv_flow_imp.g_varchar2_table(320) := 'DBMS_OUTPUT.PUT_LINE(''FAILED for '' || t.table_name || '': '' || SQLERRM);'||wwv_flow.LF||
 '            END;'||wwv_flow.LF||
-'        END LOO';
-wwv_flow_imp.g_varchar2_table(272) := 'P;'||wwv_flow.LF||
+'        END';
+wwv_flow_imp.g_varchar2_table(321) := ' LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        IF v_failed > 0 THEN'||wwv_flow.LF||
-'            RAISE_APPLICATION_ERROR(-20004, v_failed || '' trigger(s';
-wwv_flow_imp.g_varchar2_table(273) := ') could not be re-created. See the output for details.'');'||wwv_flow.LF||
+'            RAISE_APPLICATION_ERROR(-20004, v_failed || '' trigg';
+wwv_flow_imp.g_varchar2_table(322) := 'er(s) could not be re-created. See the output for details.'');'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
-'    END recreate_all_trigg';
-wwv_flow_imp.g_varchar2_table(274) := 'ers;'||wwv_flow.LF||
+'    END recreate_all_t';
+wwv_flow_imp.g_varchar2_table(323) := 'riggers;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 'END util_audit_gen;'||wwv_flow.LF||
 '/';
@@ -18994,18 +19546,54 @@ wwv_flow_imp.g_varchar2_table(34) := '2,'||wwv_flow.LF||
 '        p_regenerate IN BOOLEAN DEFAULT TRUE'||wwv_flow.LF||
 '    );'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -- The';
-wwv_flow_imp.g_varchar2_table(35) := ' CREATE TRIGGER statement create_audit_trigger would run'||wwv_flow.LF||
+'    -- Sto';
+wwv_flow_imp.g_varchar2_table(35) := 're the columns one table''s trigger must never record, not in the'||wwv_flow.LF||
+'    -- column changes and not in th';
+wwv_flow_imp.g_varchar2_table(36) := 'e row snapshots: passwords, token hashes'||wwv_flow.LF||
+'    -- and other secrets (comma-separated, case-insensitive';
+wwv_flow_imp.g_varchar2_table(37) := '). Ignored columns'||wwv_flow.LF||
+'    -- are different: they stay in the snapshots so restore can bring them'||wwv_flow.LF||
+'    --';
+wwv_flow_imp.g_varchar2_table(38) := ' back. A primary key column cannot be excluded.'||wwv_flow.LF||
+'    -- p_regenerate:    re-create the trigger right ';
+wwv_flow_imp.g_varchar2_table(39) := 'away if the table has one'||wwv_flow.LF||
+'    -- p_scrub_history: also remove these columns from history already'||wwv_flow.LF||
+'   ';
+wwv_flow_imp.g_varchar2_table(40) := ' --                  recorded (see scrub_columns). Does not commit.'||wwv_flow.LF||
+'    PROCEDURE set_table_excluded';
+wwv_flow_imp.g_varchar2_table(41) := '_columns('||wwv_flow.LF||
+'        p_table_name    IN VARCHAR2,'||wwv_flow.LF||
+'        p_columns       IN VARCHAR2,'||wwv_flow.LF||
+'        p_regene';
+wwv_flow_imp.g_varchar2_table(42) := 'rate    IN BOOLEAN DEFAULT TRUE,'||wwv_flow.LF||
+'        p_scrub_history IN BOOLEAN DEFAULT FALSE'||wwv_flow.LF||
+'    );'||wwv_flow.LF||
+''||wwv_flow.LF||
+'    -- Rem';
+wwv_flow_imp.g_varchar2_table(43) := 'oves columns from one table''s recorded history: from the row'||wwv_flow.LF||
+'    -- snapshots of every event and the';
+wwv_flow_imp.g_varchar2_table(44) := ' column changes. Use it when a'||wwv_flow.LF||
+'    -- secret was audited before it was excluded. Archive files alrea';
+wwv_flow_imp.g_varchar2_table(45) := 'dy'||wwv_flow.LF||
+'    -- made (util_audit_archive) are not changed. Does not commit.'||wwv_flow.LF||
+'    PROCEDURE scrub_columns('||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(46) := '       p_table_name IN VARCHAR2,'||wwv_flow.LF||
+'        p_columns    IN VARCHAR2'||wwv_flow.LF||
+'    );'||wwv_flow.LF||
+''||wwv_flow.LF||
+'    -- The CREATE TRIGGER ';
+wwv_flow_imp.g_varchar2_table(47) := 'statement create_audit_trigger would run'||wwv_flow.LF||
 '    FUNCTION get_trigger_ddl('||wwv_flow.LF||
-'        p_tab';
-wwv_flow_imp.g_varchar2_table(36) := 'le_name IN VARCHAR2'||wwv_flow.LF||
+'        p_table_name IN VARCH';
+wwv_flow_imp.g_varchar2_table(48) := 'AR2'||wwv_flow.LF||
 '    ) RETURN CLOB;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    -- Re-create every existing audit trigger, e.g. after an';
-wwv_flow_imp.g_varchar2_table(37) := ' upgrade.'||wwv_flow.LF||
-'    -- Tables that fail are reported (DBMS_OUTPUT) and skipped; the call then'||wwv_flow.LF||
-'    -- raise';
-wwv_flow_imp.g_varchar2_table(38) := 's ORA-20004 naming how many failed.'||wwv_flow.LF||
+'    -- Re-create every existing audit trigger, e.g. after an upgrade.'||wwv_flow.LF||
+'    --';
+wwv_flow_imp.g_varchar2_table(49) := ' Tables that fail are reported (DBMS_OUTPUT) and skipped; the call then'||wwv_flow.LF||
+'    -- raises ORA-20004 nami';
+wwv_flow_imp.g_varchar2_table(50) := 'ng how many failed.'||wwv_flow.LF||
 '    PROCEDURE recreate_all_triggers;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 'END util_audit_gen;'||wwv_flow.LF||
@@ -20350,275 +20938,286 @@ wwv_flow_imp.g_varchar2_table(110) := '  END IF;'||wwv_flow.LF||
 '        -- Columns to write: those in the snapshot that can still be written'||wwv_flow.LF||
 '        FOR ';
 wwv_flow_imp.g_varchar2_table(111) := 'c IN ('||wwv_flow.LF||
-'            SELECT tc.column_name, tc.data_type, tc.virtual_column,'||wwv_flow.LF||
-'                   NVL(ic';
-wwv_flow_imp.g_varchar2_table(112) := '.generation_type, ''-'') generation_type'||wwv_flow.LF||
-'            FROM user_tab_cols tc'||wwv_flow.LF||
-'            LEFT JOIN user_';
-wwv_flow_imp.g_varchar2_table(113) := 'tab_identity_cols ic'||wwv_flow.LF||
-'              ON ic.table_name  = tc.table_name'||wwv_flow.LF||
-'             AND ic.column_name';
-wwv_flow_imp.g_varchar2_table(114) := ' = tc.column_name'||wwv_flow.LF||
+'            SELECT tc.column_name, tc.data_type, tc.virtual_column, tc.nullable, tc.default_l';
+wwv_flow_imp.g_varchar2_table(112) := 'ength,'||wwv_flow.LF||
+'                   NVL(ic.generation_type, ''-'') generation_type'||wwv_flow.LF||
+'            FROM user_tab_col';
+wwv_flow_imp.g_varchar2_table(113) := 's tc'||wwv_flow.LF||
+'            LEFT JOIN user_tab_identity_cols ic'||wwv_flow.LF||
+'              ON ic.table_name  = tc.table_name';
+wwv_flow_imp.g_varchar2_table(114) := ''||wwv_flow.LF||
+'             AND ic.column_name = tc.column_name'||wwv_flow.LF||
 '            WHERE tc.table_name    = e.table_name'||wwv_flow.LF||
-'              AND tc.hidden_colu';
-wwv_flow_imp.g_varchar2_table(115) := 'mn = ''NO'''||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(115) := '              AND tc.hidden_column = ''NO'''||wwv_flow.LF||
 '            ORDER BY tc.column_id'||wwv_flow.LF||
 '        ) LOOP'||wwv_flow.LF||
-'            IF c.virtual_column = ''YES'' T';
-wwv_flow_imp.g_varchar2_table(116) := 'HEN'||wwv_flow.LF||
+'         ';
+wwv_flow_imp.g_varchar2_table(116) := '   IF c.virtual_column = ''YES'' THEN'||wwv_flow.LF||
 '                CONTINUE;'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
-'            IF NOT l_old.has(c.column_name) THEN'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(117) := '               IF e.transaction_type = ''DELETE'' THEN'||wwv_flow.LF||
-'                    l_pk_cols := pk_columns(e.t';
-wwv_flow_imp.g_varchar2_table(118) := 'able_name);'||wwv_flow.LF||
-'                    FOR i IN 1 .. l_pk_cols.COUNT LOOP'||wwv_flow.LF||
-'                        IF l_pk_c';
-wwv_flow_imp.g_varchar2_table(119) := 'ols(i) = c.column_name THEN'||wwv_flow.LF||
-'                            RAISE_APPLICATION_ERROR(-20015, ''Key column ';
-wwv_flow_imp.g_varchar2_table(120) := ''' || c.column_name ||'||wwv_flow.LF||
-'                                '' is not in the audit snapshot, so the row can';
-wwv_flow_imp.g_varchar2_table(121) := 'not be re-inserted.'');'||wwv_flow.LF||
-'                        END IF;'||wwv_flow.LF||
-'                    END LOOP;'||wwv_flow.LF||
+'            IF NOT';
+wwv_flow_imp.g_varchar2_table(117) := ' l_old.has(c.column_name) THEN'||wwv_flow.LF||
+'                IF e.transaction_type = ''DELETE'' THEN'||wwv_flow.LF||
 '               ';
-wwv_flow_imp.g_varchar2_table(122) := ' END IF;'||wwv_flow.LF||
-'                l_missing := l_missing || '', '' || c.column_name;'||wwv_flow.LF||
-'                CONTINUE;'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(118) := '     l_pk_cols := pk_columns(e.table_name);'||wwv_flow.LF||
+'                    FOR i IN 1 .. l_pk_cols.COUNT LOOP'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(119) := '                       IF l_pk_cols(i) = c.column_name THEN'||wwv_flow.LF||
+'                            RAISE_APPLIC';
+wwv_flow_imp.g_varchar2_table(120) := 'ATION_ERROR(-20015, ''Key column '' || c.column_name ||'||wwv_flow.LF||
+'                                '' is not in th';
+wwv_flow_imp.g_varchar2_table(121) := 'e audit snapshot, so the row cannot be re-inserted.'');'||wwv_flow.LF||
+'                        END IF;'||wwv_flow.LF||
+'             ';
+wwv_flow_imp.g_varchar2_table(122) := '       END LOOP;'||wwv_flow.LF||
+'                    -- Typically an excluded column (a password, say)'||wwv_flow.LF||
+'             ';
+wwv_flow_imp.g_varchar2_table(123) := '       IF c.nullable = ''N'' AND NVL(c.default_length, 0) = 0 AND c.generation_type = ''-'' THEN'||wwv_flow.LF||
+'       ';
+wwv_flow_imp.g_varchar2_table(124) := '                 RAISE_APPLICATION_ERROR(-20009, e.table_name || ''.'' || c.column_name ||'||wwv_flow.LF||
+'           ';
+wwv_flow_imp.g_varchar2_table(125) := '                 '' is not recorded (it is excluded from auditing, or was added later) and is '' ||'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(126) := '                          ''NOT NULL without a default, so the deleted row cannot be re-inserted.'');'||wwv_flow.LF||
 '';
-wwv_flow_imp.g_varchar2_table(123) := '            END IF;'||wwv_flow.LF||
-'            IF c.generation_type = ''ALWAYS'' THEN'||wwv_flow.LF||
-'                IF e.transactio';
-wwv_flow_imp.g_varchar2_table(124) := 'n_type = ''DELETE'' THEN'||wwv_flow.LF||
-'                    RAISE_APPLICATION_ERROR(-20014, e.table_name || ''.'' || c.';
-wwv_flow_imp.g_varchar2_table(125) := 'column_name ||'||wwv_flow.LF||
-'                        '' is GENERATED ALWAYS AS IDENTITY, so the row cannot be re-in';
-wwv_flow_imp.g_varchar2_table(126) := 'serted with its original value.'');'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(127) := '                    END IF;'||wwv_flow.LF||
 '                END IF;'||wwv_flow.LF||
+'                l_missing := l_missing || '', '' |';
+wwv_flow_imp.g_varchar2_table(128) := '| c.column_name;'||wwv_flow.LF||
 '                CONTINUE;'||wwv_flow.LF||
-'            END';
-wwv_flow_imp.g_varchar2_table(127) := ' IF;'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
+'            IF c.generation_type = ''A';
+wwv_flow_imp.g_varchar2_table(129) := 'LWAYS'' THEN'||wwv_flow.LF||
+'                IF e.transaction_type = ''DELETE'' THEN'||wwv_flow.LF||
+'                    RAISE_APPLICAT';
+wwv_flow_imp.g_varchar2_table(130) := 'ION_ERROR(-20014, e.table_name || ''.'' || c.column_name ||'||wwv_flow.LF||
+'                        '' is GENERATED ALW';
+wwv_flow_imp.g_varchar2_table(131) := 'AYS AS IDENTITY, so the row cannot be re-inserted with its original value.'');'||wwv_flow.LF||
+'                END IF';
+wwv_flow_imp.g_varchar2_table(132) := ';'||wwv_flow.LF||
+'                CONTINUE;'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '            l_n := l_n + 1;'||wwv_flow.LF||
-'            l_cols(l_n) := c.column_name;'||wwv_flow.LF||
-'            l_dts(l_n)  ';
-wwv_flow_imp.g_varchar2_table(128) := ':= c.data_type;'||wwv_flow.LF||
+'            l_cols(l_n)';
+wwv_flow_imp.g_varchar2_table(133) := ' := c.column_name;'||wwv_flow.LF||
+'            l_dts(l_n)  := c.data_type;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'            IF e.transaction_type = ''DELETE'' THEN'||wwv_flow.LF||
-'                l_list := l_list ';
-wwv_flow_imp.g_varchar2_table(129) := '|| '', '' || q(c.column_name);'||wwv_flow.LF||
-'                l_vals := l_vals || '', '' || from_text_expr('':b'' || l_n,';
-wwv_flow_imp.g_varchar2_table(130) := ' c.data_type);'||wwv_flow.LF||
+'            IF e.transaction_type = ''DEL';
+wwv_flow_imp.g_varchar2_table(134) := 'ETE'' THEN'||wwv_flow.LF||
+'                l_list := l_list || '', '' || q(c.column_name);'||wwv_flow.LF||
+'                l_vals := l_';
+wwv_flow_imp.g_varchar2_table(135) := 'vals || '', '' || from_text_expr('':b'' || l_n, c.data_type);'||wwv_flow.LF||
 '            ELSE'||wwv_flow.LF||
-'                l_list := l_list || '', '' || q(c.column_name) || '' = ';
-wwv_flow_imp.g_varchar2_table(131) := ''' || from_text_expr('':b'' || l_n, c.data_type);'||wwv_flow.LF||
-'            END IF;'||wwv_flow.LF||
+'                l_list :=';
+wwv_flow_imp.g_varchar2_table(136) := ' l_list || '', '' || q(c.column_name) || '' = '' || from_text_expr('':b'' || l_n, c.data_type);'||wwv_flow.LF||
+'          ';
+wwv_flow_imp.g_varchar2_table(137) := '  END IF;'||wwv_flow.LF||
 '        END LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        IF e.t';
-wwv_flow_imp.g_varchar2_table(132) := 'ransaction_type = ''DELETE'' THEN'||wwv_flow.LF||
-'            l_sql := ''INSERT INTO '' || q(e.table_name) || '' ('' || SU';
-wwv_flow_imp.g_varchar2_table(133) := 'BSTR(l_list, 3) || '')'' ||'||wwv_flow.LF||
-'                     '' VALUES ('' || SUBSTR(l_vals, 3) || '')'';'||wwv_flow.LF||
-'        ELSE';
-wwv_flow_imp.g_varchar2_table(134) := ''||wwv_flow.LF||
-'            -- Find the row by its key as it was right after the event'||wwv_flow.LF||
-'            l_pk_cols := pk_';
-wwv_flow_imp.g_varchar2_table(135) := 'columns(e.table_name);'||wwv_flow.LF||
-'            FOR i IN 1 .. l_pk_cols.COUNT LOOP'||wwv_flow.LF||
-'                IF NOT l_new.h';
-wwv_flow_imp.g_varchar2_table(136) := 'as(l_pk_cols(i)) THEN'||wwv_flow.LF||
-'                    RAISE_APPLICATION_ERROR(-20015, ''Key column '' || l_pk_cols';
-wwv_flow_imp.g_varchar2_table(137) := '(i) || '' is not in the audit snapshot.'');'||wwv_flow.LF||
-'                END IF;'||wwv_flow.LF||
+'        IF e.transaction_type = ''DELETE'' THEN'||wwv_flow.LF||
+'            l_sql := ''INS';
+wwv_flow_imp.g_varchar2_table(138) := 'ERT INTO '' || q(e.table_name) || '' ('' || SUBSTR(l_list, 3) || '')'' ||'||wwv_flow.LF||
+'                     '' VALUES (';
+wwv_flow_imp.g_varchar2_table(139) := ''' || SUBSTR(l_vals, 3) || '')'';'||wwv_flow.LF||
+'        ELSE'||wwv_flow.LF||
+'            -- Find the row by its key as it was right a';
+wwv_flow_imp.g_varchar2_table(140) := 'fter the event'||wwv_flow.LF||
+'            l_pk_cols := pk_columns(e.table_name);'||wwv_flow.LF||
+'            FOR i IN 1 .. l_pk_col';
+wwv_flow_imp.g_varchar2_table(141) := 's.COUNT LOOP'||wwv_flow.LF||
+'                IF NOT l_new.has(l_pk_cols(i)) THEN'||wwv_flow.LF||
+'                    RAISE_APPLICATI';
+wwv_flow_imp.g_varchar2_table(142) := 'ON_ERROR(-20015, ''Key column '' || l_pk_cols(i) || '' is not in the audit snapshot.'');'||wwv_flow.LF||
+'               ';
+wwv_flow_imp.g_varchar2_table(143) := ' END IF;'||wwv_flow.LF||
 '                SELECT data_type'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(138) := '               INTO l_pk_dt'||wwv_flow.LF||
-'                FROM user_tab_columns'||wwv_flow.LF||
-'                WHERE table_name  ';
-wwv_flow_imp.g_varchar2_table(139) := '= e.table_name'||wwv_flow.LF||
-'                  AND column_name = l_pk_cols(i);'||wwv_flow.LF||
-'                l_where := l_where ';
-wwv_flow_imp.g_varchar2_table(140) := '|| '' AND '' || q(l_pk_cols(i)) || '' = '' ||'||wwv_flow.LF||
-'                           from_text_expr('':k'' || i, l_pk_';
-wwv_flow_imp.g_varchar2_table(141) := 'dt);'||wwv_flow.LF||
+'                INTO l_pk_dt'||wwv_flow.LF||
+'                FROM user_tab';
+wwv_flow_imp.g_varchar2_table(144) := '_columns'||wwv_flow.LF||
+'                WHERE table_name  = e.table_name'||wwv_flow.LF||
+'                  AND column_name = l_pk_c';
+wwv_flow_imp.g_varchar2_table(145) := 'ols(i);'||wwv_flow.LF||
+'                l_where := l_where || '' AND '' || q(l_pk_cols(i)) || '' = '' ||'||wwv_flow.LF||
+'               ';
+wwv_flow_imp.g_varchar2_table(146) := '            from_text_expr('':k'' || i, l_pk_dt);'||wwv_flow.LF||
 '            END LOOP;'||wwv_flow.LF||
-'            l_sql := ''UPDATE '' || q(e.table_name) || '' SET '' || SUBSTR(l_';
-wwv_flow_imp.g_varchar2_table(142) := 'list, 3) ||'||wwv_flow.LF||
-'                     '' WHERE '' || SUBSTR(l_where, 6);'||wwv_flow.LF||
+'            l_sql := ''UPDATE ''';
+wwv_flow_imp.g_varchar2_table(147) := ' || q(e.table_name) || '' SET '' || SUBSTR(l_list, 3) ||'||wwv_flow.LF||
+'                     '' WHERE '' || SUBSTR(l_wh';
+wwv_flow_imp.g_varchar2_table(148) := 'ere, 6);'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        l_cur := ';
-wwv_flow_imp.g_varchar2_table(143) := 'DBMS_SQL.OPEN_CURSOR;'||wwv_flow.LF||
+'        l_cur := DBMS_SQL.OPEN_CURSOR;'||wwv_flow.LF||
 '        BEGIN'||wwv_flow.LF||
-'            DBMS_SQL.PARSE(l_cur, l_sql, DBMS_SQL.NATIVE);'||wwv_flow.LF||
+'            DBMS_SQL.';
+wwv_flow_imp.g_varchar2_table(149) := 'PARSE(l_cur, l_sql, DBMS_SQL.NATIVE);'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    ';
-wwv_flow_imp.g_varchar2_table(144) := '        FOR i IN 1 .. l_n LOOP'||wwv_flow.LF||
-'                IF l_dts(i) = ''CLOB'' THEN'||wwv_flow.LF||
-'                    -- JSON';
-wwv_flow_imp.g_varchar2_table(145) := ' null must stay NULL, not become an empty CLOB'||wwv_flow.LF||
-'                    l_clob := CASE WHEN NOT l_old.get';
-wwv_flow_imp.g_varchar2_table(146) := '(l_cols(i)).is_null THEN l_old.get_clob(l_cols(i)) END;'||wwv_flow.LF||
-'                    DBMS_SQL.BIND_VARIABLE(l';
-wwv_flow_imp.g_varchar2_table(147) := '_cur, '':b'' || i, l_clob);'||wwv_flow.LF||
+'            FOR i IN 1 .. l_n LOOP'||wwv_flow.LF||
+'                IF l_dts(i';
+wwv_flow_imp.g_varchar2_table(150) := ') = ''CLOB'' THEN'||wwv_flow.LF||
+'                    -- JSON null must stay NULL, not become an empty CLOB'||wwv_flow.LF||
+'          ';
+wwv_flow_imp.g_varchar2_table(151) := '          l_clob := CASE WHEN NOT l_old.get(l_cols(i)).is_null THEN l_old.get_clob(l_cols(i)) END;'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(152) := '                   DBMS_SQL.BIND_VARIABLE(l_cur, '':b'' || i, l_clob);'||wwv_flow.LF||
 '                ELSE'||wwv_flow.LF||
-'                    DBMS_SQL.BIND_VARIABLE(l_cur, '':b';
-wwv_flow_imp.g_varchar2_table(148) := ''' || i, l_old.get_string(l_cols(i)), 32767);'||wwv_flow.LF||
-'                END IF;'||wwv_flow.LF||
+'          ';
+wwv_flow_imp.g_varchar2_table(153) := '          DBMS_SQL.BIND_VARIABLE(l_cur, '':b'' || i, l_old.get_string(l_cols(i)), 32767);'||wwv_flow.LF||
+'            ';
+wwv_flow_imp.g_varchar2_table(154) := '    END IF;'||wwv_flow.LF||
 '            END LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        ';
-wwv_flow_imp.g_varchar2_table(149) := '    IF e.transaction_type = ''UPDATE'' THEN'||wwv_flow.LF||
-'                FOR i IN 1 .. l_pk_cols.COUNT LOOP'||wwv_flow.LF||
-'       ';
-wwv_flow_imp.g_varchar2_table(150) := '             DBMS_SQL.BIND_VARIABLE(l_cur, '':k'' || i, l_new.get_string(l_pk_cols(i)), 32767);'||wwv_flow.LF||
-'      ';
-wwv_flow_imp.g_varchar2_table(151) := '          END LOOP;'||wwv_flow.LF||
+'            IF e.transaction_type = ''UPDATE'' THEN'||wwv_flow.LF||
+'               ';
+wwv_flow_imp.g_varchar2_table(155) := ' FOR i IN 1 .. l_pk_cols.COUNT LOOP'||wwv_flow.LF||
+'                    DBMS_SQL.BIND_VARIABLE(l_cur, '':k'' || i, l_n';
+wwv_flow_imp.g_varchar2_table(156) := 'ew.get_string(l_pk_cols(i)), 32767);'||wwv_flow.LF||
+'                END LOOP;'||wwv_flow.LF||
 '            END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'            l_rows := DBMS_SQL.EXECUTE(l_cur);'||wwv_flow.LF||
-'            ';
-wwv_flow_imp.g_varchar2_table(152) := 'DBMS_SQL.CLOSE_CURSOR(l_cur);'||wwv_flow.LF||
+'            l_ro';
+wwv_flow_imp.g_varchar2_table(157) := 'ws := DBMS_SQL.EXECUTE(l_cur);'||wwv_flow.LF||
+'            DBMS_SQL.CLOSE_CURSOR(l_cur);'||wwv_flow.LF||
 '        EXCEPTION'||wwv_flow.LF||
-'            WHEN OTHERS THEN'||wwv_flow.LF||
-'                IF DBMS';
-wwv_flow_imp.g_varchar2_table(153) := '_SQL.IS_OPEN(l_cur) THEN'||wwv_flow.LF||
-'                    DBMS_SQL.CLOSE_CURSOR(l_cur);'||wwv_flow.LF||
+'         ';
+wwv_flow_imp.g_varchar2_table(158) := '   WHEN OTHERS THEN'||wwv_flow.LF||
+'                IF DBMS_SQL.IS_OPEN(l_cur) THEN'||wwv_flow.LF||
+'                    DBMS_SQL.CLO';
+wwv_flow_imp.g_varchar2_table(159) := 'SE_CURSOR(l_cur);'||wwv_flow.LF||
 '                END IF;'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(154) := '               IF SQLCODE = -1 THEN'||wwv_flow.LF||
-'                    RAISE_APPLICATION_ERROR(-20016, e.table_name';
-wwv_flow_imp.g_varchar2_table(155) := ' || '' '' || l_pk_after ||'||wwv_flow.LF||
-'                        '' already exists, so the deleted row cannot be re-i';
-wwv_flow_imp.g_varchar2_table(156) := 'nserted.'');'||wwv_flow.LF||
-'                ELSIF SQLCODE = -2291 AND p_depth > 0 THEN'||wwv_flow.LF||
-'                    -- A chil';
-wwv_flow_imp.g_varchar2_table(157) := 'd row that also references another deleted parent:'||wwv_flow.LF||
-'                    -- try again once the other r';
-wwv_flow_imp.g_varchar2_table(158) := 'ows are back (see restore_row)'||wwv_flow.LF||
-'                    p_seen.DELETE(p_txn_id);'||wwv_flow.LF||
-'                    g_pe';
-wwv_flow_imp.g_varchar2_table(159) := 'nding(g_pending.COUNT + 1) := p_txn_id;'||wwv_flow.LF||
-'                    say(p_depth, ''Waiting: '' || e.table_name';
-wwv_flow_imp.g_varchar2_table(160) := ' || '' '' || l_pk_after ||'||wwv_flow.LF||
-'                                 '' also needs another parent row.'');'||wwv_flow.LF||
+'                IF SQLCODE = -1 THEN'||wwv_flow.LF||
+'                    R';
+wwv_flow_imp.g_varchar2_table(160) := 'AISE_APPLICATION_ERROR(-20016, e.table_name || '' '' || l_pk_after ||'||wwv_flow.LF||
+'                        '' alread';
+wwv_flow_imp.g_varchar2_table(161) := 'y exists, so the deleted row cannot be re-inserted.'');'||wwv_flow.LF||
+'                ELSIF SQLCODE = -2291 AND p_d';
+wwv_flow_imp.g_varchar2_table(162) := 'epth > 0 THEN'||wwv_flow.LF||
+'                    -- A child row that also references another deleted parent:'||wwv_flow.LF||
 '      ';
-wwv_flow_imp.g_varchar2_table(161) := '              RETURN;'||wwv_flow.LF||
-'                ELSIF SQLCODE = -2291 THEN'||wwv_flow.LF||
-'                    RAISE_APPLICATI';
-wwv_flow_imp.g_varchar2_table(162) := 'ON_ERROR(-20017, ''The parent row of '' || e.table_name || '' '' || l_pk_after ||'||wwv_flow.LF||
-'                      ';
-wwv_flow_imp.g_varchar2_table(163) := '  '' does not exist. Restore the parent row first.'', TRUE);'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(163) := '              -- try again once the other rows are back (see restore_row)'||wwv_flow.LF||
+'                    p_seen';
+wwv_flow_imp.g_varchar2_table(164) := '.DELETE(p_txn_id);'||wwv_flow.LF||
+'                    g_pending(g_pending.COUNT + 1) := p_txn_id;'||wwv_flow.LF||
+'                 ';
+wwv_flow_imp.g_varchar2_table(165) := '   say(p_depth, ''Waiting: '' || e.table_name || '' '' || l_pk_after ||'||wwv_flow.LF||
+'                                ';
+wwv_flow_imp.g_varchar2_table(166) := ' '' also needs another parent row.'');'||wwv_flow.LF||
+'                    RETURN;'||wwv_flow.LF||
+'                ELSIF SQLCODE = -22';
+wwv_flow_imp.g_varchar2_table(167) := '91 THEN'||wwv_flow.LF||
+'                    RAISE_APPLICATION_ERROR(-20017, ''The parent row of '' || e.table_name || ';
+wwv_flow_imp.g_varchar2_table(168) := ''' '' || l_pk_after ||'||wwv_flow.LF||
+'                        '' does not exist. Restore the parent row first.'', TRUE)';
+wwv_flow_imp.g_varchar2_table(169) := ';'||wwv_flow.LF||
 '                END IF;'||wwv_flow.LF||
-'                R';
-wwv_flow_imp.g_varchar2_table(164) := 'AISE;'||wwv_flow.LF||
+'                RAISE;'||wwv_flow.LF||
 '        END;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        IF e.transaction_type = ''UPDATE'' AND l_rows = 0 THEN'||wwv_flow.LF||
-'            RAISE_A';
-wwv_flow_imp.g_varchar2_table(165) := 'PPLICATION_ERROR(-20018, e.table_name || '' '' || l_pk_after ||'||wwv_flow.LF||
-'                '' no longer exists. Re';
-wwv_flow_imp.g_varchar2_table(166) := 'store its DELETE event instead.'');'||wwv_flow.LF||
+'        IF e.transaction_type = ''UPDA';
+wwv_flow_imp.g_varchar2_table(170) := 'TE'' AND l_rows = 0 THEN'||wwv_flow.LF||
+'            RAISE_APPLICATION_ERROR(-20018, e.table_name || '' '' || l_pk_afte';
+wwv_flow_imp.g_varchar2_table(171) := 'r ||'||wwv_flow.LF||
+'                '' no longer exists. Restore its DELETE event instead.'');'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        say(p_depth, ''Restored '' || e.table_name';
-wwv_flow_imp.g_varchar2_table(167) := ' || '' '' || e.pk_value_vc ||'||wwv_flow.LF||
-'                     '' (undid '' || e.transaction_type || '' at '' ||'||wwv_flow.LF||
 '     ';
-wwv_flow_imp.g_varchar2_table(168) := '                TO_CHAR(e.audit_ts, ''YYYY-MM-DD HH24:MI:SS'', ''NLS_CALENDAR=GREGORIAN'') || '')'');'||wwv_flow.LF||
-'    ';
-wwv_flow_imp.g_varchar2_table(169) := '    IF l_missing IS NOT NULL THEN'||wwv_flow.LF||
-'            say(p_depth, ''  Not in the audit snapshot, left '' ||'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(170) := '                        CASE e.transaction_type WHEN ''DELETE'' THEN ''NULL/default'' ELSE ''as they are''';
-wwv_flow_imp.g_varchar2_table(171) := ' END ||'||wwv_flow.LF||
-'                         '': '' || SUBSTR(l_missing, 3));'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(172) := '   say(p_depth, ''Restored '' || e.table_name || '' '' || e.pk_value_vc ||'||wwv_flow.LF||
+'                     '' (undid';
+wwv_flow_imp.g_varchar2_table(173) := ' '' || e.transaction_type || '' at '' ||'||wwv_flow.LF||
+'                     TO_CHAR(e.audit_ts, ''YYYY-MM-DD HH24:MI:S';
+wwv_flow_imp.g_varchar2_table(174) := 'S'', ''NLS_CALENDAR=GREGORIAN'') || '')'');'||wwv_flow.LF||
+'        IF l_missing IS NOT NULL THEN'||wwv_flow.LF||
+'            say(p_depth';
+wwv_flow_imp.g_varchar2_table(175) := ', ''  Not in the audit snapshot, left '' ||'||wwv_flow.LF||
+'                         CASE e.transaction_type WHEN ''DEL';
+wwv_flow_imp.g_varchar2_table(176) := 'ETE'' THEN ''NULL/default'' ELSE ''as they are'' END ||'||wwv_flow.LF||
+'                         '': '' || SUBSTR(l_missing';
+wwv_flow_imp.g_varchar2_table(177) := ', 3));'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        IF e.transa';
-wwv_flow_imp.g_varchar2_table(172) := 'ction_type = ''DELETE'' AND p_include_children THEN'||wwv_flow.LF||
-'            restore_children(e, l_old, p_force, p_';
-wwv_flow_imp.g_varchar2_table(173) := 'depth, p_seen);'||wwv_flow.LF||
+'        IF e.transaction_type = ''DELETE'' AND p_include_children THEN'||wwv_flow.LF||
+'       ';
+wwv_flow_imp.g_varchar2_table(178) := '     restore_children(e, l_old, p_force, p_depth, p_seen);'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 '    END restore_event;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'    PROCEDURE restore_row('||wwv_flow.LF||
-'        p_transac';
-wwv_flow_imp.g_varchar2_table(174) := 'tion_id   IN VARCHAR2,'||wwv_flow.LF||
-'        p_include_children IN BOOLEAN DEFAULT TRUE,'||wwv_flow.LF||
-'        p_force          ';
-wwv_flow_imp.g_varchar2_table(175) := '  IN BOOLEAN DEFAULT FALSE,'||wwv_flow.LF||
-'        p_preview          IN BOOLEAN DEFAULT FALSE'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(179) := '   PROCEDURE restore_row('||wwv_flow.LF||
+'        p_transaction_id   IN VARCHAR2,'||wwv_flow.LF||
+'        p_include_children IN BOOL';
+wwv_flow_imp.g_varchar2_table(180) := 'EAN DEFAULT TRUE,'||wwv_flow.LF||
+'        p_force            IN BOOLEAN DEFAULT FALSE,'||wwv_flow.LF||
+'        p_preview          IN';
+wwv_flow_imp.g_varchar2_table(181) := ' BOOLEAN DEFAULT FALSE'||wwv_flow.LF||
 '    ) IS'||wwv_flow.LF||
-'        l_s';
-wwv_flow_imp.g_varchar2_table(176) := 'een     t_seen;'||wwv_flow.LF||
+'        l_seen     t_seen;'||wwv_flow.LF||
 '        l_module   VARCHAR2(64);'||wwv_flow.LF||
-'        l_action   VARCHAR2(64);'||wwv_flow.LF||
-'        l_waiting ';
-wwv_flow_imp.g_varchar2_table(177) := ' t_names;'||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(182) := 'l_action   VARCHAR2(64);'||wwv_flow.LF||
+'        l_waiting  t_names;'||wwv_flow.LF||
 '        l_progress BOOLEAN;'||wwv_flow.LF||
 '    BEGIN'||wwv_flow.LF||
-'        SAVEPOINT util_audit_restore;'||wwv_flow.LF||
-'        g_pend';
-wwv_flow_imp.g_varchar2_table(178) := 'ing.DELETE;'||wwv_flow.LF||
+'        S';
+wwv_flow_imp.g_varchar2_table(183) := 'AVEPOINT util_audit_restore;'||wwv_flow.LF||
+'        g_pending.DELETE;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        -- Tag the session so the restore''s own audit events say what they are'||wwv_flow.LF||
-'        ';
-wwv_flow_imp.g_varchar2_table(179) := 'DBMS_APPLICATION_INFO.READ_MODULE(l_module, l_action);'||wwv_flow.LF||
-'        DBMS_APPLICATION_INFO.SET_ACTION(''uti';
-wwv_flow_imp.g_varchar2_table(180) := 'l_audit.restore_row '' || SUBSTR(p_transaction_id, 1, 40));'||wwv_flow.LF||
+'        -- Tag the session so the restore''s ';
+wwv_flow_imp.g_varchar2_table(184) := 'own audit events say what they are'||wwv_flow.LF||
+'        DBMS_APPLICATION_INFO.READ_MODULE(l_module, l_action);'||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(185) := '      DBMS_APPLICATION_INFO.SET_ACTION(''util_audit.restore_row '' || SUBSTR(p_transaction_id, 1, 40))';
+wwv_flow_imp.g_varchar2_table(186) := ';'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        restore_event(p_transaction_id, ';
-wwv_flow_imp.g_varchar2_table(181) := 'p_include_children, p_force, 0, l_seen);'||wwv_flow.LF||
+'        restore_event(p_transaction_id, p_include_children, p_force, 0, l_seen);'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        -- Retry child rows that waited for another parent';
-wwv_flow_imp.g_varchar2_table(182) := ' row until a round'||wwv_flow.LF||
+'        -- Retr';
+wwv_flow_imp.g_varchar2_table(187) := 'y child rows that waited for another parent row until a round'||wwv_flow.LF||
 '        -- restores none of them'||wwv_flow.LF||
-'        LOOP'||wwv_flow.LF||
-'            EXIT WHEN g_pending.COU';
-wwv_flow_imp.g_varchar2_table(183) := 'NT = 0;'||wwv_flow.LF||
+'     ';
+wwv_flow_imp.g_varchar2_table(188) := '   LOOP'||wwv_flow.LF||
+'            EXIT WHEN g_pending.COUNT = 0;'||wwv_flow.LF||
 '            l_waiting  := g_pending;'||wwv_flow.LF||
-'            g_pending.DELETE;'||wwv_flow.LF||
-'            l_progress :=';
-wwv_flow_imp.g_varchar2_table(184) := ' FALSE;'||wwv_flow.LF||
+'            ';
+wwv_flow_imp.g_varchar2_table(189) := 'g_pending.DELETE;'||wwv_flow.LF||
+'            l_progress := FALSE;'||wwv_flow.LF||
 '            FOR i IN 1 .. l_waiting.COUNT LOOP'||wwv_flow.LF||
-'                IF NOT l_seen.EXISTS(l_waitin';
-wwv_flow_imp.g_varchar2_table(185) := 'g(i)) THEN'||wwv_flow.LF||
-'                    restore_event(l_waiting(i), p_include_children, p_force, 1, l_seen);'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(186) := '                    l_progress := l_progress OR l_seen.EXISTS(l_waiting(i));'||wwv_flow.LF||
-'                END IF;';
-wwv_flow_imp.g_varchar2_table(187) := ''||wwv_flow.LF||
+'  ';
+wwv_flow_imp.g_varchar2_table(190) := '              IF NOT l_seen.EXISTS(l_waiting(i)) THEN'||wwv_flow.LF||
+'                    restore_event(l_waiting(i)';
+wwv_flow_imp.g_varchar2_table(191) := ', p_include_children, p_force, 1, l_seen);'||wwv_flow.LF||
+'                    l_progress := l_progress OR l_seen.EX';
+wwv_flow_imp.g_varchar2_table(192) := 'ISTS(l_waiting(i));'||wwv_flow.LF||
+'                END IF;'||wwv_flow.LF||
 '            END LOOP;'||wwv_flow.LF||
-'            IF NOT l_progress AND g_pending.COUNT > 0 THEN'||wwv_flow.LF||
-'                RA';
-wwv_flow_imp.g_varchar2_table(188) := 'ISE_APPLICATION_ERROR(-20017, ''Event '' || g_pending(1) || '' references a parent row '' ||'||wwv_flow.LF||
-'           ';
-wwv_flow_imp.g_varchar2_table(189) := '         ''that this restore does not bring back. Restore that parent row first.'');'||wwv_flow.LF||
-'            END I';
-wwv_flow_imp.g_varchar2_table(190) := 'F;'||wwv_flow.LF||
+'            IF NOT l_progress AND ';
+wwv_flow_imp.g_varchar2_table(193) := 'g_pending.COUNT > 0 THEN'||wwv_flow.LF||
+'                RAISE_APPLICATION_ERROR(-20017, ''Event '' || g_pending(1) ||';
+wwv_flow_imp.g_varchar2_table(194) := ' '' references a parent row '' ||'||wwv_flow.LF||
+'                    ''that this restore does not bring back. Restore ';
+wwv_flow_imp.g_varchar2_table(195) := 'that parent row first.'');'||wwv_flow.LF||
+'            END IF;'||wwv_flow.LF||
 '        END LOOP;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 '        IF p_preview THEN'||wwv_flow.LF||
-'            ROLLBACK TO util_audit_restore;'||wwv_flow.LF||
-'        ';
-wwv_flow_imp.g_varchar2_table(191) := '    DBMS_OUTPUT.PUT_LINE(''Preview only: all changes rolled back.'');'||wwv_flow.LF||
+'         ';
+wwv_flow_imp.g_varchar2_table(196) := '   ROLLBACK TO util_audit_restore;'||wwv_flow.LF||
+'            DBMS_OUTPUT.PUT_LINE(''Preview only: all changes rolle';
+wwv_flow_imp.g_varchar2_table(197) := 'd back.'');'||wwv_flow.LF||
 '        END IF;'||wwv_flow.LF||
 ''||wwv_flow.LF||
-'        DBMS_AP';
-wwv_flow_imp.g_varchar2_table(192) := 'PLICATION_INFO.SET_ACTION(l_action);'||wwv_flow.LF||
+'        DBMS_APPLICATION_INFO.SET_ACTION(l_action);'||wwv_flow.LF||
 '    EXCEPTION'||wwv_flow.LF||
-'        WHEN OTHERS THEN'||wwv_flow.LF||
-'            ROLLBACK TO ';
-wwv_flow_imp.g_varchar2_table(193) := 'util_audit_restore;'||wwv_flow.LF||
+'      ';
+wwv_flow_imp.g_varchar2_table(198) := '  WHEN OTHERS THEN'||wwv_flow.LF||
+'            ROLLBACK TO util_audit_restore;'||wwv_flow.LF||
 '            g_pending.DELETE;'||wwv_flow.LF||
-'            DBMS_APPLICATION_INFO.SET_ACTION(l_act';
-wwv_flow_imp.g_varchar2_table(194) := 'ion);'||wwv_flow.LF||
-'            DBMS_OUTPUT.PUT_LINE(''Restore failed: all changes rolled back.'');'||wwv_flow.LF||
-'            RAIS';
-wwv_flow_imp.g_varchar2_table(195) := 'E;'||wwv_flow.LF||
+'       ';
+wwv_flow_imp.g_varchar2_table(199) := '     DBMS_APPLICATION_INFO.SET_ACTION(l_action);'||wwv_flow.LF||
+'            DBMS_OUTPUT.PUT_LINE(''Restore failed: a';
+wwv_flow_imp.g_varchar2_table(200) := 'll changes rolled back.'');'||wwv_flow.LF||
+'            RAISE;'||wwv_flow.LF||
 '    END restore_row;'||wwv_flow.LF||
 ''||wwv_flow.LF||
 'END util_audit_restore;'||wwv_flow.LF||
@@ -20983,145 +21582,146 @@ wwv_flow_imp.g_varchar2_table(27) := '  ELSE ''Paused'''||wwv_flow.LF||
 '    NVL(';
 wwv_flow_imp.g_varchar2_table(28) := 'c.enabled_flag, ''N'')             enabled_flag,'||wwv_flow.LF||
 '    c.ignored_columns,'||wwv_flow.LF||
-'    CASE WHEN EXISTS (SELECT 1';
-wwv_flow_imp.g_varchar2_table(29) := ' FROM user_constraints k'||wwv_flow.LF||
-'                      WHERE k.table_name = t.table_name'||wwv_flow.LF||
-'                   ';
-wwv_flow_imp.g_varchar2_table(30) := '     AND k.constraint_type = ''P'')'||wwv_flow.LF||
-'         THEN ''Y'' ELSE ''N'' END           has_pk,'||wwv_flow.LF||
-'    (SELECT COUNT';
-wwv_flow_imp.g_varchar2_table(31) := '(*) FROM v_util_audit_child_tables ch'||wwv_flow.LF||
-'     WHERE ch.parent_table = t.table_name)                 chi';
-wwv_flow_imp.g_varchar2_table(32) := 'ld_tables,'||wwv_flow.LF||
+'    c.excluded_columns,'||wwv_flow.LF||
+'    CA';
+wwv_flow_imp.g_varchar2_table(29) := 'SE WHEN EXISTS (SELECT 1 FROM user_constraints k'||wwv_flow.LF||
+'                      WHERE k.table_name = t.table_';
+wwv_flow_imp.g_varchar2_table(30) := 'name'||wwv_flow.LF||
+'                        AND k.constraint_type = ''P'')'||wwv_flow.LF||
+'         THEN ''Y'' ELSE ''N'' END           h';
+wwv_flow_imp.g_varchar2_table(31) := 'as_pk,'||wwv_flow.LF||
 '    (SELECT COUNT(*) FROM v_util_audit_child_tables ch'||wwv_flow.LF||
-'     WHERE ch.parent_table = t.tab';
-wwv_flow_imp.g_varchar2_table(33) := 'le_name'||wwv_flow.LF||
-'       AND ch.child_audited = ''N'')                         unaudited_child_tables,'||wwv_flow.LF||
-'    (SELE';
-wwv_flow_imp.g_varchar2_table(34) := 'CT COUNT(*) FROM util_audit_txn x'||wwv_flow.LF||
-'     WHERE x.table_name = t.table_name)                    event_c';
-wwv_flow_imp.g_varchar2_table(35) := 'ount,'||wwv_flow.LF||
+'     WHERE ch.parent_table = t.table_n';
+wwv_flow_imp.g_varchar2_table(32) := 'ame)                 child_tables,'||wwv_flow.LF||
+'    (SELECT COUNT(*) FROM v_util_audit_child_tables ch'||wwv_flow.LF||
+'     WHERE';
+wwv_flow_imp.g_varchar2_table(33) := ' ch.parent_table = t.table_name'||wwv_flow.LF||
+'       AND ch.child_audited = ''N'')                         unaudited';
+wwv_flow_imp.g_varchar2_table(34) := '_child_tables,'||wwv_flow.LF||
+'    (SELECT COUNT(*) FROM util_audit_txn x'||wwv_flow.LF||
+'     WHERE x.table_name = t.table_name)   ';
+wwv_flow_imp.g_varchar2_table(35) := '                 event_count,'||wwv_flow.LF||
 '    (SELECT MAX(x.audit_ts) FROM util_audit_txn x'||wwv_flow.LF||
-'     WHERE x.table_name = t.table_name)     ';
-wwv_flow_imp.g_varchar2_table(36) := '               last_event_ts'||wwv_flow.LF||
+'     WHERE x.table_n';
+wwv_flow_imp.g_varchar2_table(36) := 'ame = t.table_name)                    last_event_ts'||wwv_flow.LF||
 'FROM user_tables t'||wwv_flow.LF||
-'LEFT JOIN (SELECT table_name,'||wwv_flow.LF||
-'                  MIN(';
-wwv_flow_imp.g_varchar2_table(37) := 'trigger_name)  trigger_name,'||wwv_flow.LF||
+'LEFT JOIN (SELECT table_name';
+wwv_flow_imp.g_varchar2_table(37) := ','||wwv_flow.LF||
+'                  MIN(trigger_name)  trigger_name,'||wwv_flow.LF||
 '                  MIN(status)        status,'||wwv_flow.LF||
-'                  MIN(obje';
-wwv_flow_imp.g_varchar2_table(38) := 'ct_status) object_status'||wwv_flow.LF||
-'           FROM v_util_audit_triggers'||wwv_flow.LF||
-'           GROUP BY table_name) tr'||wwv_flow.LF||
 '  ';
-wwv_flow_imp.g_varchar2_table(39) := 'ON tr.table_name = t.table_name'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(38) := '                MIN(object_status) object_status'||wwv_flow.LF||
+'           FROM v_util_audit_triggers'||wwv_flow.LF||
+'           GR';
+wwv_flow_imp.g_varchar2_table(39) := 'OUP BY table_name) tr'||wwv_flow.LF||
+'  ON tr.table_name = t.table_name'||wwv_flow.LF||
 'LEFT JOIN util_audit_config c'||wwv_flow.LF||
-'  ON c.table_name = t.table_name'||wwv_flow.LF||
-'WHERE';
-wwv_flow_imp.g_varchar2_table(40) := ' t.table_name NOT LIKE ''UTIL\_AUDIT\_%'' ESCAPE ''\'''||wwv_flow.LF||
+'  ON c.table_n';
+wwv_flow_imp.g_varchar2_table(40) := 'ame = t.table_name'||wwv_flow.LF||
+'WHERE t.table_name NOT LIKE ''UTIL\_AUDIT\_%'' ESCAPE ''\'''||wwv_flow.LF||
 '  AND t.dropped = ''NO'''||wwv_flow.LF||
 '/'||wwv_flow.LF||
-'create or replace view V';
-wwv_flow_imp.g_varchar2_table(41) := '_UTIL_AUDIT_EVENTS as'||wwv_flow.LF||
+'';
+wwv_flow_imp.g_varchar2_table(41) := 'create or replace view V_UTIL_AUDIT_EVENTS as'||wwv_flow.LF||
 'SELECT'||wwv_flow.LF||
 '    t.audit_ts,'||wwv_flow.LF||
 '    t.table_name,'||wwv_flow.LF||
-'    t.pk_value_vc,'||wwv_flow.LF||
-'    t.transaction_';
-wwv_flow_imp.g_varchar2_table(42) := 'type,'||wwv_flow.LF||
+'    t.pk_valu';
+wwv_flow_imp.g_varchar2_table(42) := 'e_vc,'||wwv_flow.LF||
+'    t.transaction_type,'||wwv_flow.LF||
 '    t.username,'||wwv_flow.LF||
 '    t.transaction_id,'||wwv_flow.LF||
 '    t.db_transaction_id,'||wwv_flow.LF||
-'    t.audit_context,'||wwv_flow.LF||
-'    t.old_';
-wwv_flow_imp.g_varchar2_table(43) := 'row_json,'||wwv_flow.LF||
+'    t.a';
+wwv_flow_imp.g_varchar2_table(43) := 'udit_context,'||wwv_flow.LF||
+'    t.old_row_json,'||wwv_flow.LF||
 '    t.new_row_json'||wwv_flow.LF||
 'FROM util_audit_txn t'||wwv_flow.LF||
 '/'||wwv_flow.LF||
-'create or replace view V_UTIL_AUDIT_CHANGES as'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(44) := 'SELECT'||wwv_flow.LF||
+'create or replace view ';
+wwv_flow_imp.g_varchar2_table(44) := 'V_UTIL_AUDIT_CHANGES as'||wwv_flow.LF||
+'SELECT'||wwv_flow.LF||
 '    r.audit_ts,'||wwv_flow.LF||
 '    r.table_name,'||wwv_flow.LF||
 '    r.pk_value_vc,'||wwv_flow.LF||
-'    r.transaction_type,'||wwv_flow.LF||
+'    r.transactio';
+wwv_flow_imp.g_varchar2_table(45) := 'n_type,'||wwv_flow.LF||
 '    r.username,'||wwv_flow.LF||
-'';
-wwv_flow_imp.g_varchar2_table(45) := '    r.transaction_id,'||wwv_flow.LF||
+'    r.transaction_id,'||wwv_flow.LF||
 '    r.column_name,'||wwv_flow.LF||
 '    r.data_type,'||wwv_flow.LF||
 '    r.old_value,'||wwv_flow.LF||
-'    r.new_value,'||wwv_flow.LF||
-'    r.ol';
-wwv_flow_imp.g_varchar2_table(46) := 'd_clob,'||wwv_flow.LF||
+' ';
+wwv_flow_imp.g_varchar2_table(46) := '   r.new_value,'||wwv_flow.LF||
+'    r.old_clob,'||wwv_flow.LF||
 '    r.new_clob,'||wwv_flow.LF||
 '    r.change_hash'||wwv_flow.LF||
 'FROM util_audit_records r'||wwv_flow.LF||
 '/'||wwv_flow.LF||
-'create or replace view V_UTIL_';
-wwv_flow_imp.g_varchar2_table(47) := 'AUDIT_ROW_HISTORY as'||wwv_flow.LF||
+'create';
+wwv_flow_imp.g_varchar2_table(47) := ' or replace view V_UTIL_AUDIT_ROW_HISTORY as'||wwv_flow.LF||
 'SELECT'||wwv_flow.LF||
 '    e.audit_ts,'||wwv_flow.LF||
 '    e.table_name,'||wwv_flow.LF||
-'    e.pk_value_vc,'||wwv_flow.LF||
-'    e.transaction_t';
-wwv_flow_imp.g_varchar2_table(48) := 'ype,'||wwv_flow.LF||
+'    e.pk_value';
+wwv_flow_imp.g_varchar2_table(48) := '_vc,'||wwv_flow.LF||
+'    e.transaction_type,'||wwv_flow.LF||
 '    e.username,'||wwv_flow.LF||
 '    e.transaction_id,'||wwv_flow.LF||
 '    e.db_transaction_id,'||wwv_flow.LF||
-'    c.column_name,'||wwv_flow.LF||
-'    c.data_ty';
-wwv_flow_imp.g_varchar2_table(49) := 'pe,'||wwv_flow.LF||
+'    c.co';
+wwv_flow_imp.g_varchar2_table(49) := 'lumn_name,'||wwv_flow.LF||
+'    c.data_type,'||wwv_flow.LF||
 '    c.old_value,'||wwv_flow.LF||
 '    c.new_value,'||wwv_flow.LF||
 '    c.old_clob,'||wwv_flow.LF||
 '    c.new_clob,'||wwv_flow.LF||
-'    e.audit_context,'||wwv_flow.LF||
-'    e.old';
-wwv_flow_imp.g_varchar2_table(50) := '_row_json,'||wwv_flow.LF||
+'    e.';
+wwv_flow_imp.g_varchar2_table(50) := 'audit_context,'||wwv_flow.LF||
+'    e.old_row_json,'||wwv_flow.LF||
 '    e.new_row_json'||wwv_flow.LF||
 'FROM v_util_audit_events  e'||wwv_flow.LF||
-'LEFT JOIN v_util_audit_changes c'||wwv_flow.LF||
-'  ON c.tr';
-wwv_flow_imp.g_varchar2_table(51) := 'ansaction_id = e.transaction_id'||wwv_flow.LF||
+'LEFT JOIN v_util_a';
+wwv_flow_imp.g_varchar2_table(51) := 'udit_changes c'||wwv_flow.LF||
+'  ON c.transaction_id = e.transaction_id'||wwv_flow.LF||
 '/'||wwv_flow.LF||
-'create or replace view V_UTIL_AUDIT_LATEST_BY_ROW as'||wwv_flow.LF||
-'SELECT "AUDIT';
-wwv_flow_imp.g_varchar2_table(52) := '_TS","TABLE_NAME","PK_VALUE_VC","TRANSACTION_TYPE","USERNAME","TRANSACTION_ID","DB_TRANSACTION_ID","';
-wwv_flow_imp.g_varchar2_table(53) := 'AUDIT_CONTEXT","OLD_ROW_JSON","NEW_ROW_JSON","RN"'||wwv_flow.LF||
+'create or replace view V_UTIL_AUDIT_LATEST';
+wwv_flow_imp.g_varchar2_table(52) := '_BY_ROW as'||wwv_flow.LF||
+'SELECT "AUDIT_TS","TABLE_NAME","PK_VALUE_VC","TRANSACTION_TYPE","USERNAME","TRANSACTION_I';
+wwv_flow_imp.g_varchar2_table(53) := 'D","DB_TRANSACTION_ID","AUDIT_CONTEXT","OLD_ROW_JSON","NEW_ROW_JSON","RN"'||wwv_flow.LF||
 'FROM ('||wwv_flow.LF||
 '    SELECT'||wwv_flow.LF||
-'        e.*,'||wwv_flow.LF||
-'        ROW_NUMBER(';
-wwv_flow_imp.g_varchar2_table(54) := ') OVER ('||wwv_flow.LF||
+'        ';
+wwv_flow_imp.g_varchar2_table(54) := 'e.*,'||wwv_flow.LF||
+'        ROW_NUMBER() OVER ('||wwv_flow.LF||
 '            PARTITION BY e.table_name, e.pk_value_vc'||wwv_flow.LF||
-'            ORDER BY e.audit_ts DESC'||wwv_flow.LF||
-' ';
-wwv_flow_imp.g_varchar2_table(55) := '       ) rn'||wwv_flow.LF||
+'            OR';
+wwv_flow_imp.g_varchar2_table(55) := 'DER BY e.audit_ts DESC'||wwv_flow.LF||
+'        ) rn'||wwv_flow.LF||
 '    FROM v_util_audit_events e'||wwv_flow.LF||
 ')'||wwv_flow.LF||
 'WHERE rn = 1'||wwv_flow.LF||
 '/'||wwv_flow.LF||
-'create or replace view V_UTIL_AUDIT_EVEN';
-wwv_flow_imp.g_varchar2_table(56) := 'T_SUMMARY as'||wwv_flow.LF||
+'create or replac';
+wwv_flow_imp.g_varchar2_table(56) := 'e view V_UTIL_AUDIT_EVENT_SUMMARY as'||wwv_flow.LF||
 'SELECT'||wwv_flow.LF||
 '    e.audit_ts,'||wwv_flow.LF||
 '    e.table_name,'||wwv_flow.LF||
 '    e.pk_value_vc,'||wwv_flow.LF||
-'    e.transaction_type,'||wwv_flow.LF||
 '   ';
-wwv_flow_imp.g_varchar2_table(57) := ' e.username,'||wwv_flow.LF||
+wwv_flow_imp.g_varchar2_table(57) := ' e.transaction_type,'||wwv_flow.LF||
+'    e.username,'||wwv_flow.LF||
 '    e.transaction_id,'||wwv_flow.LF||
-'    LISTAGG(c.column_name, '', '' ON OVERFLOW TRUNCATE ''...'' WITH C';
-wwv_flow_imp.g_varchar2_table(58) := 'OUNT)'||wwv_flow.LF||
+'    LISTAGG(c.column_name, '', '' ON OVERFL';
+wwv_flow_imp.g_varchar2_table(58) := 'OW TRUNCATE ''...'' WITH COUNT)'||wwv_flow.LF||
 '        WITHIN GROUP (ORDER BY c.column_name) AS changed_columns'||wwv_flow.LF||
-'FROM v_util_audit_events e'||wwv_flow.LF||
-'LE';
-wwv_flow_imp.g_varchar2_table(59) := 'FT JOIN v_util_audit_changes c'||wwv_flow.LF||
+'FROM ';
+wwv_flow_imp.g_varchar2_table(59) := 'v_util_audit_events e'||wwv_flow.LF||
+'LEFT JOIN v_util_audit_changes c'||wwv_flow.LF||
 '  ON c.transaction_id = e.transaction_id'||wwv_flow.LF||
-'GROUP BY'||wwv_flow.LF||
-'    e.audit_ts, e.t';
-wwv_flow_imp.g_varchar2_table(60) := 'able_name, e.pk_value_vc, e.transaction_type, e.username, e.transaction_id'||wwv_flow.LF||
+'GROU';
+wwv_flow_imp.g_varchar2_table(60) := 'P BY'||wwv_flow.LF||
+'    e.audit_ts, e.table_name, e.pk_value_vc, e.transaction_type, e.username, e.transaction_id'||wwv_flow.LF||
 '/';
 wwv_flow_imp_shared.create_install_script(
  p_id=>wwv_flow_imp.id(5508530861560935)

@@ -163,7 +163,8 @@ Tables lists every table in the schema and whether it is audited. Click a table 
 
 ## Other columns
 
-- **Ignored Columns**: columns this table's trigger skips.
+- **Ignored Columns**: bookkeeping columns whose changes are not listed.
+- **Excluded Columns**: secrets that are never recorded at all.
 - **Child Tables**: tables that point at this one with a foreign key. **Unaudited Child Tables** counts the ones without a trigger. Restoring a deleted row cannot bring back rows from those.
 - **Events** and **Last Event**: how much has been recorded, and when last.
 
@@ -190,6 +191,14 @@ Move the columns you do not want recorded to the right, then press **Save Ignore
 A change that only touches ignored columns records nothing. These are always ignored: CREATED, CREATED_ON, CREATED_BY, UPDATED, UPDATED_ON, UPDATED_BY, MODIFIED, MODIFIED_ON, MODIFIED_BY.
 
 Ignored columns are still kept in the copy of the whole row that each event stores, so a restored row gets them back.
+
+## Excluded columns
+
+For secrets, such as password hashes and reset tokens. An excluded column is never written to the audit trail: not as a change, and not in the copy of the whole row. Key columns cannot be excluded.
+
+A restored row gets an empty value or the column default for excluded columns. If such a column is required and has no default, a deleted row cannot be restored, and Restore says so.
+
+Turn on **Also remove them from history already recorded** to delete these columns from everything this table has recorded so far. This cannot be undone, and archive files made earlier keep them.
 
 ## Child tables
 
